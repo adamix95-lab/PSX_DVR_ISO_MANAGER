@@ -1,0 +1,57 @@
+name: Build Neutrino DVR (PR 228)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build DVR-enabled Neutrino
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - name: Checkout upstream PR 228
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: refs/pull/228/head
+          fetch-depth: 0
+          path: neutrino
+
+      - name: Compile Neutrino and DVR modules
+        working-directory: neutrino
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$(pwd)"
+          git rev-parse HEAD | tee PR228_COMMIT.txt
+          make clean all copy
+          test -s ee/loader/neutrino.elf
+          test -s ee/loader/modules/dvrdrv.irx
+          test -s ee/loader/modules/dvrfile.irx
+          test -s ee/loader/modules/dvrfile_fhi.irx
+          test -s ee/loader/config/bsd-dvr.toml
+
+      - name: Package complete runtime
+        working-directory: neutrino
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/DESR7000_DVR
+          cp ee/loader/neutrino.elf dist/DESR7000_DVR/
+          cp -a ee/loader/modules dist/DESR7000_DVR/
+          cp -a ee/loader/config dist/DESR7000_DVR/
+          cp PR228_COMMIT.txt dist/DESR7000_DVR/
+          cp README.md dist/DESR7000_DVR/README_UPSTREAM.md
+          if [ -f ee/loader/version.txt ]; then
+            cp ee/loader/version.txt dist/DESR7000_DVR/
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR7000-DVR-Neutrino-PR228
+          path: neutrino/dist/DESR7000_DVR/
+          if-no-files-found: error
