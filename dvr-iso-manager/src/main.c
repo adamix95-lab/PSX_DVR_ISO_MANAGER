@@ -259,7 +259,8 @@ static int ensure_original_backup(void) {
 
   backup_len = read_small_file(USB_BACKUP_CNF, backup, sizeof(backup));
   if (backup_len > 0) return 0;
-  if (backup_len != -ENOENT) {
+  /* FatFS can report FR_NO_FILE as -4, rather than POSIX -ENOENT. */
+  if (backup_len != -ENOENT && backup_len != -4) {
     snprintf(status, sizeof(status), "Existing USB backup invalid (%d)", backup_len);
     return -82;
   }
