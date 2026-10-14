@@ -18,6 +18,18 @@ IOP i przed otwarciem ISO. To tylko HIPOTEZA: tryb 1 może unieważnić
 dostęp do DVR i spowodować, że ISO się nie uruchomi. Nie jest potwierdzone,
 że QUIT wróci do XMB z gry uruchomionej przez Neutrino.
 
+## Dodatkowy opis działania QUIT GAME (informacja ze społeczności PSX)
+
+- Jeśli flaga `NoticeGameStart` nie jest ustawiona, QUIT jest ignorowany.
+- Jeśli DEV9 jest zasilany, firmware ustawia flagę: zamiast żądania wyłączenia
+  ma zostać wykonany reset; następnie uruchamia zwykłą procedurę wyłączania.
+- Jeśli DEV9 nie jest zasilany, następuje reset bez tej sekwencji.
+- OSDSYS sprawdza `wake-up reason`, rozpoznaje QUIT GAME i pomija intro.
+
+Wniosek: ta funkcja zależy od **oryginalnego firmware DVRP/Mechacon/OSDSYS**;
+nie jest zwykłym programowym `LoadExecPS2`. Samo zgłoszenie `notice(1)` nie
+gwarantuje, że powrót się uda. Szczególnie ważny jest stan DEV9 podczas
+odczytu ISO z `__xcontents`; QUIT testujemy wyłącznie gdy gra niczego nie zapisuje.
 ## Zabezpieczenia
 
 - Wykonanie nowej komendy wymaga argumentu `-quitgame=1` **oraz** `-bsd=dvr`.
