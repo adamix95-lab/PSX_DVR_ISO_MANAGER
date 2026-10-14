@@ -1,6 +1,6 @@
 # DVR ISO Manager v0.2 — OSD Language (Sony PSX DESR-7000)
 
-**EKSPERYMENT: nie scalaj do main do czasu testu na prawdziwym PSX.**
+**Stan: potwierdzony start i przełączanie języka na fizycznym Sony PSX DESR-7000.** Obsługa angielskiego zależy od wersji i zasobów konkretnej gry.
 v0.1.5 jest już przetestowany na DESR-7000 (Metal Slug Anthology startuje bezpośrednio X).
 Ta gałąź dodaje TYLKO możliwość wyboru języka OSD. Nadal startuje przez ten sam OSDMenu BOOT.ELF.
 
@@ -44,7 +44,16 @@ Stare pliki MUSZĄ pozostać:
 Tryb SYSTEM generuje dokładnie ten sam CNF co v0.1.5 (bez nowych argumentów).
 Manager nie zapisuje do DVR ani APA; na USB zapisuje tylko pliki CNF.
 
-## Plan pierwszego testu
+## Wyniki testów sprzętowych v0.2 (2026-10-15)
+
+- Metal Slug Anthology: tryb SYSTEM = japoński; ENGLISH = angielski. Potwierdzony start gry przez Quickboot na DESR-7000.
+- REZ: uruchomiony w trybie ENGLISH; angielskie komunikaty dotyczące autosave i wczytania zapisu potwierdzone zdjęciami.
+- Jeden z przycisków OK na zdjęciu REZ nadal wyświetla japoński napis — część zasobów gry może być niezależna od ustawień OSD.
+- Manager ELF można uruchamiać z serwera UDPFS przez wLE-R3Z; zapis BOOT.CNF i start OSDMenu BOOT.ELF pozostają na USB (mass0:/DESR_DVR/).
+- Zmienione jest wyłącznie to, co gra otrzymuje z konfiguracji OSD; japońskiego menu systemowego XMB nie zmieniano.
+- Pozostałe tytuły i pełne przejście gameplayu nie zostały zweryfikowane.
+
+## Instrukcja odtworzenia testu
 
 1. Zrób kopię działającego BOOT.CNF na komputerze.
 2. Dodaj trzy nowe pliki z Neutrino v0.2 i podmień tylko Manager ELF.
