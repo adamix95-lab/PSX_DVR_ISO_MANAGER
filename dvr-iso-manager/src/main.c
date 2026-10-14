@@ -1,10 +1,12 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.1.3: X writes a disposable USB test CNF, never BOOT.CNF. */
+   v0.1.4: X direct-launches Neutrino with the selected DVR ISO.
+   SQUARE writes a disposable USB test CNF; BOOT.CNF is never changed. */
 
 #include "iso_utils.h"
 #include <debug.h>
+#include <elf-loader.h>
 #include <libcdvd.h>
 #include <iopcontrol.h>
 #include <kernel.h>
@@ -154,7 +156,7 @@ static int scan_dvr(void) {
 static void draw(void) {
   int i, first;
   scr_clear();
-  scr_printf("DESR7000 DVR ISO MANAGER   v0.1 TEST\n");
+  scr_printf("DESR7000 DVR ISO MANAGER  v0.1.4 DIRECT TEST\n");
   scr_printf("------------------------------------------------\n");
   scr_printf("DVR: %s\n", DVR_FOLDER);
   scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
@@ -171,9 +173,9 @@ static void draw(void) {
     scr_printf("\nSelected %d / %d\n", selected + 1, count);
   }
   scr_printf("\nUP/DOWN: select   TRIANGLE: rescan\n");
-  scr_printf("X: write DVR_TEST.CNF on USB   START: exit\n");
-  scr_printf("No DVR writes. BOOT.CNF stays untouched.\n");
-  scr_printf("After verification, copy test CNF to BOOT.CNF manually.\n");
+  scr_printf("X: launch selected ISO   SQUARE: save test CNF\n");
+  scr_printf("START: exit.  No DVR writes, no BOOT.CNF edits.\n");
+  scr_printf("Direct launch resets IOP and starts Neutrino.\n");
 }
 
 static int usb_ready(void) {
@@ -236,6 +238,42 @@ static int save_cnf(void) {
   return 0;
 }
 
+/* Launch Neutrino with exactly the two arguments used by the working USB
+   OSDMenu Quickboot, but pass them directly in argv; no disk config writes.
+   PS2SDK's elf-loader stages a separate loader before overwriting EE RAM. */
+static int launch_selected_iso(void) {
+  char iso_path[256], dvd_arg[288];
+  char *game_args[2];
+  int rc, n;
+
+  if (count <= 0) return -20;
+  if (desr_make_iso_path(games[selected], iso_path, sizeof(iso_path)) < 0)
+    return -21;
+  n = snprintf(dvd_arg, sizeof(dvd_arg), "-dvd=%s", iso_path);
+  if (n < 0 || (size_t)n >= sizeof(dvd_arg)) return -22;
+  rc = usb_ready();
+  if (rc < 0) return rc;
+
+  game_args[0] = "-bsd=dvr";
+  game_args[1] = dvd_arg;
+
+  scr_clear();
+  scr_printf("DVR ISO Manager v0.1.4: direct launch TEST\\n");
+  scr_printf("Neutrino: %s\\n", USB_NEUTRINO);
+  scr_printf("Game ISO: %s\\n", iso_path);
+  scr_printf("Handing control to PS2SDK ELF loader...\\n");
+
+  padPortClose(0, 0);
+  padEnd();
+  /* The loader resets the IOP after loading target ELF, and normally
+     never returns.  If it does, restore the controller for diagnostics. */
+  rc = LoadELFFromFile(USB_NEUTRINO, 2, game_args);
+  if (!padInit(0) || !padPortOpen(0, 0, padbuf))
+    return -23;
+  prev_buttons = 0xffff;
+  return rc ? rc : -24; /* Unexpected return is not a launch success. */
+}
+
 int main(int argc, char *argv[]) {
   int rc, bits, new_press;
   struct padButtonStatus btn;
@@ -271,6 +309,11 @@ int main(int argc, char *argv[]) {
         selected = (selected + 1) % count; draw();
       }
       if (count && (new_press & PAD_CROSS)) {
+        rc = launch_selected_iso();
+        snprintf(status, sizeof(status), "Direct launch returned: %d (check USB ELF)", rc);
+        draw();
+      }
+      if (count && (new_press & PAD_SQUARE)) {
         rc = save_cnf();
         if (!rc) {
           snprintf(status, sizeof(status), "Verified DVR_TEST.CNF (no BOM): %.60s", games[selected]);
