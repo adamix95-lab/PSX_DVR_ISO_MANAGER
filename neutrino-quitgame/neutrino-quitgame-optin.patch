@@ -1,52 +1,59 @@
 diff --git a/ee/loader/src/main.c b/ee/loader/src/main.c
 --- a/ee/loader/src/main.c
 +++ b/ee/loader/src/main.c
-@@ -34,6 +34,11 @@
- struct SModule mod_ee_core;
+@@ -50,6 +50,9 @@
+ void _libcglue_rtc_update() {}; // Disable rtc update
  
-+/* PR #8 experiment: only the dedicated test ELF accepts -quitgame=1.
-+ * This defaults to off to preserve Neutrino PR #228 behavior. */
-+static int desr_quitgame_requested = 0;
+ struct SModule mod_ee_core;
 +
++/* PR #8: optional, disabled-by-default DESR QUIT GAME notification. */
++static int desr_quitgame_requested = 0;
+ 
  void print_usage()
  {
-@@ -131,6 +136,8 @@
+@@ -131,6 +134,8 @@
+     printf("  -cwd=<path>       Change working directory\n");
+     printf("\n");
      printf("  -cfg=<file>       Load extra user/game specific config file (without .toml extension)\n");
 +    printf("  -quitgame=1       EXPERIMENTAL DESR: enable front-panel QUIT GAME\n");
-+    printf("  -quitgame=0       Leave original Neutrino behavior unchanged (default)\n");
++    printf("  -quitgame=0       Leave original boot path unchanged (default)\n");
      printf("\n");
-@@ -188,6 +195,10 @@
-         else if (!strncmp(argv[i], "-cwd=", 5))
-             continue; // already handled before config loading
+     printf("  -dbc              Enable debug colors\n");
+     printf("  -logo             Enable logo (adds rom0:PS2LOGO to arguments)\n");
+@@ -193,6 +198,10 @@
+             sys.eecore.osdlang_mode = 1;
+         else if (!strcmp(argv[i], "-osdlang=system"))
+             sys.eecore.osdlang_mode = 0;
 +        else if (!strcmp(argv[i], "-quitgame=1"))
 +            desr_quitgame_requested = 1;
 +        else if (!strcmp(argv[i], "-quitgame=0"))
 +            desr_quitgame_requested = 0;
+         else if (!strncmp(argv[i], "-cwd=", 5))
+             continue; // already handled before config loading
          else if (!strncmp(argv[i], "-dbc", 4))
-             sys.bDebug = 1;
-@@ -714,6 +725,15 @@
--    if (sys.bQuickBoot == 0) {
-+    /* Enabling QUIT while running a different device could affect its
-+     * Mechacon state; refuse it outside the normal DVR load path. */
+@@ -723,6 +732,13 @@
+      * **********************************************************************
+      */
+ 
++    /* Do not alter non-DVR or quick-boot device state. */
 +    if (desr_quitgame_requested &&
 +        (strcmp(sys.sBSD, "dvr") != 0 || sys.bQuickBoot != 0)) {
 +        printf("ERROR: -quitgame=1 requires -bsd=dvr and normal boot\n");
 +        return -1;
 +    }
 +
-+    if (sys.bQuickBoot == 0) {
-@@ -739,6 +759,33 @@
+     if (sys.bQuickBoot == 0) {
+         /*
+          * Reboot IOP into Load Environment (LE)
+@@ -745,6 +761,31 @@
+             uint8_t in[4] = {0};
+             uint8_t out[16] = {};
              sceCdApplySCmd(0x29, in, 4, out);
 +
-+            /* DESR research: the original command with mode 0 prepares
-+             * DVR access. Official PSX game launchers use mode 1 to
-+             * enable the hardware QUIT GAME button (Mechacon notification).
-+             *
-+             * This is deliberately AFTER the stock mode-0 command and
-+             * BEFORE the IOP reboot or opening any DVR ISO handles.
-+             * IMPORTANT: it is not yet proven that mode 1 preserves DVR
-+             * access on DESR-7000. Use only in the additive test ELF.
-+             */
++            /* Mode 0 is needed for DVR access. The separate mode-1
++             * notification enables the physical QUIT GAME switch.
++             * Hardware test required: mode 1 might prevent later ISO reads.
++             * Send BEFORE resetting IOP/opening any DVR ISO handle. */
 +            if (desr_quitgame_requested) {
 +                uint8_t quit_in[4] = {1, 0, 0, 0};
 +                uint8_t quit_out[16] = {0};
@@ -68,3 +75,5 @@ diff --git a/ee/loader/src/main.c b/ee/loader/src/main.c
 +                printf("DESR: QUIT GAME notice(1) accepted (experimental)\n");
 +            }
              sceCdInit(SCECdEXIT);
+         }
+ 
