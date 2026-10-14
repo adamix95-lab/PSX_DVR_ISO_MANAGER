@@ -1,0 +1,3 @@
+# PR #8: additional EE core for opt-in QUIT test. Do not replace system.toml.
+name = "DESR QUIT GAME experimental test core"
+eecore.elf = "ee_core_quit.elf"
