@@ -1,0 +1,73 @@
+name: Build Neutrino DVR v0.2 OSD Language (experimental)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "neutrino-v02/**"
+      - ".github/workflows/build-neutrino-dvr-osdlang.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Neutrino PR228 + isolated OSD English hook
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+
+    steps:
+      - name: Checkout DVR ISO Manager patch
+        uses: actions/checkout@v4
+        with:
+          path: manager
+
+      - name: Checkout exact verified Neutrino DVR PR228 revision
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+
+      - name: Validate and apply isolated OSD English patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          git rev-parse HEAD | tee PR228_COMMIT.txt
+          test "$(cat PR228_COMMIT.txt)" = "aa8d80a1a0b5323cb407c814c0568c3489597c1c"
+          git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          git diff --check
+          git diff --stat
+
+      - name: Compile language-enabled Neutrino and DVR modules
+        working-directory: neutrino
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean all copy
+          test -s ee/loader/neutrino.elf
+          test -s ee/loader/modules/ee_core.elf
+          test -s ee/loader/modules/dvrfile_fhi.irx
+          test -s ee/loader/config/bsd-dvr.toml
+
+      - name: Package additive USB files only (preserve working Neutrino)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/DESR_DVR/modules dist/DESR_DVR/config
+          cp neutrino/ee/loader/neutrino.elf dist/DESR_DVR/neutrino_lang.elf
+          cp neutrino/ee/loader/modules/ee_core.elf dist/DESR_DVR/modules/ee_core_lang.elf
+          cp manager/neutrino-v02/osdlang.toml dist/DESR_DVR/config/osdlang.toml
+          cp manager/neutrino-v02/README_PL.md dist/README_OSDLANG_PL.md
+          cp neutrino/PR228_COMMIT.txt dist/PR228_COMMIT.txt
+
+      - name: Upload experimental language-enabled Neutrino
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR7000-Neutrino-PR228-v0.2-OSD-English-UNTESTED
+          path: dist/
+          if-no-files-found: error

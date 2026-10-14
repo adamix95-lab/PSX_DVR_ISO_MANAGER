@@ -1,0 +1,5 @@
+# Neutrino v0.2 language-mode override. Never replace config/system.toml.
+# -cfg=osdlang causes Neutrino to load modules/ee_core_lang.elf
+# only for games started with the experimental English option.
+name = "DVR OSD English experimental EE core"
+eecore.elf = "ee_core_lang.elf"
