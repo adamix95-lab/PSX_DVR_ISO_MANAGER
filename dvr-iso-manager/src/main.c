@@ -1,8 +1,8 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.2 TEST: SELECT toggles System/English; X keeps proven OSDMenu Quickboot.
-   English uses a separate Neutrino + EE core; default is System. */
+   v0.3 MONO: cursor-free PSX text UI. Existing v0.2 game launch and
+   language behavior is unchanged; only the presentation is simplified. */
 
 #include "iso_utils.h"
 #include <debug.h>
@@ -57,6 +57,7 @@ static int count;
 static int selected;
 static int force_english; /* 0 = system (proven), 1 = English (experimental) */
 static char status[120] = "Starting...";
+static int status_visible; /* only errors/confirmed actions appear in the menu */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -125,6 +126,7 @@ static int scan_dvr(void) {
   iox_dirent_t ent;
   count = 0;
   selected = 0;
+  status_visible = 0;
   /* Diagnostics distinguish driver/device failure from an ISO folder error. */
   dvr_probe_hdd = fileXioDopen("dvr_hdd0:");
   if (dvr_probe_hdd >= 0) {
@@ -138,7 +140,8 @@ static int scan_dvr(void) {
   }
   fd = fileXioDopen(DVR_FOLDER);
   if (fd < 0) {
-    snprintf(status, sizeof(status), "Can't open %s (%d)", DVR_FOLDER, fd);
+    snprintf(status, sizeof(status), "Cannot open DVR ISO folder (%d)", fd);
+    status_visible = 1;
     return fd;
   }
   while ((n = fileXioDread(fd, &ent)) > 0) {
@@ -154,38 +157,69 @@ static int scan_dvr(void) {
   fileXioDclose(fd);
   qsort(games, (size_t)count, sizeof(games[0]), name_compare);
   if (n < 0) {
-    snprintf(status, sizeof(status), "Directory read error %d", n);
+    snprintf(status, sizeof(status), "DVR directory read error %d", n);
+    status_visible = 1;
   } else {
-    snprintf(status, sizeof(status), "Found %d ISO file(s), DVR read-only", count);
+    snprintf(status, sizeof(status), "Found %d ISO file(s)", count);
   }
   return n < 0 ? n : count;
 }
 
+/*
+ * Minimal MONO UI for PS2SDK debug framebuffer (usable rows 0..27).
+ * PS2SDK enables a white BLOCK cursor, glyph 219, by default. This caused
+ * the white rectangles in v0.2; scr_setCursor(0) fixes the real cause.
+ * Game names are abbreviated only on screen; CNF uses the exact original.
+ */
 static void draw(void) {
-  int i, first;
+  int i, first, last, title_len;
+
   scr_clear();
-  scr_printf("DESR7000 DVR ISO MANAGER v0.2 OSD LANG TEST\n");
-  scr_printf("------------------------------------------------\n");
-  scr_printf("DVR: %s\n", DVR_FOLDER);
-  scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
-             dvr_notice_game_start, dvr_probe_hdd, dvr_probe_root);
-  scr_printf("%s\n", status);
-  scr_printf("Language: %s  (SELECT to toggle)\n\n",
-             force_english ? "ENGLISH [experimental]" : "SYSTEM [proven]");
-  if (!count) {
-    scr_printf("No ISO files detected.\n");
-    scr_printf("Make sure your DVR contains __xcontents/ISO/*.ISO\n");
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+
+  scr_setXY(2, 1);
+  scr_printf("PSX DVR ISO MANAGER");
+  scr_setXY(69, 1);
+  scr_printf("v0.3");
+  scr_setXY(2, 3);
+  scr_printf("--------------------------------------------------------------");
+  scr_setXY(2, 5);
+  scr_printf("%d GAME%s", count, count == 1 ? "" : "S");
+  if (count > 12) {
+    scr_setXY(24, 5);
+    scr_printf("PAGE %d/%d", selected / 12 + 1, (count + 11) / 12);
+  }
+  scr_setXY(43, 5);
+  scr_printf("LANGUAGE: %s", force_english ? "ENGLISH" : "SYSTEM");
+
+  if (count == 0) {
+    scr_setXY(4, 10);
+    scr_printf("No ISO games found.");
+    scr_setXY(4, 11);
+    scr_printf("Press TRIANGLE to rescan.");
   } else {
     first = (selected / 12) * 12;
-    for (i = first; i < count && i < first + 12; i++) {
-      scr_printf("%c %3d  %.55s\n", i == selected ? '>' : ' ', i + 1, games[i]);
+    last = first + 12;
+    if (last > count) last = count;
+    for (i = first; i < last; i++) {
+      /* Drop .iso/.ISO extension in display only; not in launch path. */
+      title_len = (int)strlen(games[i]) - 4; /* validated by scanner */
+      if (title_len > 64) title_len = 64;
+      scr_setXY(4, 9 + i - first);
+      scr_printf("%c  %.*s", i == selected ? '>' : ' ',
+                 title_len, games[i]);
     }
-    scr_printf("\nSelected %d / %d\n", selected + 1, count);
   }
-  scr_printf("\nUP/DOWN: select   TRIANGLE: rescan\n");
-  scr_printf("X: save BOOT.CNF + launch BOOT.ELF\n");
-  scr_printf("SQUARE: test CNF   SELECT: language  START: exit\n");
-  scr_printf("Backup: BOOT_RECOVERY.CNF. No DVR writes.\n");
+
+  if (status_visible) {
+    scr_setXY(2, 22);
+    scr_printf("%.73s", status);
+  }
+  scr_setXY(2, 24);
+  scr_printf("UP/DOWN  Select    X  Launch    SELECT  Language");
+  scr_setXY(2, 25);
+  scr_printf("TRIANGLE Rescan    SQUARE Test CNF    START Exit");
 }
 
 /* Native PS2SDK fileXio requires FIO_O_* flags, not POSIX O_* flags. */
@@ -316,7 +350,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("DVR ISO Manager v0.2 OSD LANGUAGE TEST\n");
+  scr_printf("PSX DVR ISO MANAGER v0.3\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -338,7 +372,11 @@ int main(int argc, char *argv[]) {
   struct padButtonStatus btn;
   (void)argc; (void)argv;
   init_scr();
-  scr_printf("DESR DVR ISO Manager - read-only scanner\n");
+  /* Fix PS2SDK white block cursor artifacts without changing text rendering. */
+  scr_setCursor(0);
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_printf("PSX DVR ISO Manager - reading DVR games\n");
   rc = init_drivers();
   if (rc < 0) {
     scr_printf("\nDriver initialization error %d\n", rc);
@@ -363,21 +401,25 @@ int main(int argc, char *argv[]) {
       if (new_press & PAD_TRIANGLE) { scan_dvr(); draw(); }
       if (new_press & PAD_SELECT) {
         force_english = !force_english;
-        snprintf(status, sizeof(status), "Language mode: %s",
-                 force_english ? "ENGLISH (experimental)" : "SYSTEM (proven)");
+        status_visible = 0;
         draw();
       }
       if (count && (new_press & PAD_UP)) {
-        selected = (selected + count - 1) % count; draw();
+        selected = (selected + count - 1) % count;
+        status_visible = 0;
+        draw();
       }
       if (count && (new_press & PAD_DOWN)) {
-        selected = (selected + 1) % count; draw();
+        selected = (selected + 1) % count;
+        status_visible = 0;
+        draw();
       }
       if (count && (new_press & PAD_CROSS)) {
         rc = launch_via_quickboot();
         if (rc != -81 && rc != -82 && rc != -83 && rc != -91 &&
             rc != -92 && rc != -93 && rc != -95)
           snprintf(status, sizeof(status), "Quickboot setup failed: %d", rc);
+        status_visible = 1;
         draw();
       }
       if (count && (new_press & PAD_SQUARE)) {
@@ -386,6 +428,7 @@ int main(int argc, char *argv[]) {
           snprintf(status, sizeof(status), "Verified DVR_TEST.CNF: %.60s", games[selected]);
         else
           snprintf(status, sizeof(status), "DVR_TEST.CNF failed: %d", rc);
+        status_visible = 1;
         draw();
       }
     }
