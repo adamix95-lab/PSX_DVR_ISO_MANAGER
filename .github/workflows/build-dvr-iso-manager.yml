@@ -1,4 +1,4 @@
-name: Build DVR ISO Manager v0.1
+name: Build DVR ISO Manager v0.1.4
 on:
   workflow_dispatch:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: DESR7000-DVR-ISO-Manager-Stage1-UNTESTED
+          name: DESR7000-DVR-ISO-Manager-v0.1.4-DirectLaunch-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
