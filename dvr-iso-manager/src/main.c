@@ -230,7 +230,8 @@ int main(int argc, char *argv[]) {
         draw();
       }
     }
-    DelayThread(20000);
+    /* EE-side frame polling: POSIX delay (20 ms), not the IOP DelayThread API. */
+    usleep(20000);
   }
   padPortClose(0, 0);
   padEnd();
