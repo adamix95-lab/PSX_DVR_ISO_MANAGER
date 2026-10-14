@@ -35,6 +35,8 @@ IRX(sio2man);
 IRX(mcman);
 IRX(mcserv);
 IRX(freepad);
+IRX(bdm);
+IRX(bdmfs_fatfs);
 IRX(usbd_mini);
 IRX(usbmass_bd_mini);
 IRX(dev9_ns);
@@ -78,6 +80,9 @@ static int init_drivers(void) {
   LOAD(mcman);
   LOAD(mcserv);
   LOAD(freepad);
+  /* usbmass_bd requires BDM; FAT filesystem handles mass0: USB access. */
+  LOAD(bdm);
+  LOAD(bdmfs_fatfs);
   LOAD(usbd_mini);
   LOAD(usbmass_bd_mini);
   LOAD(dev9_ns);
