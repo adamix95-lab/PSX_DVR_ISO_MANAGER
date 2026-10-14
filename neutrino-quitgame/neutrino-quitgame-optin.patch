@@ -1,0 +1,70 @@
+diff --git a/ee/loader/src/main.c b/ee/loader/src/main.c
+--- a/ee/loader/src/main.c
++++ b/ee/loader/src/main.c
+@@ -34,6 +34,11 @@
+ struct SModule mod_ee_core;
+ 
++/* PR #8 experiment: only the dedicated test ELF accepts -quitgame=1.
++ * This defaults to off to preserve Neutrino PR #228 behavior. */
++static int desr_quitgame_requested = 0;
++
+ void print_usage()
+ {
+@@ -131,6 +136,8 @@
+     printf("  -cfg=<file>       Load extra user/game specific config file (without .toml extension)\n");
++    printf("  -quitgame=1       EXPERIMENTAL DESR: enable front-panel QUIT GAME\n");
++    printf("  -quitgame=0       Leave original Neutrino behavior unchanged (default)\n");
+     printf("\n");
+@@ -188,6 +195,10 @@
+         else if (!strncmp(argv[i], "-cwd=", 5))
+             continue; // already handled before config loading
++        else if (!strcmp(argv[i], "-quitgame=1"))
++            desr_quitgame_requested = 1;
++        else if (!strcmp(argv[i], "-quitgame=0"))
++            desr_quitgame_requested = 0;
+         else if (!strncmp(argv[i], "-dbc", 4))
+             sys.bDebug = 1;
+@@ -714,6 +725,15 @@
+-    if (sys.bQuickBoot == 0) {
++    /* Enabling QUIT while running a different device could affect its
++     * Mechacon state; refuse it outside the normal DVR load path. */
++    if (desr_quitgame_requested &&
++        (strcmp(sys.sBSD, "dvr") != 0 || sys.bQuickBoot != 0)) {
++        printf("ERROR: -quitgame=1 requires -bsd=dvr and normal boot\n");
++        return -1;
++    }
++
++    if (sys.bQuickBoot == 0) {
+@@ -739,6 +759,33 @@
+             sceCdApplySCmd(0x29, in, 4, out);
++
++            /* DESR research: the original command with mode 0 prepares
++             * DVR access. Official PSX game launchers use mode 1 to
++             * enable the hardware QUIT GAME button (Mechacon notification).
++             *
++             * This is deliberately AFTER the stock mode-0 command and
++             * BEFORE the IOP reboot or opening any DVR ISO handles.
++             * IMPORTANT: it is not yet proven that mode 1 preserves DVR
++             * access on DESR-7000. Use only in the additive test ELF.
++             */
++            if (desr_quitgame_requested) {
++                uint8_t quit_in[4] = {1, 0, 0, 0};
++                uint8_t quit_out[16] = {0};
++                int notice_ok = 0;
++                for (int attempt = 0; attempt < 5; attempt++) {
++                    memset(quit_out, 0, sizeof(quit_out));
++                    if (sceCdApplySCmd(0x29, quit_in, sizeof(quit_in), quit_out) &&
++                        !(quit_out[0] & 0x80)) {
++                        notice_ok = 1;
++                        break;
++                    }
++                    usleep(20000);
++                }
++                if (!notice_ok) {
++                    printf("ERROR: QUIT GAME notice(1) failed; aborting test\n");
++                    sceCdInit(SCECdEXIT);
++                    return -1;
++                }
++                printf("DESR: QUIT GAME notice(1) accepted (experimental)\n");
++            }
+             sceCdInit(SCECdEXIT);
