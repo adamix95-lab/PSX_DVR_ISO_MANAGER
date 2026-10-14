@@ -36,18 +36,34 @@ int desr_make_iso_path(const char *filename, char *out, size_t out_size) {
   return n;
 }
 
-/* Always generates ASCII-compatible CNF preamble, with no UTF-8 BOM.
-   Filename bytes are copied unchanged for firmware/driver case matching.
-   Note: caller writes exactly the returned byte count, not sizeof(out). */
-int desr_make_boot_cnf(const char *filename, char *out, size_t out_size) {
+/* Every CNF is ASCII-compatible (no BOM), and preserves exact ISO filename
+   bytes/case. Language English selects a separate Neutrino executable AND
+   separate config/core: the proven neutrino.elf never changes. */
+int desr_make_boot_cnf_lang(const char *filename, int force_english,
+                            char *out, size_t out_size) {
   char iso_path[256];
   int n;
-  if (!out || out_size < 1) return -1;
-  if (desr_make_iso_path(filename, iso_path, sizeof(iso_path)) < 0) return -1;
-  n = snprintf(out, out_size,
-               "boot=neutrino.elf\n"
-               "arg=-bsd=dvr\n"
-               "arg=-dvd=%s\n", iso_path);
+  if (!out || out_size < 1 || (force_english != 0 && force_english != 1))
+    return -1;
+  if (desr_make_iso_path(filename, iso_path, sizeof(iso_path)) < 0)
+    return -1;
+  if (force_english) {
+    n = snprintf(out, out_size,
+                 "boot=neutrino_lang.elf\n"
+                 "arg=-bsd=dvr\n"
+                 "arg=-dvd=%s\n"
+                 "arg=-cfg=osdlang\n"
+                 "arg=-osdlang=en\n", iso_path);
+  } else {
+    n = snprintf(out, out_size,
+                 "boot=neutrino.elf\n"
+                 "arg=-bsd=dvr\n"
+                 "arg=-dvd=%s\n", iso_path);
+  }
   if (n < 0 || (size_t)n >= out_size || n >= 255) return -1;
   return n;
+}
+
+int desr_make_boot_cnf(const char *filename, char *out, size_t out_size) {
+  return desr_make_boot_cnf_lang(filename, 0, out, out_size);
 }
