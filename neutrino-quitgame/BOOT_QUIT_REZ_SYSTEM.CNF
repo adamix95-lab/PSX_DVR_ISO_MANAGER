@@ -1,0 +1,5 @@
+boot=neutrino_quit.elf
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/REZ.iso
+arg=-cfg=quit
+arg=-quitgame=1
