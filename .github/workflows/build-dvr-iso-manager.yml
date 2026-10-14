@@ -1,0 +1,33 @@
+name: Build DVR ISO Manager v0.1
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'dvr-iso-manager/**'
+      - '.github/workflows/build-dvr-iso-manager.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake
+        run: apk add --no-cache cmake build-base
+      - name: Host-side validation
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/iso_utils.c dvr-iso-manager/tests/test_iso_utils.c -o /tmp/test_cnf
+          /tmp/test_cnf
+      - name: Build PS2 ELF
+        run: |
+          cmake -S dvr-iso-manager -B build-dvr-manager
+          cmake --build build-dvr-manager -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER.ELF
+      - name: Upload test ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR7000-DVR-ISO-Manager-Stage1-UNTESTED
+          path: |
+            build-dvr-manager/DVR_ISO_MANAGER.ELF
+            dvr-iso-manager/README_PL.md
