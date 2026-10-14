@@ -26,5 +26,5 @@ endforeach()
 
 add_executable(DVR_ISO_MANAGER.ELF ${SOURCES})
 target_include_directories(DVR_ISO_MANAGER.ELF PRIVATE include)
-target_link_libraries(DVR_ISO_MANAGER.ELF pad patches fileXio cdvd libdebug.a)
+target_link_libraries(DVR_ISO_MANAGER.ELF pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(DVR_ISO_MANAGER.ELF PRIVATE -Os -Wall -Wextra)
