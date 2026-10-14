@@ -1,8 +1,8 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.1.5: X backs up BOOT.CNF, writes verified CNF, chains to BOOT.ELF.
-   SQUARE writes a disposable test CNF, never BOOT.CNF. */
+   v0.2 TEST: SELECT toggles System/English; X keeps proven OSDMenu Quickboot.
+   English uses a separate Neutrino + EE core; default is System. */
 
 #include "iso_utils.h"
 #include <debug.h>
@@ -30,6 +30,9 @@
 #define USB_BACKUP_CNF "mass0:/DESR_DVR/BOOT_RECOVERY.CNF"
 #define USB_LAUNCHER "mass0:/DESR_DVR/BOOT.ELF"
 #define USB_NEUTRINO "mass0:/DESR_DVR/neutrino.elf"
+#define USB_NEUTRINO_LANG "mass0:/DESR_DVR/neutrino_lang.elf"
+#define USB_EECORE_LANG "mass0:/DESR_DVR/modules/ee_core_lang.elf"
+#define USB_LANG_CFG "mass0:/DESR_DVR/config/osdlang.toml"
 #define DVR_FOLDER "dvr_pfs0:/ISO"
 
 #define IRX(name) \
@@ -52,6 +55,7 @@ IRX(dvrfile);
 static char games[DESR_GAME_CAP][DESR_FILENAME_CAP];
 static int count;
 static int selected;
+static int force_english; /* 0 = system (proven), 1 = English (experimental) */
 static char status[120] = "Starting...";
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
@@ -160,12 +164,14 @@ static int scan_dvr(void) {
 static void draw(void) {
   int i, first;
   scr_clear();
-  scr_printf("DESR7000 DVR ISO MANAGER v0.1.5 QUICKBOOT\n");
+  scr_printf("DESR7000 DVR ISO MANAGER v0.2 OSD LANG TEST\n");
   scr_printf("------------------------------------------------\n");
   scr_printf("DVR: %s\n", DVR_FOLDER);
   scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
              dvr_notice_game_start, dvr_probe_hdd, dvr_probe_root);
-  scr_printf("%s\n\n", status);
+  scr_printf("%s\n", status);
+  scr_printf("Language: %s  (SELECT to toggle)\n\n",
+             force_english ? "ENGLISH [experimental]" : "SYSTEM [proven]");
   if (!count) {
     scr_printf("No ISO files detected.\n");
     scr_printf("Make sure your DVR contains __xcontents/ISO/*.ISO\n");
@@ -178,7 +184,7 @@ static void draw(void) {
   }
   scr_printf("\nUP/DOWN: select   TRIANGLE: rescan\n");
   scr_printf("X: save BOOT.CNF + launch BOOT.ELF\n");
-  scr_printf("SQUARE: save DVR_TEST.CNF   START: exit\n");
+  scr_printf("SQUARE: test CNF   SELECT: language  START: exit\n");
   scr_printf("Backup: BOOT_RECOVERY.CNF. No DVR writes.\n");
 }
 
@@ -192,7 +198,17 @@ static int check_usb_file(const char *path) {
 }
 
 static int usb_ready(void) {
-  return check_usb_file(USB_NEUTRINO);
+  int rc;
+  /* Default SYSTEM always uses unchanged, proven Neutrino PR228. */
+  if (!force_english) return check_usb_file(USB_NEUTRINO);
+
+  rc = check_usb_file(USB_NEUTRINO_LANG);
+  if (rc < 0) return -101;
+  rc = check_usb_file(USB_EECORE_LANG);
+  if (rc < 0) return -102;
+  rc = check_usb_file(USB_LANG_CFG);
+  if (rc < 0) return -103;
+  return 0;
 }
 
 /* Positive byte count, or a negative error. -ENOENT means absent file.
@@ -239,7 +255,7 @@ static int save_test_cnf(void) {
   char cnf[320];
   int len, rc;
   if (count <= 0) return -80;
-  len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
+  len = desr_make_boot_cnf_lang(games[selected], force_english, cnf, sizeof(cnf));
   if (len <= 0) return -80;
   rc = usb_ready();
   if (rc < 0) return rc;
@@ -278,11 +294,12 @@ static int launch_via_quickboot(void) {
   char cnf[320];
   int len, rc;
   if (count <= 0) return -90;
-  len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
+  len = desr_make_boot_cnf_lang(games[selected], force_english, cnf, sizeof(cnf));
   if (len <= 0) return -90;
   rc = usb_ready();
   if (rc < 0) {
-    snprintf(status, sizeof(status), "Missing Neutrino on USB: %d", rc);
+    snprintf(status, sizeof(status), "Missing USB runtime (lang %s): %d",
+             force_english ? "EN" : "SYSTEM", rc);
     return -91;
   }
   rc = check_usb_file(USB_LAUNCHER);
@@ -299,15 +316,16 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("DVR ISO Manager v0.1.5 QUICKBOOT TEST\n");
-  scr_printf("ISO: %s\n", games[selected]);
+  scr_printf("DVR ISO Manager v0.2 OSD LANGUAGE TEST\n");
+  scr_printf("ISO: %s  Language: %s\n", games[selected],
+             force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
   scr_printf("Chainloading OSDMenu BOOT.ELF...\n");
 
   padPortClose(0, 0);
   padEnd();
-  /* This loader may reset IOP differently than running BOOT.ELF from wLE.
-     The chainloading step is untested on real DESR hardware. */
+  /* OSDMenu BOOT.ELF chainloading worked on real DESR-7000 with v0.1.5.
+     The optional English Neutrino EE core is experimental. */
   rc = LoadELFFromFile(USB_LAUNCHER, 0, NULL);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) return -94;
   prev_buttons = 0xffff;
@@ -343,6 +361,12 @@ int main(int argc, char *argv[]) {
       prev_buttons = bits;
       if (new_press & PAD_START) break;
       if (new_press & PAD_TRIANGLE) { scan_dvr(); draw(); }
+      if (new_press & PAD_SELECT) {
+        force_english = !force_english;
+        snprintf(status, sizeof(status), "Language mode: %s",
+                 force_english ? "ENGLISH (experimental)" : "SYSTEM (proven)");
+        draw();
+      }
       if (count && (new_press & PAD_UP)) {
         selected = (selected + count - 1) % count; draw();
       }
