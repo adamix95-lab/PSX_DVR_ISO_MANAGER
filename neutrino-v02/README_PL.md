@@ -1,6 +1,6 @@
 # Neutrino PR #228 — OSD English v0.2 (wersja eksperymentalna)
 
-**UWAGA: niescalone do main, nieprzetestowane na prawdziwym DESR-7000.**
+**Stan: potwierdzono działanie na fizycznym DESR-7000 z grami Metal Slug Anthology i REZ.** Wymuszanie języka nie gwarantuje angielskiego dla każdej gry.
 Patch nakładany na dokładnie: aa8d80a1a0b5323cb407c814c0568c3489597c1c (Neutrino PR #228).
 
 ## Mechanizm
@@ -48,6 +48,14 @@ Tryb ENGLISH — osobna binarka i własny EE core:
 
 Opcja -cfg=osdlang ładuje plik config/osdlang.toml, który wskazuje na moduł
 modules/ee_core_lang.elf; pozostałe config i modules są zachowane.
+
+## Testy na rzeczywistym DESR-7000 (2026-10-15)
+
+- Metal Slug Anthology: SYSTEM po japońsku, ENGLISH po angielsku.
+- REZ: ENGLISH uruchomiony; angielski tekst ostrzeżenia o autosave oraz komunikatu o odczytaniu danych zapisu (potwierdzone zdjęciami).
+- Na jednym ekranie REZ przycisk potwierdzenia pozostał po japońsku; poprawka nie tłumaczy zasobów wbudowanych w obraz ISO.
+- Przekazanie sterowania w v0.2 nadal realizuje sprawdzony OSDMenu BOOT.ELF na USB. Manager ELF może być uruchamiany przez UDPFS.
+- Nie testowano wszystkich gier; przed rozbudową zachować działający neutrino.elf i ee_core.elf.
 
 ## Kolejność testów
 
