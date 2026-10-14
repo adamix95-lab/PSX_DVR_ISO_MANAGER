@@ -1,56 +1,64 @@
-# DESR7000-DVR – DVR ISO Manager (etap 1 / wersja testowa 0.1)
+# DVR ISO Manager v0.1.4 — Direct Launch (PSX DESR-7000)
 
-Ta paczka jest **dodatkiem do repozytorium `adamix95-lab/DESR7000-DVR`**, nie nowym repozytorium.
-Nie zastępuje sprawdzonej kompilacji Neutrino z PR #228 ani istniejącego workflow.
+**Wersja testowa: Direct Launch NIE została jeszcze sprawdzona na konsoli.**
+Repozytorium: `adamix95-lab/DESR7000-DVR`; działająca kompilacja Neutrino DVR PR #228 pozostaje bez zmian.
 
-## Co robi obecny etap
+## Stan potwierdzony na konsoli (v0.1.3)
 
-- Resetuje IOP i próbuje zainicjalizować sterowniki USB oraz DVR.
-- Próbuje otworzyć `dvr_pfs0:/ISO` (czyli `dvr_hdd0:/__xcontents/ISO` w wLE-R3Z).
-- Wyświetla uporządkowaną listę zwykłych plików `.iso`/`.ISO` z tego katalogu (bez podkatalogów).
-- Po wciśnięciu X tworzy `mass0:/DESR_DVR/BOOT.CNF` z **dokładną nazwą wybranego ISO**. Plik jest tworzony bez znacznika BOM.
-- W ogóle nie zapisuje na partycjach DVR ani APA. Jedyny zapis to **nadpisanie BOOT.CNF na USB** po zatwierdzeniu X.
+- `dvr_pfs0:/ISO` — odczyt **6 ISO** z `__xcontents/ISO/`, bez zmian na DVR i APA.
+- `sceCdNoticeGameStart(0, NULL)` zainicjalizował dostęp do DVR (`notice=1`, `hdd0=0`, `pfs0 root=0`).
+- Testowy `DVR_TEST.CNF` zapisany na USB przy pomocy `FIO_O_*`, odczytany i zweryfikowany.
+- Po ręcznym skopiowaniu pliku na `BOOT.CNF` gra **REZ** uruchomiła się do menu głównego przez OSDMenu Launcher + Neutrino.
 
-**Jeszcze nie uruchamia Neutrino automatycznie.** Po wyborze gry uruchom z wLE działający `mass0:/DESR_DVR/BOOT.ELF` (OSDMenu Launcher). To celowo rozdziela test skanowania DVR od uruchamiania programu. Automatyczne uruchamianie to następny etap, jeśli wykrywanie ISO zadziała.
+## Co testujemy w v0.1.4
 
-## Układ plików na USB
+**X:** natychmiast uruchamia `mass0:/DESR_DVR/neutrino.elf`, przekazując w pamięci dwa argumenty:
 
+```text
+-bsd=dvr
+-dvd=dvr_pfs0:/ISO/<dokladna_nazwa_pliku.iso>
 ```
+
+Wykorzystujemy `LoadELFFromFile()` z biblioteki PS2SDK **elf-loader**.
+Ta biblioteka uruchamia mały loader i resetuje IOP po wczytaniu pliku ELF.
+To inny mechanizm startu niż używany przez sprawdzony OSDMenu Launcher,
+więc jego działanie z Neutrino DVR musi zostać zweryfikowane na DESR-7000.
+
+**KWADRAT:** tworzy osobny `mass0:/DESR_DVR/DVR_TEST.CNF` i sprawdza bajty oraz brak BOM. Umożliwia użycie **potwierdzonej** metody przez ręczne skopiowanie do `BOOT.CNF`.
+
+**TRÓJKĄT:** ponownie skanuje DVR; **góra/dół:** wybór ISO; **START:** wyjście.
+
+### Bezpieczeństwo
+
+- Direct Launch **nie zapisuje** plików na USB ani na partycjach DVR/APA.
+- KWADRAT zapisuje **wyłącznie** `DVR_TEST.CNF`.
+- Manager **nigdy nie nadpisuje `BOOT.CNF`**.
+- Przed testem zachowaj działającą konfigurację OSDMenu Launcher, `BOOT.CNF`, `config/` i `modules/` na USB.
+- W razie czarnego ekranu lub powrotu do systemu po naciśnięciu X uruchom konsolę ponownie i przetestuj dotychczasowy `BOOT.ELF`; nie modyfikuj partycji.
+
+## USB
+
+```text
 mass0:/DESR_DVR/
-  BOOT.ELF                <-- Twój działający OSDMenu Launcher (z USB)
-  BOOT.CNF                <-- istniejący, może zostać nadpisany przez Manager
-  neutrino.elf            <-- Twoja działająca wersja Neutrino DVR PR #228
-  config/                 <-- pełny katalog Neutrino
-  modules/                <-- pełny katalog Neutrino
-  DVR_ISO_MANAGER.ELF     <-- wynik nowego workflow
+├── DVR_ISO_MANAGER.ELF     # nowy artefakt testowy v0.1.4
+├── BOOT.ELF                # sprawdzony OSDMenu Launcher — bez zmian
+├── BOOT.CNF                # sprawdzona konfiguracja — bez zmian
+├── neutrino.elf            # działające Neutrino PR #228 — bez zmian
+├── config/
+├── modules/
+└── DVR_TEST.CNF            # generowany WYŁĄCZNIE po naciśnięciu KWADRAT
 ```
 
-Nie zastępuj modułów Neutrino plikami .irx z paczki źródłowej Managera. Są one **osadzone wewnątrz ELF Managera**, jedynie na potrzeby jego skanowania DVR.
+## Procedura testowa
 
-## Kontroler
+1. Pobierz artefakt z workflow `Build DVR ISO Manager v0.1.4`.
+2. Podmień **tylko** `DVR_ISO_MANAGER.ELF` na USB.
+3. Uruchom przez wLE-R3Z i sprawdź listę ISO.
+4. Zaznacz **REZ.iso**, naciśnij **X** i sprawdź, czy gra uruchomi się do menu.
+5. Jeżeli start się nie powiedzie, sfotografuj ekran/komunikat. Metoda `KWADRAT` + ręczne `BOOT.CNF` pozostaje dostępna jako punkt odniesienia.
 
-- D-pad góra/dół: wybór gry
-- Trójkąt: ponowne skanowanie DVR
-- X: nadpisanie `mass0:/DESR_DVR/BOOT.CNF` dla wybranej gry
-- START: zamknięcie aplikacji
+## Autorzy
 
-## Instalacja w GitHub Desktop
-
-1. W repozytorium `DESR7000-DVR` utwórz katalog `dvr-iso-manager` i skopiuj do niego całą zawartość folderu `dvr-iso-manager` z tego ZIP.
-2. Z ZIP skopiuj też `.github/workflows/build-dvr-iso-manager.yml` do `.github/workflows/` repozytorium. Nie kasuj starszego workflow Neutrino.
-3. Commit i Push do `main`.
-4. GitHub → Actions → **Build DVR ISO Manager v0.1** → Run workflow.
-5. Jeśli zadanie będzie zielone, pobierz jego artefakt. Jeśli będzie czerwone, prześlij logi kompilacji.
-
-## Ważne ograniczenia
-
-- Kod **nie został jeszcze zbudowany toolchainem PS2 ani uruchomiony na DESR-7000**. Testy komputerowe dotyczą tylko generowania nazw/konfiguracji.
-- DVR sterowniki pochodzą z wcześniej przesłanego, działającego artefaktu Neutrino PR #228 (commit `aa8d80a1a0b5323cb407c814c0568c3489597c1c`). Nie mamy jeszcze potwierdzenia, że ich inicjalizacja w samodzielnym programie działa identycznie jak w Neutrino.
-- Ponieważ kod wykonuje reset IOP, wLE i Manager mogą mieć inny zestaw sterowników. Jeśli `dvr_pfs0:/ISO` nie jest dostępne, nie modyfikuj partycji DVR; prześlij zdjęcie ekranu z komunikatami.
-- `BOOT.CNF` jest nadpisywany tylko po wciśnięciu X. Zachowaj jego kopię, jeśli jest Ci potrzebna.
-- Długi katalog (>128 gier) zostanie ograniczony do pierwszych 128 odczytanych wpisów.
-- **Pierwsze testy wykonujemy wyłącznie z USB**. Nie używamy Inject Header ani kanału XMB.
-
-## Autorstwo i licencje
-
-To niezależny prototyp. Osadzone moduły DVR pochodzą ze skompilowanej wersji Neutrino PR #228, autorstwa społeczności Neutrino/pcm720, na warunkach AFL-3.0 (patrz `NEUTRINO_LICENSE_AFL3.txt`). Źródła projektu Neutrino: https://github.com/ps2max32/neutrino/pull/228.
+- Odczyt DVR oparty o Neutrino [PR #228](https://github.com/ps2max32/neutrino/pull/228) i kod wLE-R3Z.
+- Uruchamianie ELF wykorzystuje bibliotekę `elf-loader` z PS2SDK (AFL-2.0).
+- Bez integracji XMB; obsługa zmiany języka gier pozostaje planem na v0.2.
