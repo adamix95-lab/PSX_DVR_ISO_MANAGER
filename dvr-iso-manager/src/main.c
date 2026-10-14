@@ -5,6 +5,7 @@
 
 #include "iso_utils.h"
 #include <debug.h>
+#include <libcdvd.h>
 #include <fcntl.h>
 #include <iopcontrol.h>
 #include <kernel.h>
@@ -49,6 +50,8 @@ static int selected;
 static char status[120] = "Starting...";
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
+static int dvr_probe_hdd = -999, dvr_probe_root = -999;
+static int dvr_notice_game_start = -999;
 
 static int load_irx(const char *label, void *irx, unsigned size) {
   int rv = 0, id;
@@ -89,6 +92,9 @@ static int init_drivers(void) {
   LOAD(dvrdrv);
   LOAD(dvrfile);
 #undef LOAD
+  /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
+  dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
+  scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
   /* Let USB/DVR devices register. */
   sleep(2);
   return 0;
@@ -110,6 +116,17 @@ static int scan_dvr(void) {
   iox_dirent_t ent;
   count = 0;
   selected = 0;
+  /* Diagnostics distinguish driver/device failure from an ISO folder error. */
+  dvr_probe_hdd = fileXioDopen("dvr_hdd0:");
+  if (dvr_probe_hdd >= 0) {
+    fileXioDclose(dvr_probe_hdd);
+    dvr_probe_hdd = 0;
+  }
+  dvr_probe_root = fileXioDopen("dvr_pfs0:/");
+  if (dvr_probe_root >= 0) {
+    fileXioDclose(dvr_probe_root);
+    dvr_probe_root = 0;
+  }
   fd = fileXioDopen(DVR_FOLDER);
   if (fd < 0) {
     snprintf(status, sizeof(status), "Can't open %s (%d)", DVR_FOLDER, fd);
@@ -141,6 +158,8 @@ static void draw(void) {
   scr_printf("DESR7000 DVR ISO MANAGER   v0.1 TEST\n");
   scr_printf("------------------------------------------------\n");
   scr_printf("DVR: %s\n", DVR_FOLDER);
+  scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
+             dvr_notice_game_start, dvr_probe_hdd, dvr_probe_root);
   scr_printf("%s\n\n", status);
   if (!count) {
     scr_printf("No ISO files detected.\n");
