@@ -1,10 +1,13 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.1.3: X writes a disposable USB test CNF, never BOOT.CNF. */
+   v0.1.5: X backs up BOOT.CNF, writes verified CNF, chains to BOOT.ELF.
+   SQUARE writes a disposable test CNF, never BOOT.CNF. */
 
 #include "iso_utils.h"
 #include <debug.h>
+#include <elf-loader.h>
+#include <errno.h>
 #include <libcdvd.h>
 #include <iopcontrol.h>
 #include <kernel.h>
@@ -23,6 +26,9 @@
 #include <io_common.h>
 
 #define USB_TEST_CNF "mass0:/DESR_DVR/DVR_TEST.CNF"
+#define USB_BOOT_CNF "mass0:/DESR_DVR/BOOT.CNF"
+#define USB_BACKUP_CNF "mass0:/DESR_DVR/BOOT_RECOVERY.CNF"
+#define USB_LAUNCHER "mass0:/DESR_DVR/BOOT.ELF"
 #define USB_NEUTRINO "mass0:/DESR_DVR/neutrino.elf"
 #define DVR_FOLDER "dvr_pfs0:/ISO"
 
@@ -154,7 +160,7 @@ static int scan_dvr(void) {
 static void draw(void) {
   int i, first;
   scr_clear();
-  scr_printf("DESR7000 DVR ISO MANAGER   v0.1 TEST\n");
+  scr_printf("DESR7000 DVR ISO MANAGER v0.1.5 QUICKBOOT\n");
   scr_printf("------------------------------------------------\n");
   scr_printf("DVR: %s\n", DVR_FOLDER);
   scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
@@ -171,69 +177,142 @@ static void draw(void) {
     scr_printf("\nSelected %d / %d\n", selected + 1, count);
   }
   scr_printf("\nUP/DOWN: select   TRIANGLE: rescan\n");
-  scr_printf("X: write DVR_TEST.CNF on USB   START: exit\n");
-  scr_printf("No DVR writes. BOOT.CNF stays untouched.\n");
-  scr_printf("After verification, copy test CNF to BOOT.CNF manually.\n");
+  scr_printf("X: save BOOT.CNF + launch BOOT.ELF\n");
+  scr_printf("SQUARE: save DVR_TEST.CNF   START: exit\n");
+  scr_printf("Backup: BOOT_RECOVERY.CNF. No DVR writes.\n");
+}
+
+/* Native PS2SDK fileXio requires FIO_O_* flags, not POSIX O_* flags. */
+static int check_usb_file(const char *path) {
+  int fd = fileXioOpen(path, FIO_O_RDONLY, 0);
+  int closed;
+  if (fd < 0) return fd;
+  closed = fileXioClose(fd);
+  return closed < 0 ? closed : 0;
 }
 
 static int usb_ready(void) {
-  int fd = fileXioOpen(USB_NEUTRINO, FIO_O_RDONLY, 0);
+  return check_usb_file(USB_NEUTRINO);
+}
+
+/* Positive byte count, or a negative error. -ENOENT means absent file.
+   A zero-length or oversized existing BOOT.CNF must not be overwritten. */
+static int read_small_file(const char *path, char *out, int cap) {
+  int fd, got, closed;
+  if (!out || cap < 2) return -60;
+  fd = fileXioOpen(path, FIO_O_RDONLY, 0);
   if (fd < 0) return fd;
-  fileXioClose(fd);
+  got = fileXioRead(fd, out, cap);
+  closed = fileXioClose(fd);
+  if (got <= 0) return got < 0 ? got : -61;
+  if (got >= cap) return -62;
+  if (closed < 0) return -63;
+  return got;
+}
+
+/* Checks exact length, bytes and absence of UTF-8 BOM after read-back.
+   CAUTION: opening with TRUNC can empty path if later write fails. */
+static int write_verified_file(const char *path, const char *src, int len) {
+  char verify[640];
+  int fd, sent, got, closed;
+  if (!src || len <= 0 || len >= (int)sizeof(verify)) return -70;
+  fd = fileXioOpen(path, FIO_O_WRONLY | FIO_O_CREAT | FIO_O_TRUNC, 0666);
+  if (fd < 0) return fd;
+  sent = fileXioWrite(fd, src, len);
+  closed = fileXioClose(fd);
+  if (sent != len) return -71;
+  if (closed < 0) return -72;
+  fd = fileXioOpen(path, FIO_O_RDONLY, 0);
+  if (fd < 0) return fd;
+  got = fileXioRead(fd, verify, len + 1);
+  closed = fileXioClose(fd);
+  if (got != len || memcmp(verify, src, (size_t)len)) return -73;
+  if (closed < 0) return -74;
+  if (len >= 3 && (unsigned char)verify[0] == 0xEF &&
+      (unsigned char)verify[1] == 0xBB &&
+      (unsigned char)verify[2] == 0xBF) return -75;
   return 0;
 }
 
-static int save_cnf(void) {
-  char cnf[320], verify[320];
-  int len, fd, got, sent, ready, closed;
-  if (!count) return -1;
+/* SQUARE: writes only a separate test file. */
+static int save_test_cnf(void) {
+  char cnf[320];
+  int len, rc;
+  if (count <= 0) return -80;
   len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
-  if (len < 0) return -2;
-  ready = usb_ready();
-  if (ready < 0) {
-    snprintf(status, sizeof(status), "USB neutrino.elf not readable: %d", ready);
-    return -14;
-  }
-  /* fileXioOpen expects PS2SDK FIO_* flags, NOT newlib/POSIX O_* flags.
-     Write only a separate file so the working launcher CNF is preserved. */
-  fd = fileXioOpen(USB_TEST_CNF, FIO_O_WRONLY | FIO_O_CREAT | FIO_O_TRUNC, 0666);
-  if (fd < 0) {
-    snprintf(status, sizeof(status), "USB test CNF open failed: %d", fd);
-    return -10;
-  }
-  sent = fileXioWrite(fd, cnf, len);
-  closed = fileXioClose(fd);
-  if (sent != len) {
-    snprintf(status, sizeof(status), "USB write: sent=%d expected=%d close=%d", sent, len, closed);
-    return -3;
-  }
-  if (closed < 0) {
-    snprintf(status, sizeof(status), "USB test CNF close failed: %d", closed);
-    return -11;
+  if (len <= 0) return -80;
+  rc = usb_ready();
+  if (rc < 0) return rc;
+  return write_verified_file(USB_TEST_CNF, cnf, len);
+}
+
+/* Create BOOT_RECOVERY.CNF once. A valid existing backup is never
+   overwritten, even when games are switched repeatedly. */
+static int ensure_original_backup(void) {
+  char old_cnf[512], backup[512];
+  int old_len, backup_len, rc;
+  old_len = read_small_file(USB_BOOT_CNF, old_cnf, sizeof(old_cnf));
+  if (old_len <= 0) {
+    snprintf(status, sizeof(status), "BOOT.CNF missing/empty (%d). Restore it!", old_len);
+    return -81;
   }
 
-  /* Read-back: assures successful file write and absence of BOM. */
-  fd = fileXioOpen(USB_TEST_CNF, FIO_O_RDONLY, 0);
-  if (fd < 0) {
-    snprintf(status, sizeof(status), "USB test CNF read-open failed: %d", fd);
-    return -12;
+  backup_len = read_small_file(USB_BACKUP_CNF, backup, sizeof(backup));
+  if (backup_len > 0) return 0;
+  /* FatFS can report FR_NO_FILE as -4, rather than POSIX -ENOENT. */
+  if (backup_len != -ENOENT && backup_len != -4) {
+    snprintf(status, sizeof(status), "Existing USB backup invalid (%d)", backup_len);
+    return -82;
   }
-  got = fileXioRead(fd, verify, len + 1);
-  closed = fileXioClose(fd);
-  if (got != len || memcmp(verify, cnf, (size_t)len)) {
-    snprintf(status, sizeof(status), "USB verify: got=%d expected=%d close=%d", got, len, closed);
-    return -4;
-  }
-  if (closed < 0) {
-    snprintf(status, sizeof(status), "USB verify close failed: %d", closed);
-    return -13;
-  }
-  if (got >= 3 && (unsigned char)verify[0] == 0xEF &&
-      (unsigned char)verify[1] == 0xBB && (unsigned char)verify[2] == 0xBF) {
-    snprintf(status, sizeof(status), "USB verify: unexpected BOM detected");
-    return -5;
+  rc = write_verified_file(USB_BACKUP_CNF, old_cnf, old_len);
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "USB backup write/verify failed: %d", rc);
+    return -83;
   }
   return 0;
+}
+
+/* X: save+verify BOOT.CNF, then chain to the OSDMenu Launcher with NO
+   extra arguments. Its Quickboot uses argv[0] to find BOOT.CNF. */
+static int launch_via_quickboot(void) {
+  char cnf[320];
+  int len, rc;
+  if (count <= 0) return -90;
+  len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
+  if (len <= 0) return -90;
+  rc = usb_ready();
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "Missing Neutrino on USB: %d", rc);
+    return -91;
+  }
+  rc = check_usb_file(USB_LAUNCHER);
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "Missing OSDMenu BOOT.ELF: %d", rc);
+    return -92;
+  }
+  rc = ensure_original_backup();
+  if (rc < 0) return rc;
+  rc = write_verified_file(USB_BOOT_CNF, cnf, len);
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "BOOT.CNF write failed: %d. USB backup preserved!", rc);
+    return -93;
+  }
+
+  scr_clear();
+  scr_printf("DVR ISO Manager v0.1.5 QUICKBOOT TEST\n");
+  scr_printf("ISO: %s\n", games[selected]);
+  scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
+  scr_printf("Chainloading OSDMenu BOOT.ELF...\n");
+
+  padPortClose(0, 0);
+  padEnd();
+  /* This loader may reset IOP differently than running BOOT.ELF from wLE.
+     The chainloading step is untested on real DESR hardware. */
+  rc = LoadELFFromFile(USB_LAUNCHER, 0, NULL);
+  if (!padInit(0) || !padPortOpen(0, 0, padbuf)) return -94;
+  prev_buttons = 0xffff;
+  snprintf(status, sizeof(status), "BOOT.ELF chainload returned: %d. CNF saved.", rc);
+  return -95;
 }
 
 int main(int argc, char *argv[]) {
@@ -271,13 +350,18 @@ int main(int argc, char *argv[]) {
         selected = (selected + 1) % count; draw();
       }
       if (count && (new_press & PAD_CROSS)) {
-        rc = save_cnf();
-        if (!rc) {
-          snprintf(status, sizeof(status), "Verified DVR_TEST.CNF (no BOM): %.60s", games[selected]);
-        } else {
-          if (rc != -3 && rc != -4 && rc != -5 && rc != -10 && rc != -11 && rc != -12 && rc != -13)
-            snprintf(status, sizeof(status), "USB test CNF error: %d", rc);
-        }
+        rc = launch_via_quickboot();
+        if (rc != -81 && rc != -82 && rc != -83 && rc != -91 &&
+            rc != -92 && rc != -93 && rc != -95)
+          snprintf(status, sizeof(status), "Quickboot setup failed: %d", rc);
+        draw();
+      }
+      if (count && (new_press & PAD_SQUARE)) {
+        rc = save_test_cnf();
+        if (rc == 0)
+          snprintf(status, sizeof(status), "Verified DVR_TEST.CNF: %.60s", games[selected]);
+        else
+          snprintf(status, sizeof(status), "DVR_TEST.CNF failed: %d", rc);
         draw();
       }
     }
