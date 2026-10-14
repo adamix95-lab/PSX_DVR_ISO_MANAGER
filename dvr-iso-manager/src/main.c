@@ -1,11 +1,11 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   Only explicit X confirmation writes mass0:/DESR_DVR/BOOT.CNF. */
+   v0.1.3: X writes a disposable USB test CNF, never BOOT.CNF. */
 
 #include "iso_utils.h"
 #include <debug.h>
-#include <fcntl.h>
+#include <libcdvd.h>
 #include <iopcontrol.h>
 #include <kernel.h>
 #include <libpad.h>
@@ -22,7 +22,7 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#define USB_CNF "mass0:/DESR_DVR/BOOT.CNF"
+#define USB_TEST_CNF "mass0:/DESR_DVR/DVR_TEST.CNF"
 #define USB_NEUTRINO "mass0:/DESR_DVR/neutrino.elf"
 #define DVR_FOLDER "dvr_pfs0:/ISO"
 
@@ -49,6 +49,8 @@ static int selected;
 static char status[120] = "Starting...";
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
+static int dvr_probe_hdd = -999, dvr_probe_root = -999;
+static int dvr_notice_game_start = -999;
 
 static int load_irx(const char *label, void *irx, unsigned size) {
   int rv = 0, id;
@@ -89,6 +91,9 @@ static int init_drivers(void) {
   LOAD(dvrdrv);
   LOAD(dvrfile);
 #undef LOAD
+  /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
+  dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
+  scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
   /* Let USB/DVR devices register. */
   sleep(2);
   return 0;
@@ -110,6 +115,17 @@ static int scan_dvr(void) {
   iox_dirent_t ent;
   count = 0;
   selected = 0;
+  /* Diagnostics distinguish driver/device failure from an ISO folder error. */
+  dvr_probe_hdd = fileXioDopen("dvr_hdd0:");
+  if (dvr_probe_hdd >= 0) {
+    fileXioDclose(dvr_probe_hdd);
+    dvr_probe_hdd = 0;
+  }
+  dvr_probe_root = fileXioDopen("dvr_pfs0:/");
+  if (dvr_probe_root >= 0) {
+    fileXioDclose(dvr_probe_root);
+    dvr_probe_root = 0;
+  }
   fd = fileXioDopen(DVR_FOLDER);
   if (fd < 0) {
     snprintf(status, sizeof(status), "Can't open %s (%d)", DVR_FOLDER, fd);
@@ -141,6 +157,8 @@ static void draw(void) {
   scr_printf("DESR7000 DVR ISO MANAGER   v0.1 TEST\n");
   scr_printf("------------------------------------------------\n");
   scr_printf("DVR: %s\n", DVR_FOLDER);
+  scr_printf("DVRP notice=%d  hdd0=%d  pfs0 root=%d\n",
+             dvr_notice_game_start, dvr_probe_hdd, dvr_probe_root);
   scr_printf("%s\n\n", status);
   if (!count) {
     scr_printf("No ISO files detected.\n");
@@ -153,13 +171,13 @@ static void draw(void) {
     scr_printf("\nSelected %d / %d\n", selected + 1, count);
   }
   scr_printf("\nUP/DOWN: select   TRIANGLE: rescan\n");
-  scr_printf("X: write BOOT.CNF on USB   START: exit\n");
-  scr_printf("No DVR writes. X overwrites USB BOOT.CNF!\n");
-  scr_printf("After saving, launch BOOT.ELF via wLE.\n");
+  scr_printf("X: write DVR_TEST.CNF on USB   START: exit\n");
+  scr_printf("No DVR writes. BOOT.CNF stays untouched.\n");
+  scr_printf("After verification, copy test CNF to BOOT.CNF manually.\n");
 }
 
 static int usb_ready(void) {
-  int fd = fileXioOpen(USB_NEUTRINO, O_RDONLY, 0);
+  int fd = fileXioOpen(USB_NEUTRINO, FIO_O_RDONLY, 0);
   if (fd < 0) return fd;
   fileXioClose(fd);
   return 0;
@@ -167,27 +185,54 @@ static int usb_ready(void) {
 
 static int save_cnf(void) {
   char cnf[320], verify[320];
-  int len, fd, got, sent, ready;
+  int len, fd, got, sent, ready, closed;
   if (!count) return -1;
   len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
   if (len < 0) return -2;
   ready = usb_ready();
-  if (ready < 0) return ready;
-  fd = fileXioOpen(USB_CNF, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-  if (fd < 0) return fd;
+  if (ready < 0) {
+    snprintf(status, sizeof(status), "USB neutrino.elf not readable: %d", ready);
+    return -14;
+  }
+  /* fileXioOpen expects PS2SDK FIO_* flags, NOT newlib/POSIX O_* flags.
+     Write only a separate file so the working launcher CNF is preserved. */
+  fd = fileXioOpen(USB_TEST_CNF, FIO_O_WRONLY | FIO_O_CREAT | FIO_O_TRUNC, 0666);
+  if (fd < 0) {
+    snprintf(status, sizeof(status), "USB test CNF open failed: %d", fd);
+    return -10;
+  }
   sent = fileXioWrite(fd, cnf, len);
-  fileXioClose(fd);
-  if (sent != len) return -3;
+  closed = fileXioClose(fd);
+  if (sent != len) {
+    snprintf(status, sizeof(status), "USB write: sent=%d expected=%d close=%d", sent, len, closed);
+    return -3;
+  }
+  if (closed < 0) {
+    snprintf(status, sizeof(status), "USB test CNF close failed: %d", closed);
+    return -11;
+  }
 
   /* Read-back: assures successful file write and absence of BOM. */
-  fd = fileXioOpen(USB_CNF, O_RDONLY, 0);
-  if (fd < 0) return fd;
-  got = fileXioRead(fd, verify, sizeof(verify));
-  fileXioClose(fd);
-  if (got != len || memcmp(verify, cnf, (size_t)len)) return -4;
+  fd = fileXioOpen(USB_TEST_CNF, FIO_O_RDONLY, 0);
+  if (fd < 0) {
+    snprintf(status, sizeof(status), "USB test CNF read-open failed: %d", fd);
+    return -12;
+  }
+  got = fileXioRead(fd, verify, len + 1);
+  closed = fileXioClose(fd);
+  if (got != len || memcmp(verify, cnf, (size_t)len)) {
+    snprintf(status, sizeof(status), "USB verify: got=%d expected=%d close=%d", got, len, closed);
+    return -4;
+  }
+  if (closed < 0) {
+    snprintf(status, sizeof(status), "USB verify close failed: %d", closed);
+    return -13;
+  }
   if (got >= 3 && (unsigned char)verify[0] == 0xEF &&
-      (unsigned char)verify[1] == 0xBB && (unsigned char)verify[2] == 0xBF)
+      (unsigned char)verify[1] == 0xBB && (unsigned char)verify[2] == 0xBF) {
+    snprintf(status, sizeof(status), "USB verify: unexpected BOM detected");
     return -5;
+  }
   return 0;
 }
 
@@ -228,9 +273,10 @@ int main(int argc, char *argv[]) {
       if (count && (new_press & PAD_CROSS)) {
         rc = save_cnf();
         if (!rc) {
-          snprintf(status, sizeof(status), "Saved BOOT.CNF (no BOM): %.60s", games[selected]);
+          snprintf(status, sizeof(status), "Verified DVR_TEST.CNF (no BOM): %.60s", games[selected]);
         } else {
-          snprintf(status, sizeof(status), "USB CNF write/verify failed: %d", rc);
+          if (rc != -3 && rc != -4 && rc != -5 && rc != -10 && rc != -11 && rc != -12 && rc != -13)
+            snprintf(status, sizeof(status), "USB test CNF error: %d", rc);
         }
         draw();
       }
