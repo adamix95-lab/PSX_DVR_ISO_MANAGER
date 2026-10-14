@@ -4,7 +4,7 @@ project(desr_dvr_iso_manager C)
 
 set(SOURCES src/main.c src/iso_utils.c)
 # Drivers from PS2SDK, plus DVR drivers from the user's confirmed PR #228 build.
-set(PS2SDK_IRX iomanX fileXio sio2man mcman mcserv freepad usbd_mini usbmass_bd_mini)
+set(PS2SDK_IRX iomanX fileXio sio2man mcman mcserv freepad bdm bdmfs_fatfs usbd_mini usbmass_bd_mini)
 set(DVR_IRX dev9_ns dvrdrv dvrfile)
 
 foreach(name ${PS2SDK_IRX})
