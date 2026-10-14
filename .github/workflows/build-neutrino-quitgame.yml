@@ -1,0 +1,76 @@
+name: Build Neutrino DESR QUIT GAME (experimental)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "neutrino-quitgame/**"
+      - ".github/workflows/build-neutrino-quitgame.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Neutrino PR228 + OSD English + opt-in QUIT GAME
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+
+    steps:
+      - name: Checkout private project sources
+        uses: actions/checkout@v4
+        with:
+          path: project
+
+      - name: Checkout exact hardware-verified DVR Neutrino PR228
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+
+      - name: Apply language patch and QUIT experiment on verified base
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          git rev-parse HEAD | tee PR228_COMMIT.txt
+          test "$(cat PR228_COMMIT.txt)" = "aa8d80a1a0b5323cb407c814c0568c3489597c1c"
+          git apply --check ../project/neutrino-v02/neutrino-osdlang-en.patch
+          git apply ../project/neutrino-v02/neutrino-osdlang-en.patch
+          git apply --check ../project/neutrino-quitgame/neutrino-quitgame-optin.patch
+          git apply ../project/neutrino-quitgame/neutrino-quitgame-optin.patch
+          git diff --check
+          git diff --stat
+
+      - name: Compile Neutrino and DVR modules
+        shell: bash
+        working-directory: neutrino
+        run: |
+          set -euo pipefail
+          make clean all copy
+          test -s ee/loader/neutrino.elf
+          test -s ee/loader/modules/ee_core.elf
+          test -s ee/loader/modules/dvrfile_fhi.irx
+
+      - name: Package ONLY additional test files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/DESR_DVR/modules dist/DESR_DVR/config dist/TEST_CNFS
+          cp neutrino/ee/loader/neutrino.elf dist/DESR_DVR/neutrino_quit.elf
+          cp neutrino/ee/loader/modules/ee_core.elf dist/DESR_DVR/modules/ee_core_quit.elf
+          cp project/neutrino-quitgame/quit.toml dist/DESR_DVR/config/quit.toml
+          cp project/neutrino-quitgame/README_PL.md dist/README_QUIT_GAME_PL.md
+          cp project/neutrino-quitgame/BOOT_QUIT_REZ_SYSTEM.CNF dist/TEST_CNFS/
+          cp project/neutrino-quitgame/BOOT_QUIT_REZ_ENGLISH.CNF dist/TEST_CNFS/
+          cp neutrino/PR228_COMMIT.txt dist/PR228_COMMIT.txt
+
+      - name: Upload isolated DESR QUIT GAME experiment
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR7000-Neutrino-QUIT-GAME-Experimental-UNTESTED
+          path: dist/
+          if-no-files-found: error
