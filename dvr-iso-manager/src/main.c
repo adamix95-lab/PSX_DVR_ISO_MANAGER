@@ -190,7 +190,10 @@ static int save_cnf(void) {
   len = desr_make_boot_cnf(games[selected], cnf, sizeof(cnf));
   if (len < 0) return -2;
   ready = usb_ready();
-  if (ready < 0) return ready;
+  if (ready < 0) {
+    snprintf(status, sizeof(status), "USB neutrino.elf not readable: %d", ready);
+    return -14;
+  }
   /* fileXioOpen expects PS2SDK FIO_* flags, NOT newlib/POSIX O_* flags.
      Write only a separate file so the working launcher CNF is preserved. */
   fd = fileXioOpen(USB_TEST_CNF, FIO_O_WRONLY | FIO_O_CREAT | FIO_O_TRUNC, 0666);
