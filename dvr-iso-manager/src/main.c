@@ -258,10 +258,10 @@ static int launch_selected_iso(void) {
   game_args[1] = dvd_arg;
 
   scr_clear();
-  scr_printf("DVR ISO Manager v0.1.4: direct launch TEST\\n");
-  scr_printf("Neutrino: %s\\n", USB_NEUTRINO);
-  scr_printf("Game ISO: %s\\n", iso_path);
-  scr_printf("Handing control to PS2SDK ELF loader...\\n");
+  scr_printf("DVR ISO Manager v0.1.4: direct launch TEST\n");
+  scr_printf("Neutrino: %s\n", USB_NEUTRINO);
+  scr_printf("Game ISO: %s\n", iso_path);
+  scr_printf("Handing control to PS2SDK ELF loader...\n");
 
   padPortClose(0, 0);
   padEnd();
