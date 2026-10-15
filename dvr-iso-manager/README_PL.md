@@ -1,69 +1,59 @@
-# DVR ISO Manager v0.2 — OSD Language (Sony PSX DESR-7000)
+# PSX DVR ISO Manager v0.3 — MONO
 
-**Stan: potwierdzony start i przełączanie języka na fizycznym Sony PSX DESR-7000.** Obsługa angielskiego zależy od wersji i zasobów konkretnej gry.
-v0.1.5 jest już przetestowany na DESR-7000 (Metal Slug Anthology startuje bezpośrednio X).
-Ta gałąź dodaje TYLKO możliwość wyboru języka OSD. Nadal startuje przez ten sam OSDMenu BOOT.ELF.
+**Wersja testowa GUI: nieprzetestowana jeszcze na rzeczywistym Sony PSX DESR-7000.**
+Sprawdzona v0.2 i jej wymuszanie angielskiego pozostają w `main`.
 
-## Obsługa
+## Co zmieniono w v0.3
 
-- GÓRA/DÓŁ: wybierz grę z __xcontents/ISO.
-- SELECT: język gry SYSTEM / ENGLISH [experimental]. Domyślnie SYSTEM.
-- KWADRAT: generuj i zweryfikuj USB DVR_TEST.CNF, BOOT.CNF bez zmian.
-- X: skopiuj istniejący BOOT.CNF do BOOT_RECOVERY.CNF (tylko pierwsze uruchomienie),
-  zapisz/zweryfikuj nowy BOOT.CNF i uruchom sprawdzony USB OSDMenu BOOT.ELF.
-- TRÓJKĄT: ponowne skanowanie; START: wyjście.
+- Nagłówek `PSX DVR ISO MANAGER` z małym oznaczeniem `v0.3`.
+- Monochromatyczny interfejs: czarne tło, biały tekst; zaznaczona gra wyróżniona znakiem `>`.
+- Ukryte diagnostyczne linie `DVR: dvr_pfs0:/ISO` i `DVRP notice / hdd0 / pfs0 root`.
+- Zwykły wynik skanowania zastąpiono licznikiem `N GAMES`; diagnostyka pojawia się tylko przy błędzie.
+- Na ekranie nie wyświetlamy `.iso` ani `.ISO`, ale pełna oryginalna nazwa nadal trafia do BOOT.CNF.
+- Ukryte `Selected 1 / 7` i techniczna linia `Backup: ... No DVR writes`.
+- Wyłączony blokowy kursor PS2SDK (`scr_setCursor(0)`), który zostawiał białe kwadraty między sekcjami.
+- Lista ma maksymalnie 12 pozycji na stronę; numer strony pokazujemy dopiero przy większej liczbie gier.
+- Na dole widoczne są tylko sterowanie i, w razie potrzeby, komunikat o teście CNF/błędzie.
 
-## Co się zmienia w trybie ENGLISH?
+## Sterowanie
 
-Manager generuje BOOT.CNF z osobnym neutrino_lang.elf i argumentami:
+| Przycisk | Działanie |
+|---|---|
+| GÓRA / DÓŁ | Wybór gry |
+| X | Generowanie/odczyt i weryfikacja BOOT.CNF, a następnie start BOOT.ELF (OSDMenu Launcher) |
+| SELECT | Przełącza `SYSTEM` / `ENGLISH` globalnie (domyślnie SYSTEM) |
+| KWADRAT | Zapis/odczyt testowego DVR_TEST.CNF, bez uruchamiania gry |
+| TRÓJKĄT | Ponowne skanowanie DVR |
+| START | Wyjście |
 
-    boot=neutrino_lang.elf
-    arg=-bsd=dvr
-    arg=-dvd=dvr_pfs0:/ISO/REZ.iso
-    arg=-cfg=osdlang
-    arg=-osdlang=en
+## Bez zmian względem działającej v0.2
 
-Parametr -cfg=osdlang wskazuje na config/osdlang.toml, w którym eecore.elf
-jest ustawiony na ee_core_lang.elf. Dzięki temu gra otrzymuje angielski OSD
-przez hooki Neutrino, bez zmiany japońskiego systemu XMB.
+- Obrazy ISO nadal odczytywane z `dvr_pfs0:/ISO/` (partycja `__xcontents`).
+- Wybór `SYSTEM` używa sprawdzonego `neutrino.elf`, a `ENGLISH` osobnego `neutrino_lang.elf` z `ee_core_lang.elf`.
+- Manager tworzy kopię BOOT_RECOVERY.CNF (tylko przy pierwszym X), zapisuje i weryfikuje BOOT.CNF,
+  po czym uruchamia ten sam BOOT.ELF na USB, który działa na konsoli.
+- Nie ma zapisów na partycjach DVR/APA i nie zmieniamy XMB.
+- Przełączenie języka nie tłumaczy zasobów gry, jeśli w ISO nie ma tekstów angielskich.
+- Użyte są dokładnie te same generatory CNF i funkcje launchera co w v0.2.
 
-## Wymagane nowe pliki z OSOBNEGO artefaktu Neutrino v0.2
+## Test
 
-    mass0:/DESR_DVR/neutrino_lang.elf
-    mass0:/DESR_DVR/modules/ee_core_lang.elf
-    mass0:/DESR_DVR/config/osdlang.toml
+1. Zachowaj działającą v0.2 (ELF Managera i BOOT.CNF) na komputerze.
+2. Pobierz artefakt `PSX-DVR-ISO-Manager-v0.3-MONO-UNTESTED` z workflow `Build PSX DVR ISO Manager v0.3 MONO`.
+3. Uruchom nowy DVR_ISO_MANAGER.ELF przez wLE-R3Z — może leżeć na serwerze UDPFS,
+   tak jak we wcześniejszych szybkich testach.
+4. Sprawdź zniknięcie kwadratów, prostszy nagłówek, listę gier bez `.iso` i czytelność stopki.
+5. Przełącz SELECT w obie strony, sprawdź jedną grę w trybie SYSTEM i jedną w ENGLISH.
+6. Przetestuj KWADRAT, aby upewnić się, że opcjonalny zapis testowego CNF działa.
 
-Stare pliki MUSZĄ pozostać:
+**Ważne:** uruchomienie samego Managera z UDPFS NIE przenosi ścieżki Quickboot na sieć.
+Pliki `mass0:/DESR_DVR/BOOT.ELF`, BOOT.CNF i obydwa Neutrino pozostają na USB.
+Nie podmieniaj ich podczas testowania zmian w interfejsie.
 
-    mass0:/DESR_DVR/neutrino.elf       (sprawdzony Neutrino DVR PR228)
-    mass0:/DESR_DVR/modules/ee_core.elf
-    mass0:/DESR_DVR/config/system.toml
-    mass0:/DESR_DVR/BOOT.ELF           (sprawdzony OSDMenu Launcher)
-    mass0:/DESR_DVR/BOOT.CNF           (kopia na PC zalecana)
+## Wyniki wcześniejszej v0.2 na DESR-7000
 
-Tryb SYSTEM generuje dokładnie ten sam CNF co v0.1.5 (bez nowych argumentów).
-Manager nie zapisuje do DVR ani APA; na USB zapisuje tylko pliki CNF.
+- Metal Slug Anthology: SYSTEM = japoński, ENGLISH = angielski.
+- REZ: w trybie ENGLISH angielskie komunikaty autosave i wczytania gry,
+  ale niektóre elementy (np. przycisk OK) pozostały po japońsku.
 
-## Wyniki testów sprzętowych v0.2 (2026-10-15)
-
-- Metal Slug Anthology: tryb SYSTEM = japoński; ENGLISH = angielski. Potwierdzony start gry przez Quickboot na DESR-7000.
-- REZ: uruchomiony w trybie ENGLISH; angielskie komunikaty dotyczące autosave i wczytania zapisu potwierdzone zdjęciami.
-- Jeden z przycisków OK na zdjęciu REZ nadal wyświetla japoński napis — część zasobów gry może być niezależna od ustawień OSD.
-- Manager ELF można uruchamiać z serwera UDPFS przez wLE-R3Z; zapis BOOT.CNF i start OSDMenu BOOT.ELF pozostają na USB (mass0:/DESR_DVR/).
-- Zmienione jest wyłącznie to, co gra otrzymuje z konfiguracji OSD; japońskiego menu systemowego XMB nie zmieniano.
-- Pozostałe tytuły i pełne przejście gameplayu nie zostały zweryfikowane.
-
-## Instrukcja odtworzenia testu
-
-1. Zrób kopię działającego BOOT.CNF na komputerze.
-2. Dodaj trzy nowe pliki z Neutrino v0.2 i podmień tylko Manager ELF.
-3. Najpierw uruchom REZ albo Metal Slug w domyślnym trybie SYSTEM.
-4. Wróć do Managera, naciśnij SELECT i potwierdź napis ENGLISH.
-5. Wybierz REZ.iso, naciśnij KWADRAT, obejrzyj DVR_TEST.CNF.
-6. Naciśnij X; sfotografuj rezultat (menu gry lub komunikat).
-7. W razie niepowodzenia uruchom ponownie konsolę i wybierz SYSTEM.
-
-ENGLISH nie jest automatycznym tłumaczeniem gry. Potrzebne są angielskie zasoby ISO.
-Nie modyfikuj XMB i nie przeinstalowuj Neutrino.
-
-Więcej: neutrino-v02/README_PL.md w repozytorium.
+Dokumentacja Neutrino v0.2: `neutrino-v02/README_PL.md`.
