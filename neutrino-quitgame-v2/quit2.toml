@@ -1,0 +1,3 @@
+# Isolated v2 experiment. Only changed when BOOT.CNF includes -cfg=quit2.
+name = "DESR QUIT GAME v2 isolated core"
+eecore.elf = "ee_core_quit2.elf"
