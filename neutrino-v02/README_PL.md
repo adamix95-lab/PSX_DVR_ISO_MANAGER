@@ -49,23 +49,6 @@ Tryb ENGLISH — osobna binarka i własny EE core:
 Opcja -cfg=osdlang ładuje plik config/osdlang.toml, który wskazuje na moduł
 modules/ee_core_lang.elf; pozostałe config i modules są zachowane.
 
-## Testy na rzeczywistym DESR-7000 (2026-10-15)
-
-- Metal Slug Anthology: SYSTEM po japońsku, ENGLISH po angielsku.
-- REZ: ENGLISH uruchomiony; angielski tekst ostrzeżenia o autosave oraz komunikatu o odczytaniu danych zapisu (potwierdzone zdjęciami).
-- Na jednym ekranie REZ przycisk potwierdzenia pozostał po japońsku; poprawka nie tłumaczy zasobów wbudowanych w obraz ISO.
-- Przekazanie sterowania w v0.2 nadal realizuje sprawdzony OSDMenu BOOT.ELF na USB. Manager ELF może być uruchamiany przez UDPFS.
-- Nie testowano wszystkich gier; przed rozbudową zachować działający neutrino.elf i ee_core.elf.
-
-## Kolejność testów
-
-1. Zapisz działający BOOT.CNF na PC.
-2. Zainstaluj trzy nowe pliki oraz testowy manager ELF.
-3. Odpal znaną grę z SYSTEM, bez przełączania SELECT.
-4. Odpal Manager ponownie, przełącz SELECT na ENGLISH i wybierz REZ.iso.
-5. Najpierw naciśnij KWADRAT, sprawdź wygenerowany DVR_TEST.CNF.
-6. Naciśnij X. Jeśli zawiesi się gra, restartuj konsolę; SYSTEM korzysta z niezmienionych plików.
-
 Źródła: https://github.com/ps2max32/neutrino/pull/228
         https://github.com/ps2homebrew/Open-PS2-Loader/blob/master/ee_core/src/syshook.c
 Pliki źródłowe z Neutrino dostępne na zasadach AFL-3.0 — repo zawiera tylko patch.
