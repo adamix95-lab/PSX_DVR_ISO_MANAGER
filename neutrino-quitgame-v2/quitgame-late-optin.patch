@@ -1,0 +1,103 @@
+diff --git a/ee/loader/src/main.c b/ee/loader/src/main.c
+--- a/ee/loader/src/main.c
++++ b/ee/loader/src/main.c
+@@ -50,6 +50,10 @@
+ void _libcglue_rtc_update() {}; // Disable rtc update
+ 
+ struct SModule mod_ee_core;
++
++/* DESR QUIT GAME v2: experiments are disabled unless explicitly requested. */
++/* 0 = unchanged, 1 = late CDVD RPC probe, 2 = late QUIT notice(1). */
++static int desr_quit_v2_mode = 0;
+ 
+ void print_usage()
+ {
+@@ -131,6 +135,9 @@
+     printf("  -cwd=<path>       Change working directory\n");
+     printf("\n");
+     printf("  -cfg=<file>       Load extra user/game specific config file (without .toml extension)\n");
++    printf("  -quitgame=probe   EXPERIMENT: test late CDVD RPC initialization only\n");
++    printf("  -quitgame=late    EXPERIMENT: arm QUIT after ISO setup, before game\n");
++    printf("  -quitgame=off     Default: no changes to startup or CDVD state\n");
+     printf("\n");
+     printf("  -dbc              Enable debug colors\n");
+     printf("  -logo             Enable logo (adds rom0:PS2LOGO to arguments)\n");
+@@ -187,6 +194,12 @@
+             sys.sGSM = &argv[i][5];
+         else if (!strncmp(argv[i], "-cfg=", 5))
+             sys.sCFGFile = &argv[i][5];
++        else if (!strcmp(argv[i], "-quitgame=probe"))
++            desr_quit_v2_mode = 1;
++        else if (!strcmp(argv[i], "-quitgame=late"))
++            desr_quit_v2_mode = 2;
++        else if (!strcmp(argv[i], "-quitgame=off"))
++            desr_quit_v2_mode = 0;
+         else if (!strncmp(argv[i], "-cwd=", 5))
+             continue; // already handled before config loading
+         else if (!strncmp(argv[i], "-dbc", 4))
+@@ -1205,6 +1218,65 @@
+      * **********************************************************************
+      */
+ 
++    /* QUIT v2 deliberately leaves the original DVR mode-0 setup unchanged.
++     * In particular NO notice(1) is sent before the ISO is opened/checked.
++     * This block runs ONLY after FHI handles and EE module setup succeeded.
++     * No guarantee exists that the LE IOP can serve PSX-specific SCMD 0x29.
++     * The probe mode lets the tester identify an RPC init regression first.
++     */
++    if (desr_quit_v2_mode != 0) {
++        int cd_init_result;
++        if (strcmp(sys.sBSD, "dvr") != 0 || sys.bQuickBoot != 0 || sDVDFile == NULL) {
++            printf("QUIT v2: requires normal DVR ISO boot (-bsd=dvr -dvd=...)\n");
++            return -1;
++        }
++        printf("QUIT v2: ISO opened, FHI configured, about to init CDVD RPC\n");
++        fflush(stdout);
++        sleep(2);
++        cd_init_result = sceCdInit(SCECdINoD);
++        printf("QUIT v2: sceCdInit returned %d\n", cd_init_result);
++        fflush(stdout);
++        sleep(2);
++        if (!cd_init_result) {
++            printf("QUIT v2: CDVD RPC unavailable; aborting before game launch\n");
++            fflush(stdout);
++            sleep(2);
++            return -1;
++        }
++        if (desr_quit_v2_mode == 2) {
++            /* PS2SDK sceCdNoticeGameStart(1) is SCMD 0x29 with 1 input byte.
++             * PR #8 sent it before DVR ISO open (black screen on DESR-7000).
++             * This isolated late-stage test does NOT modify the old setup.
++             * Result still needs confirmation on the real hardware.
++             */
++            uint8_t in[1] = {1};
++            uint8_t out[16] = {0};
++            int result;
++            printf("QUIT v2: sending SCMD 0x29 mode 1, 1-byte input\n");
++            fflush(stdout);
++            sleep(2);
++            result = sceCdApplySCmd(0x29, in, 1, out);
++            printf("QUIT v2: SCMD result=%d, status=0x%02x\n", result, out[0]);
++            fflush(stdout);
++            sleep(2);
++            if (!result || (out[0] & 0x80)) {
++                printf("QUIT v2: notice rejected; aborting game launch\n");
++                fflush(stdout);
++                sleep(2);
++                sceCdInit(SCECdEXIT);
++                return -1;
++            }
++        } else {
++            printf("QUIT v2: probe only, no game-start notice sent\n");
++            fflush(stdout);
++            sleep(2);
++        }
++        sceCdInit(SCECdEXIT);
++        printf("QUIT v2: continuing to game...\n");
++        fflush(stdout);
++        sleep(2);
++    }
++
+     ExecPS2((void *)eh->entry, NULL, ee_core_argc, ee_core_argv);
+ 
+     return 0;
