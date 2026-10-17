@@ -36,24 +36,8 @@ Sprawdzona v0.2 i jej wymuszanie angielskiego pozostają w `main`.
 - Przełączenie języka nie tłumaczy zasobów gry, jeśli w ISO nie ma tekstów angielskich.
 - Użyte są dokładnie te same generatory CNF i funkcje launchera co w v0.2.
 
-## Test
-
-1. Zachowaj działającą v0.2 (ELF Managera i BOOT.CNF) na komputerze.
-2. Pobierz artefakt `PSX-DVR-ISO-Manager-v0.3-MONO-UNTESTED` z workflow `Build PSX DVR ISO Manager v0.3 MONO`.
-3. Uruchom nowy DVR_ISO_MANAGER.ELF przez wLE-R3Z — może leżeć na serwerze UDPFS,
-   tak jak we wcześniejszych szybkich testach.
-4. Sprawdź zniknięcie kwadratów, prostszy nagłówek, listę gier bez `.iso` i czytelność stopki.
-5. Przełącz SELECT w obie strony, sprawdź jedną grę w trybie SYSTEM i jedną w ENGLISH.
-6. Przetestuj KWADRAT, aby upewnić się, że opcjonalny zapis testowego CNF działa.
-
 **Ważne:** uruchomienie samego Managera z UDPFS NIE przenosi ścieżki Quickboot na sieć.
 Pliki `mass0:/DESR_DVR/BOOT.ELF`, BOOT.CNF i obydwa Neutrino pozostają na USB.
 Nie podmieniaj ich podczas testowania zmian w interfejsie.
-
-## Wyniki wcześniejszej v0.2 na DESR-7000
-
-- Metal Slug Anthology: SYSTEM = japoński, ENGLISH = angielski.
-- REZ: w trybie ENGLISH angielskie komunikaty autosave i wczytania gry,
-  ale niektóre elementy (np. przycisk OK) pozostały po japońsku.
 
 Dokumentacja Neutrino v0.2: `neutrino-v02/README_PL.md`.
