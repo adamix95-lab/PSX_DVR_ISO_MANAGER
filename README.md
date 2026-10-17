@@ -41,7 +41,7 @@ Obrazy ISO muszą znajdować się na partycji DVR w `dvr_pfs0:/ISO/*`
 
 - Wciśnij **UP** lub **DOWN** by wybrać grę z listy
 - Wciśnij **X** aby uruchomić dany tytuł
-- Wciśnij **/\** aby ponownie sprawdzić zawartość folderu "ISO"
+- Wciśnij **^** aby ponownie sprawdzić zawartość folderu "ISO"
 - Wciśnij **[]** aby zapisać testową konfigurację do *"DVR_TEST.CNF"*
 - Wciśnij **SELECT** by zmienić język gry - funkcja dla gier które ustawiają język według menu konsoli (*testowane przy REZ i Metal Slug Anthology*)
 - Wciśnij **START** by wyjść z aplikacji
