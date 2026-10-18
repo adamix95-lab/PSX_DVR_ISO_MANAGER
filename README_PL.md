@@ -49,6 +49,12 @@ Obrazy ISO muszą znajdować się na partycji DVR w `dvr_pfs0:/ISO/*`
 ## *TO DO* (Do zrobienia)
 - uruchamianie całości z HDD jako aplikacja uruchamiana z XMB - nie umiem obejść problemu -19 z wskazywaniem ścieżki
 
+## Zapraszamy do współpracy!
+
+Jednym z pozostałych celów jest uruchamianie PSX DVR ISO Manager bezpośrednio z menu XMB konsoli PSX, z użyciem wewnętrznego HDD i bez konieczności korzystania z pamięci USB. W dotychczasowych próbach napotkaliśmy błąd `-19` przy wskazywaniu ścieżki aplikacji. Jego dokładna przyczyna nie została jeszcze ustalona.
+
+Zapraszamy do dzielenia się wiedzą, zgłaszania pomysłów i przesyłania pull requestów — szczególnie osoby znające Sony PSX DESR, PS2SDK i uruchamianie aplikacji z XMB.
+
 ## Źródła i autorzy
 
 - Neutrino: https://github.com/ps2max32/neutrino
