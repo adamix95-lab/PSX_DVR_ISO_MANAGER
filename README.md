@@ -35,7 +35,7 @@ mass0:/DESR_DVR/
 
 **Note:** This list includes only the most important project files; it does not cover all Neutrino modules.
 
-ISO images must be stored on the DVR partition under `dvr_pfs0:/ISO/*`.
+ISO images must be stored on the DVR partition under `dvr_hdd0:/__xcontents/ISO/*`.
 
 ## Using the application
 <img width="640" height="480" alt="PSX DVR ISO Manager interface" src="https://github.com/user-attachments/assets/344403f5-11b3-4a1d-925e-0c676ad2fbb2" />
