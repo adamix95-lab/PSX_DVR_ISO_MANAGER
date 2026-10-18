@@ -1,7 +1,7 @@
 # Neutrino PR #228 — OSD English v0.2 (wersja eksperymentalna)
 
-**Stan: potwierdzono działanie na fizycznym DESR-7000 z grami Metal Slug Anthology i REZ.** Wymuszanie języka nie gwarantuje angielskiego dla każdej gry.
-Patch nakładany na dokładnie: aa8d80a1a0b5323cb407c814c0568c3489597c1c (Neutrino PR #228).
+**Stan: potwierdzono działanie na DESR-7000 z grami Metal Slug Anthology i REZ.** Wymuszanie języka nie gwarantuje angielskiego dla każdej gry.
+Patch nakładany na: aa8d80a1a0b5323cb407c814c0568c3489597c1c (Neutrino PR #228).
 
 ## Mechanizm
 
@@ -51,4 +51,5 @@ modules/ee_core_lang.elf; pozostałe config i modules są zachowane.
 
 Źródła: https://github.com/ps2max32/neutrino/pull/228
         https://github.com/ps2homebrew/Open-PS2-Loader/blob/master/ee_core/src/syshook.c
+        
 Pliki źródłowe z Neutrino dostępne na zasadach AFL-3.0 — repo zawiera tylko patch.
