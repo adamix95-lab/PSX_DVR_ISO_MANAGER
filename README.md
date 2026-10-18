@@ -1,4 +1,4 @@
-## PSX_DVR_ISO_MANAGER
+## PSX DVR ISO MANAGER
 
 [Polski / Polish](README_PL.md)
 
