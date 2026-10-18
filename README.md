@@ -60,6 +60,7 @@ Contributions, technical insights, and pull requests are welcome — especially 
 
 - Neutrino: https://github.com/ps2max32/neutrino
 - PR #228 (pcm720): https://github.com/ps2max32/neutrino/pull/228
+- pcm720 - for creating a patch to add DVR support for Neutrino
 - Berion — technical assistance
 
 This repository contains the project's build configuration and documentation; the upstream Neutrino sources are downloaded during compilation.
