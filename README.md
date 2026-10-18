@@ -50,6 +50,12 @@ ISO images must be stored on the DVR partition under `dvr_pfs0:/ISO/*`.
 ## To do
 - Launch the entire application from the HDD through the XMB. The path-related error `-19` has not yet been resolved.
 
+## Contributions welcome!
+
+One of the remaining goals is to launch PSX DVR ISO Manager directly from the PSX XMB using the internal HDD, without requiring a USB drive. Previous attempts encountered error `-19` when resolving the application path. The root cause has not yet been identified.
+
+Contributions, technical insights, and pull requests are welcome — especially from developers familiar with Sony PSX DESR, PS2SDK, and XMB application launching.
+
 ## Sources and credits
 
 - Neutrino: https://github.com/ps2max32/neutrino
