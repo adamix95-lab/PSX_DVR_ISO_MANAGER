@@ -17,7 +17,7 @@ mass0:/DESR_DVR/
 │
 ├── neutrino.elf             # Neutrino DVR - SYSTEM
 ├── neutrino_lang.elf        # Neutrino DVR - ENGLISH
-├── DVR_ISO_MANAGER.ELF      # Manager v0.3 - wprowadza zmiany w BOOT.CNF i uruchamia neutrino.elf lub neutrino_lang.elf
+├── DVR_ISO_MANAGER.ELF      # Manager v0.4 (nawigacja stron, w testach) - wprowadza zmiany w BOOT.CNF i uruchamia neutrino.elf lub neutrino_lang.elf
 │
 ├── config/
 │   ├── system.toml          # Podstawowa konfiguracja
@@ -39,7 +39,8 @@ Obrazy ISO muszą znajdować się na partycji DVR w `dvr_pfs0:/ISO/*`
 ## Obsługa aplikacji
 <img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/344403f5-11b3-4a1d-925e-0c676ad2fbb2" />
 
-- Wciśnij **UP** lub **DOWN** by wybrać grę z listy
+- Wciśnij **UP** lub **DOWN**, by wybrać grę z listy
+- Wciśnij **LEFT** lub **RIGHT**, by przełączyć stronę listy (12 gier; v0.4, wymaga testu na DESR-7000)
 - Wciśnij **X** aby uruchomić dany tytuł
 - Wciśnij **^** aby ponownie sprawdzić zawartość folderu "ISO"
 - Wciśnij **[]** aby zapisać testową konfigurację do *"DVR_TEST.CNF"*

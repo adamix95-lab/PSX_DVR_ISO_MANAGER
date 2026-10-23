@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.3 MONO
+name: Build PSX DVR ISO Manager v0.4 Page Navigation
 on:
   workflow_dispatch:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.3-MONO-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.4-PAGING-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md

@@ -1,6 +1,18 @@
-# PSX DVR ISO Manager v0.3 — MONO
+# PSX DVR ISO Manager v0.4 — MONO + nawigacja stron
 
-**Wersja testowa GUI: przetestowa na Sony PSX DESR-7000.**
+**v0.4: NIEPRZETESTOWANA na Sony PSX DESR-7000 — nie scalać przed testami sprzętowymi.**
+Wcześniejsza v0.3 MONO była testowana na konsoli.
+
+## Co nowego w v0.4
+
+- **LEWO / PRAWO** zmienia stronę listy o maksymalnie 12 gier.
+- Zaznaczenie pozostaje w tym samym wierszu, jeżeli istnieje on na następnej stronie; na krótszej ostatniej stronie przechodzi na ostatnią dostępną grę.
+- Na pierwszej i ostatniej stronie przyciski nie zawijają listy.
+- **GÓRA / DÓŁ** nadal wybiera grę po jednej pozycji, tak jak w v0.3 (również między stronami).
+- **TRÓJKĄT** nadal ponownie skanuje tylko folder ISO. Indeks okładek, identyfikatory SLES/SLUS i grafiki są planowane dopiero na v0.5.
+- Brak zmian w skanowaniu DVR, generowaniu BOOT.CNF, trybach językowych i uruchamianiu gier.
+
+## Zmiany bazowe v0.3 MONO
 
 ## Co zmieniono w v0.3
 
@@ -16,7 +28,8 @@
 
 ## Sterowanie
 
-- Wciśnij **UP** lub **DOWN** by wybrać grę z listy
+- Wciśnij **UP** lub **DOWN**, aby wybrać grę z listy
+- Wciśnij **LEFT** lub **RIGHT**, aby przejść do poprzedniej/następnej strony (12 pozycji)
 - Wciśnij **X** aby uruchomić dany tytuł
 - Wciśnij **^** aby ponownie sprawdzić zawartość folderu "ISO"
 - Wciśnij **[]** aby zapisać testową konfigurację do *"DVR_TEST.CNF"*
@@ -35,3 +48,14 @@
 
 **Ważne:** uruchomienie samego Managera z UDPFS NIE przenosi ścieżki Quickboot na sieć.
 Pliki `mass0:/DESR_DVR/BOOT.ELF`, BOOT.CNF i obydwa Neutrino pozostają na USB.
+
+## Plan testu v0.4 na DESR-7000
+
+1. Zachowaj kopię działającego pliku ELF v0.3 i dotychczasowego BOOT.CNF na komputerze.
+2. Pobierz artefakt `PSX-DVR-ISO-Manager-v0.4-PAGING-UNTESTED` z GitHub Actions i uruchom tylko nowy Manager ELF przez wLE-R3Z / UDPFS lub USB.
+3. Przy obecnych 7 grach: LEWO / PRAWO nie powinno zmieniać wyboru ani wyświetlać nowych stron.
+4. Przy ponad 12 grach: RIGHT przechodzi na kolejną stronę, LEFT wraca, zaznaczenie jest widoczne; sprawdź ostatnią krótszą stronę.
+5. Zweryfikuj GÓRA / DÓŁ, SELECT, TRÓJKĄT oraz KWADRAT; na końcu uruchom jedną sprawdzoną grę przez X.
+6. Nie podmieniaj BOOT.ELF ani plików Neutrino podczas testowania samej nawigacji.
+
+**Nie scalać v0.4, zanim powyższe nie zostanie sprawdzone na fizycznym DESR-7000.**
