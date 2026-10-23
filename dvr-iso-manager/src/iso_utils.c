@@ -2,6 +2,24 @@
 #include <stdio.h>
 #include <string.h>
 
+/* LEFT/RIGHT: move one page while preserving the highlighted row.
+   Stop at the first/last page and clamp when the last page is short.
+   Selection is always an absolute index in the scanned game list. */
+int desr_page_move(int selected, int count, int direction) {
+  int page, target_page, row, next;
+  if (count <= 0) return 0;
+  if (selected < 0) selected = 0;
+  if (selected >= count) selected = count - 1;
+  if (direction != -1 && direction != 1) return selected;
+  page = selected / DESR_PAGE_SIZE;
+  target_page = page + direction;
+  if (target_page < 0 || target_page > (count - 1) / DESR_PAGE_SIZE)
+    return selected;
+  row = selected % DESR_PAGE_SIZE;
+  next = target_page * DESR_PAGE_SIZE + row;
+  return next < count ? next : count - 1;
+}
+
 /* Case-insensitive .iso extension, including .ISO. */
 int desr_is_iso_filename(const char *name) {
   size_t n;
