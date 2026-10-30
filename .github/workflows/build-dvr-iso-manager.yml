@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.5.1 OPL Cover Preview
+name: Build PSX DVR ISO Manager v0.5.2 Cover Scan Diagnostics
 on:
   workflow_dispatch:
   push:
@@ -23,6 +23,8 @@ jobs:
           /tmp/test_cover_index
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/cover_color.c dvr-iso-manager/tests/test_cover_color.c -o /tmp/test_cover_color
           /tmp/test_cover_color
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/iso_utils.c dvr-iso-manager/src/cover_index.c dvr-iso-manager/src/cover_report.c dvr-iso-manager/tests/test_cover_report.c -o /tmp/test_cover_report
+          /tmp/test_cover_report
       - name: Check available image libraries
         run: |
           for p in "$PS2SDK/ports/include/png.h" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" "$GSKIT/include/gsKit.h"; do
@@ -36,7 +38,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.5.1-ALIGNED-COVER-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
