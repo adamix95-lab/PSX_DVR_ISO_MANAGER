@@ -29,6 +29,8 @@ int main(void) {
     assert(probe_parse_config(actual_user_config, strlen(actual_user_config), &c) == 0);
     assert(c.ip[3] == 240 && c.server[3] == 122 && c.port == 8000);
   }
+  /* Restore the baseline fixture before checking its field values. */
+  assert(probe_parse_config(config, strlen(config), &c) == 0);
   assert(c.ip[0] == 192 && c.ip[3] == 220);
   assert(c.server[3] == 100 && c.port == 8000);
   strcpy(bad, config);
