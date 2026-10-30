@@ -1,10 +1,12 @@
 /*
- * PSX DESR-7000 network compatibility diagnostic — STANDALONE ELF.
- * Never writes to DVR, APA, ISO, USB or BOOT.CNF.
+ * PSX DESR-7000 local PNG download test — STANDALONE ELF.
+ * Never writes to DVR, APA, ISO, ART, COVERS.IDX or BOOT.CNF.
+ * Writes only new USB NET_DOWNLOAD_TEST.PNG after PNG validation.
  * The proven DVR ISO Manager, Quickboot and covers are not linked here.
  * No HDD/APA mounting or mutation; dvrfile is loaded for compatibility only.
  */
 #include "probe_config.h"
+#include "probe_png.h"
 #include <debug.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,7 +30,6 @@
 
 #define CONFIG_PATH "mass0:/DESR_DVR/NET_PROBE.CNF"
 #define CFG_MAX 512
-#define MAX_REPLY 95
 
 #define IRX(name) \
   extern unsigned char name##_irx[] __attribute__((aligned(16))); \
@@ -43,14 +44,15 @@ static char config_buf[CFG_MAX + 1];
 static int module(const char *name, void *irx, uint32_t size) {
   int ret = 0;
   int id = SifExecModuleBuffer(irx, size, 0, NULL, &ret);
-  scr_printf("  %-15s id=%d result=%d\n", name, id, ret);
+  if (id < 0 || ret < 0)
+    scr_printf("ERROR: %s id=%d result=%d\n", name, id, ret);
   return (id < 0 || ret < 0) ? -1 : 0;
 }
 #define LOAD(x) do { if (module(#x, x##_irx, size_##x##_irx) < 0) return -1; } while (0)
 
 static int start_dvr_stack(void) {
   int fd;
-  scr_printf("Reset IOP / load existing USB & DVR IRX...\n");
+  scr_printf("Init existing USB & DVR IRXs...\n");
   while (!SifIopReset("", 0)) {}
   while (!SifIopSync()) {}
   sceSifInitRpc(0);
@@ -109,85 +111,152 @@ static void print_ip(const uint8_t a[4]) {
 }
 static void linger_result(const char *reason) {
   scr_printf("\n%s\n", reason);
-  scr_printf("No files written. Reboot to leave test.\n");
+  scr_printf("Test-only USB file. Reboot to exit.\n");
   while (1) sleep(2);
 }
 
-/* A single bounded HTTP/1.0 request to an IP-addressed local server only.
-   Nonblocking connect + select timeout; at most 95 bytes of HTTP reply read. */
+/* One single LAN-only PNG transfer. No DNS, TLS, redirects or cloud APIs.
+   A complete, CRC-checked PNG is held in EE memory before USB write.
+   This is a throwaway test file outside ART; it is NEVER used by Manager. */
+#define PNG_REQUEST_PATH "/NET_TEST_COV.png"
+#define PNG_DEST_PATH "mass0:/DESR_DVR/NET_DOWNLOAD_TEST.PNG"
+#define HTTP_BUFFER_CAP (PROBE_HTTP_HEADER_MAX + PROBE_PNG_MAX)
+static uint8_t response[HTTP_BUFFER_CAP + 1U];
+
+static int io_ready(int socket_fd, int write_ready) {
+  fd_set fds;
+  struct timeval tv;
+  int rc;
+  FD_ZERO(&fds);
+  FD_SET(socket_fd,&fds);
+  tv.tv_sec=5;
+  tv.tv_usec=0;
+  rc=lwip_select(socket_fd+1,write_ready?NULL:&fds,
+                 write_ready?&fds:NULL,NULL,&tv);
+  return rc>0 && FD_ISSET(socket_fd,&fds);
+}
 static int http_probe(const probe_config *cfg) {
   struct sockaddr_in addr;
   struct ip4_addr server_addr;
-  fd_set writefds, readfds;
-  struct timeval tv;
-  char req[160], reply[MAX_REPLY + 1];
-  int s = -1, rc, soerr = 0, n;
-  socklen_t optlen = sizeof(soerr);
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(cfg->port);
-  IP4_ADDR(&server_addr, cfg->server[0],
-           cfg->server[1], cfg->server[2], cfg->server[3]);
-  memcpy(&addr.sin_addr, &server_addr, sizeof(addr.sin_addr));
-  scr_printf("TCP -> ");
-  print_ip(cfg->server);
-  scr_printf(":%u\n", (unsigned)cfg->port);
-  s = lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (s < 0) { scr_printf("socket: %d\n", errno); return -1; }
-  if (fcntl(s, F_SETFL, O_NONBLOCK) < 0) {
-    scr_printf("nonblocking socket unsupported: %d\n", errno);
-    lwip_close(s);
+  char req[180];
+  const uint8_t *png;
+  size_t received=0, png_bytes=0;
+  int sock=-1, fd, rc, soerr=0, n, written=0;
+  socklen_t optlen=sizeof(soerr);
+  unsigned offset=0;
+
+  /* If a previous test was successful, fail closed rather than truncate it.
+     Users can delete NET_DOWNLOAD_TEST.PNG on the PC to retest. */
+  fd=fileXioOpen(PNG_DEST_PATH,FIO_O_RDONLY,0);
+  if (fd>=0) {
+    fileXioClose(fd);
+    scr_printf("STOP: NET_DOWNLOAD_TEST.PNG already exists.\n");
     return -1;
   }
-  rc = lwip_connect(s, (struct sockaddr *)&addr, sizeof(addr));
-  if (rc < 0 && errno != EINPROGRESS && errno != EWOULDBLOCK &&
-      errno != EALREADY) {
-    scr_printf("connect failed: %d\n", errno);
-    lwip_close(s); return -1;
+
+  memset(&addr,0,sizeof(addr));
+  addr.sin_family=AF_INET;
+  addr.sin_port=htons(cfg->port);
+  IP4_ADDR(&server_addr,cfg->server[0],cfg->server[1],
+           cfg->server[2],cfg->server[3]);
+  memcpy(&addr.sin_addr,&server_addr,sizeof(addr.sin_addr));
+  scr_printf("LAN HTTP -> ");
+  print_ip(cfg->server);
+  scr_printf(":%u\n",(unsigned)cfg->port);
+  sock=lwip_socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+  if (sock<0) { scr_printf("socket failed: %d\n",errno); return -1; }
+  if (fcntl(sock,F_SETFL,O_NONBLOCK)<0) {
+    scr_printf("nonblocking socket failed: %d\n",errno);
+    goto fail;
   }
-  if (rc < 0) {
-    FD_ZERO(&writefds);
-    FD_SET(s, &writefds);
-    tv.tv_sec = 5; tv.tv_usec = 0;
-    rc = lwip_select(s + 1, NULL, &writefds, NULL, &tv);
-    if (rc <= 0 || !FD_ISSET(s, &writefds)) {
-      scr_printf("TCP timeout / error (5s): %d\n", rc);
-      lwip_close(s); return -1;
+  rc=lwip_connect(sock,(struct sockaddr*)&addr,sizeof(addr));
+  if (rc<0 && errno!=EINPROGRESS && errno!=EWOULDBLOCK &&
+      errno!=EALREADY) {
+    scr_printf("connect failed: %d\n",errno);
+    goto fail;
+  }
+  if (rc<0) {
+    if (!io_ready(sock,1)) {
+      scr_printf("TCP connect timeout (5s)\n");
+      goto fail;
     }
-    if (lwip_getsockopt(s, SOL_SOCKET, SO_ERROR, &soerr, &optlen) < 0 ||
-        soerr != 0) {
-      scr_printf("connect SO_ERROR: %d\n", soerr);
-      lwip_close(s); return -1;
+    if (lwip_getsockopt(sock,SOL_SOCKET,SO_ERROR,&soerr,&optlen)<0 ||
+        soerr!=0) {
+      scr_printf("connect SO_ERROR=%d\n",soerr);
+      goto fail;
     }
   }
   scr_printf("TCP: CONNECTED\n");
-  /* HTTP GET / contains no user data; no storage is modified. */
-  n = snprintf(req, sizeof(req),
-       "GET / HTTP/1.0\r\nHost: %u.%u.%u.%u\r\nConnection: close\r\n\r\n",
-       cfg->server[0],cfg->server[1],cfg->server[2],cfg->server[3]);
-  if (n <= 0 || n >= (int)sizeof(req) || lwip_send(s, req, n, 0) != n) {
-    scr_printf("HTTP request failed: %d\n", errno);
-    lwip_close(s); return -1;
+  n=snprintf(req,sizeof(req),
+      "GET " PNG_REQUEST_PATH " HTTP/1.0\r\n"
+      "Host: %u.%u.%u.%u\r\nConnection: close\r\n\r\n",
+      cfg->server[0],cfg->server[1],cfg->server[2],cfg->server[3]);
+  if (n<=0 || n>=(int)sizeof(req)) goto fail;
+  while (offset<(unsigned)n) {
+    if (!io_ready(sock,1)) {
+      scr_printf("HTTP send timeout\n");
+      goto fail;
+    }
+    rc=lwip_send(sock,req+offset,(unsigned)n-offset,0);
+    if (rc<=0) {
+      if (rc<0 && (errno==EWOULDBLOCK||errno==EAGAIN)) continue;
+      scr_printf("HTTP send failed: %d\n",errno);
+      goto fail;
+    }
+    offset+=(unsigned)rc;
   }
-  FD_ZERO(&readfds);
-  FD_SET(s, &readfds);
-  tv.tv_sec = 5; tv.tv_usec = 0;
-  rc = lwip_select(s + 1, &readfds, NULL, NULL, &tv);
-  if (rc <= 0 || !FD_ISSET(s, &readfds)) {
-    scr_printf("HTTP timeout / error (5s): %d\n", rc);
-    lwip_close(s); return -1;
+  scr_printf("GET " PNG_REQUEST_PATH "\n");
+  for (;;) {
+    if (!io_ready(sock,0)) {
+      scr_printf("HTTP read timeout (5s)\n");
+      goto fail;
+    }
+    if (received>=HTTP_BUFFER_CAP) {
+      scr_printf("HTTP response exceeds 258 KiB cap\n");
+      goto fail;
+    }
+    n=lwip_recv(sock,response+received,HTTP_BUFFER_CAP-received,0);
+    if (n==0) break;
+    if (n<0) {
+      if (errno==EWOULDBLOCK||errno==EAGAIN) continue;
+      scr_printf("HTTP read error: %d\n",errno);
+      goto fail;
+    }
+    received+=(size_t)n;
   }
-  n = lwip_recv(s, reply, MAX_REPLY, 0);
-  lwip_close(s);
-  if (n <= 0) { scr_printf("HTTP empty reply\n"); return -1; }
-  reply[n] = '\0';
-  for (rc = 0; rc < n; rc++) {
-    if (reply[rc] == '\r' || reply[rc] == '\n') { reply[rc] = '\0'; break; }
-    if ((unsigned char)reply[rc] < 32 ||
-        (unsigned char)reply[rc] > 126) reply[rc] = '?';
+  lwip_close(sock);
+  sock=-1;
+  if (probe_http_extract_png(response,received,&png,&png_bytes)<0) {
+    scr_printf("REJECT: not complete valid HTTP 200 PNG\n");
+    scr_printf("Received: %lu bytes\n",(unsigned long)received);
+    return -1;
   }
-  scr_printf("HTTP: %.60s\n", reply);
-  return !strncmp(reply, "HTTP/1.", 7) ? 0 : -1;
+  scr_printf("PNG: VALID CRC, %lu bytes\n",(unsigned long)png_bytes);
+
+  /* The sole write anywhere in this diagnostic: a dedicated non-ART file.
+     Never touch ART, COVERS.IDX, BOOT.CNF, DVR or game ISOs. */
+  fd=fileXioOpen(PNG_DEST_PATH,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_TRUNC,0666);
+  if (fd<0) {
+    scr_printf("USB test output open failed: %d\n",fd);
+    return -1;
+  }
+  while (written<(int)png_bytes) {
+    int want=(int)png_bytes-written;
+    if (want>4096) want=4096;
+    rc=fileXioWrite(fd,png+written,want);
+    if (rc<=0) {
+      scr_printf("USB write failed; check partial test file\n");
+      fileXioClose(fd);
+      return -1;
+    }
+    written+=rc;
+  }
+  fileXioClose(fd);
+  scr_printf("USB: NET_DOWNLOAD_TEST.PNG SAVED\n");
+  return 0;
+fail:
+  if (sock>=0) lwip_close(sock);
+  return -1;
 }
 int main(int argc, char **argv) {
   probe_config cfg;
@@ -198,8 +267,8 @@ int main(int argc, char **argv) {
   scr_setCursor(0);
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
-  scr_printf("DESR NETWORK PROBE v0.7 - STANDALONE\n");
-  scr_printf("READ-ONLY DVR + LOCAL HTTP. NO QUICKBOOT.\n\n");
+  scr_printf("DESR LOCAL PNG FETCH v0.7.1 - STANDALONE\n");
+  scr_printf("READ-ONLY DVR, SINGLE USB TEST FILE.\n\n");
   if (start_dvr_stack() < 0)
     linger_result("STOP: DVR/USB init failed. Network not started.");
   if (read_config(&cfg) < 0)
@@ -231,7 +300,7 @@ int main(int argc, char **argv) {
     linger_result("STOP: no Ethernet link (cable/driver).");
   http_ok = http_probe(&cfg);
   linger_result(http_ok == 0
-    ? "PASS: DVR + Ethernet + local HTTP response."
-    : "PARTIAL: DVR + Ethernet OK; HTTP failed.");
+    ? "PASS: DVR + LAN PNG + USB test output."
+    : "FAIL: LAN PNG fetch or USB output failed.");
   return 0;
 }

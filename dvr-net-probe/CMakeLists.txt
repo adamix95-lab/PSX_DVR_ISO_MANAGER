@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 include($ENV{PS2SDK}/ps2dev.cmake)
 project(desr_network_probe C)
 
-set(SOURCES src/main.c src/probe_config.c)
+set(SOURCES src/main.c src/probe_config.c src/probe_png.c)
 
 # Match the verified v0.5.3 DVR + USB startup. No HDD write modules.
 set(USB_IRX iomanX fileXio bdm bdmfs_fatfs usbd_mini usbmass_bd_mini)
@@ -27,7 +27,7 @@ foreach(name ${DVR_IRX})
   list(APPEND SOURCES "${generated}")
 endforeach()
 
-add_executable(DVR_NET_PROBE.ELF ${SOURCES})
-target_include_directories(DVR_NET_PROBE.ELF PRIVATE include)
-target_link_libraries(DVR_NET_PROBE.ELF patches fileXio cdvd ps2ip netman libdebug.a m)
-target_compile_options(DVR_NET_PROBE.ELF PRIVATE -Os -Wall -Wextra)
+add_executable(DVR_COVER_FETCH_TEST.ELF ${SOURCES})
+target_include_directories(DVR_COVER_FETCH_TEST.ELF PRIVATE include)
+target_link_libraries(DVR_COVER_FETCH_TEST.ELF patches fileXio cdvd ps2ip netman libdebug.a m)
+target_compile_options(DVR_COVER_FETCH_TEST.ELF PRIVATE -Os -Wall -Wextra)
