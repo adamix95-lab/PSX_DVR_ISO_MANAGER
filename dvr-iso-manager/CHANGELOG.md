@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.3 — conservative ISO9660 executable-ID fallback (hardware untested)
+- After 34/40 covers found, six missing titles diagnosed as `NO_ID`.
+- Manual rescans now prefer SYSTEM.CNF/BOOT2 then fall back to the *only*
+  matching root PS2 executable ID. Multiple candidates are rejected.
+- Distinguish NO_PVD, NO_SYSTEM, BAD_BOOT2, BAD_DIRECTORY, AMBIGUOUS_EXE,
+  FOUND_PNG_EXE / FOUND_JPG_EXE and NO_ART_EXE in USB COVER_SCAN.LOG.
+- No changes to COVERS.IDX schema, cached startup, renderer, layout,
+  USB BOOT.CNF, Neutrino or read-only DVR access.
+
+
 ## 0.5.2 – optional manual cover-scan diagnostics (hardware untested)
 - TRIANGLE generates `mass0:/DESR_DVR/COVER_SCAN.LOG` with reason per game:
   NO_ID, NO_ART, FOUND_PNG, FOUND_JPG or READ_ERROR.
