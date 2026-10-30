@@ -1,0 +1,36 @@
+name: Build DESR DVR network compatibility probe v0.7
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'dvr-net-probe/**'
+      - '.github/workflows/build-dvr-net-probe.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: apk add --no-cache cmake build-base
+      - name: Test read-only IPv4 configuration parser
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include \
+            dvr-net-probe/src/probe_config.c dvr-net-probe/tests/test_probe_config.c \
+            -o /tmp/test_net_probe_config
+          /tmp/test_net_probe_config
+      - name: Build standalone DESR network probe ELF
+        run: |
+          cmake -S dvr-net-probe -B build-dvr-net-probe
+          cmake --build build-dvr-net-probe -j2
+          test -s build-dvr-net-probe/DVR_NET_PROBE.ELF
+      - name: Upload test ELF and example config
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR-DVR-NETWORK-PROBE-v0.7-UNTESTED
+          path: |
+            build-dvr-net-probe/DVR_NET_PROBE.ELF
+            dvr-net-probe/NET_PROBE.EXAMPLE.CNF
+            dvr-net-probe/README_PL.md
