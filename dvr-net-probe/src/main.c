@@ -7,6 +7,7 @@
 #include "probe_config.h"
 #include <debug.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 #include <iopcontrol.h>
 #include <kernel.h>
 #include <libcdvd.h>
@@ -116,6 +117,7 @@ static void linger_result(const char *reason) {
    Nonblocking connect + select timeout; at most 95 bytes of HTTP reply read. */
 static int http_probe(const probe_config *cfg) {
   struct sockaddr_in addr;
+  struct ip4_addr server_addr;
   fd_set writefds, readfds;
   struct timeval tv;
   char req[160], reply[MAX_REPLY + 1];
@@ -125,8 +127,9 @@ static int http_probe(const probe_config *cfg) {
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(cfg->port);
-  IP4_ADDR((ip4_addr_t *)&addr.sin_addr, cfg->server[0],
+  IP4_ADDR(&server_addr, cfg->server[0],
            cfg->server[1], cfg->server[2], cfg->server[3]);
+  memcpy(&addr.sin_addr, &server_addr, sizeof(addr.sin_addr));
   scr_printf("TCP -> ");
   print_ip(cfg->server);
   scr_printf(":%u\n", (unsigned)cfg->port);
