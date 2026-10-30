@@ -267,10 +267,10 @@ static void draw(void) {
   scr_printf("-------------------------------------------------------");
   scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
-  scr_printf("UP/DOWN GAME   LEFT/RIGHT PAGE   X LAUNCH");
+  scr_printf("UP/DOWN: GAME   LEFT/RIGHT: PAGE   X: LAUNCH");
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
-  scr_printf("SELECT LANG   TRIANGLE INDEX   SQUARE TEST   START EXIT");
+  scr_printf("SELECT: LANG   TRIANGLE: INDEX   SQUARE: TEST   START: EXIT");
   scr_setfontcolor(0xFFFFFF);
 }
 
