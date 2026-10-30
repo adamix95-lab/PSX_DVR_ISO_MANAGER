@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 – safer OPL-style bitmap preview (hardware untested)
+- Replace 11x14 glyph-based mosaic with 88x128 real PNG pixels.
+- Transfer one bounded PSMCT32 rectangle to PS2SDK's existing debug framebuffer
+  using the same GIF/DMA channel and transfer packet layout as scr_putchar.
+- No GS/gsKit reset, no cover index changes, no Quickboot or DVR writes.
+- Keep v0.5 ELF as fallback pending physical DESR-7000 test.
+
+
 ## 0.5 – experimental manual ART index + tiny PNG preview
 - Read-only ISO9660 SYSTEM.CNF Game ID reader and OPL cover discovery.
 - USB COVERS.IDX with staging/verification and backup, manual TRIANGLE scan.
