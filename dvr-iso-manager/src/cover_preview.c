@@ -5,26 +5,81 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 #include <debug.h>
+#include <ee_regs.h>
+#include <kernel.h>
 #include <png.h>
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-/* PS2 debug framebuffer is GS-owned. Do not initialize gsKit here:
-   it would replace the known-working MONO display setup.
-   Each 7x8 MSX glyph #219 becomes one colored preview pixel. */
-#define PREVIEW_W 11
-#define PREVIEW_H 14
+/*
+ * OPL-like cover preview for the EXISTING PS2SDK MONO debug screen.
+ *
+ * PS2SDK ee/debug/src/scr_printf.c configures a 640x224 PSMCT32 framebuffer,
+ * and scr_putchar uploads each 8x8 glyph through GIF DMA channel 2.
+ * We use exactly that existing GS BITBLTBUF/TRXPOS/TRXREG/TRXDIR layout, but
+ * upload one bounded 88x128 RGBA image instead of 11x14 solid MSX glyphs.
+ *
+ * Never call gsKit_init_screen, SetGsCrt or reset DMA/GS here: the working
+ * console screen, IRX stack, ISO index and Quickboot remain untouched.
+ *
+ * Position: 62 text columns * 7 px, y = 8 rows * 8 px, end at y=192.
+ * Debug footer starts at y=192, so cover pixels cannot overlap it.
+ */
+#define PREVIEW_W 88
+#define PREVIEW_H 128
+#define PREVIEW_X (62 * 7)
+#define PREVIEW_Y (8 * 8)
+#define PREVIEW_QWC (PREVIEW_W * PREVIEW_H * 4 / 16)
 #define MAX_COVER_W 512
 #define MAX_COVER_H 512
 
-typedef struct {
-  uint32_t r, g, b, n;
-} color_accum;
 typedef struct { int fd; } png_stream;
-static color_accum sample[PREVIEW_W * PREVIEW_H];
+
+/* Clone of the 6-QWC PS2SDK debug GIF blit setup, with variable transfer
+ * dimensions and image packet length. The buffer layout is ABI-sensitive. */
+typedef struct {
+  uint64_t dd0[4];
+  uint32_t dw0;
+  uint16_t x, y;
+  uint64_t dd1;
+  uint32_t width, height;
+  uint64_t dd2[5];
+} cover_blit_setup;
+typedef char cover_blit_setup_is_96_bytes[(sizeof(cover_blit_setup)==96)?1:-1];
+
+static cover_blit_setup setup __attribute__((aligned(16)));
+static uint32_t pixels[PREVIEW_W * PREVIEW_H] __attribute__((aligned(16)));
 static unsigned char scanline[MAX_COVER_W * 4];
+
+static const cover_blit_setup setup_template = {
+  {0x1000000000000004ULL, 0xEULL, 0xA000000000000ULL, 0x50ULL},
+  0, PREVIEW_X, PREVIEW_Y,
+  0x51ULL, PREVIEW_W, PREVIEW_H,
+  {0x52ULL, 0ULL, 0x53ULL,
+   0x0800000000008000ULL | PREVIEW_QWC, 0ULL}
+};
+
+static void cover_dma_wait(void) {
+  while ((*R_EE_D2_CHCR & 0x100) != 0) { }
+}
+static void cover_dma_submit(const void *buf, int qwc) {
+  *R_EE_D2_QWC = (uint32_t)qwc;
+  *R_EE_D2_MADR = (uint32_t)(uintptr_t)buf;
+  *R_EE_D2_CHCR = 0x101; /* normal DMA: memory -> GIF */
+}
+
+static void cover_blit(void) {
+  /* Existing scr_putchar also writes packets via UNCACHED_SEG. This
+   * guarantees DMA sees the exact setup and pixels without cache flushes. */
+  *(cover_blit_setup *)UNCACHED_SEG(&setup) = setup_template;
+  cover_dma_wait();
+  cover_dma_submit(&setup, 6);
+  cover_dma_wait();
+  cover_dma_submit(pixels, PREVIEW_QWC);
+  cover_dma_wait();
+}
 
 static void read_png(png_structp png, png_bytep data, png_size_t bytes) {
   png_stream *s = (png_stream *)png_get_io_ptr(png);
@@ -42,7 +97,7 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
   png_structp png = NULL;
   png_infop info = NULL;
   png_uint_32 w, h, y;
-  int bit_depth, color_type, channels, fd, gx, gy, x, index, n;
+  int bit_depth, color_type, channels, fd, next_y, x, n;
   png_stream stream;
   if (!desr_valid_game_id(game_id) || !ext || strcmp(ext, "png"))
     return 0;
@@ -55,10 +110,13 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
   png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (!png) { fileXioClose(fd); return 0; }
   info = png_create_info_struct(png);
-  if (!info) { png_destroy_read_struct(&png, NULL, NULL);
-               fileXioClose(fd); return 0; }
-  /* libpng uses longjmp on corrupt input. Static scanline means no
-     partially allocated image buffer survives an aborted decode. */
+  if (!info) {
+    png_destroy_read_struct(&png, NULL, NULL);
+    fileXioClose(fd);
+    return 0;
+  }
+  /* Never modify the displayed cover until the entire PNG decodes.
+   * Invalid/truncated PNGs take the same text fallback as in v0.5. */
   if (setjmp(png_jmpbuf(png))) {
     png_destroy_read_struct(&png, &info, NULL);
     fileXioClose(fd);
@@ -69,14 +127,8 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
   png_read_info(png, info);
   w = png_get_image_width(png, info);
   h = png_get_image_height(png, info);
-  if (!w || !h || w > MAX_COVER_W || h > MAX_COVER_H) {
-    png_destroy_read_struct(&png, &info, NULL);
-    fileXioClose(fd);
-    return 0;
-  }
-  /* Adam7 needs multiple image passes; reject it rather than painting
-     a misleading partial preview on the DESR framebuffer. */
-  if (png_get_interlace_type(png, info) != PNG_INTERLACE_NONE) {
+  if (!w || !h || w > MAX_COVER_W || h > MAX_COVER_H ||
+      png_get_interlace_type(png, info) != PNG_INTERLACE_NONE) {
     png_destroy_read_struct(&png, &info, NULL);
     fileXioClose(fd);
     return 0;
@@ -101,34 +153,34 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
     return 0;
   }
 
-  memset(sample, 0, sizeof(sample));
+  /* Bounded nearest-neighbor scaling while decoding. No full-size source
+   * bitmap allocation: at most 2 KB of PNG scanline + 44 KB of output.
+   * Output is prebuilt in uncached RAM before any GS DMA is issued.
+   * Center-of-source samples avoid the old 11x14 mosaic. */
+  next_y = 0;
   for (y = 0; y < h; y++) {
     png_read_row(png, scanline, NULL);
-    gy = (int)(y * PREVIEW_H / h);
-    for (x = 0; x < (int)w; x++) {
-      const unsigned char *p = scanline + x * 4;
-      gx = (int)((png_uint_32)x * PREVIEW_W / w);
-      index = gy * PREVIEW_W + gx;
-      /* Composite alpha against the black MONO background. */
-      sample[index].r += (uint32_t)p[0] * p[3] / 255;
-      sample[index].g += (uint32_t)p[1] * p[3] / 255;
-      sample[index].b += (uint32_t)p[2] * p[3] / 255;
-      sample[index].n++;
+    while (next_y < PREVIEW_H &&
+           ((uint32_t)next_y * h + PREVIEW_H / 2) / PREVIEW_H == y) {
+      for (x = 0; x < PREVIEW_W; x++) {
+        uint32_t sx = ((uint32_t)x * w + PREVIEW_W / 2) / PREVIEW_W;
+        const unsigned char *p;
+        uint32_t color;
+        if (sx >= w) sx = w - 1;
+        p = scanline + sx * 4;
+        /* Composite RGBA against original black UI background. */
+        color = (((uint32_t)p[0] * p[3] / 255) << 16) |
+                (((uint32_t)p[1] * p[3] / 255) << 8) |
+                 ((uint32_t)p[2] * p[3] / 255);
+        *(uint32_t *)UNCACHED_SEG(&pixels[next_y * PREVIEW_W + x]) = color;
+      }
+      next_y++;
     }
   }
   png_read_end(png, NULL);
   png_destroy_read_struct(&png, &info, NULL);
   fileXioClose(fd);
-
-  for (gy = 0; gy < PREVIEW_H; gy++) {
-    for (gx = 0; gx < PREVIEW_W; gx++) {
-      color_accum *p = &sample[gy * PREVIEW_W + gx];
-      uint32_t color;
-      if (!p->n) continue;
-      color = ((p->r / p->n) << 16) |
-              ((p->g / p->n) << 8) | (p->b / p->n);
-      scr_putchar(62 * 7 + gx * 7, 8 * 8 + gy * 8, color, 219);
-    }
-  }
+  if (next_y != PREVIEW_H) return 0;
+  cover_blit();
   return 1;
 }
