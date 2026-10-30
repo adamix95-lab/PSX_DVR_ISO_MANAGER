@@ -121,7 +121,12 @@ int desr_covers_load(char games[][DESR_FILENAME_CAP], int count,
   char *p, *end;
   desr_covers_clear(covers);
   size = read_index_file(COVER_IDX);
-  if (size < 0) size = read_index_file(COVER_BAK);
+  /* Recover an interrupted/invalid index from the retained USB backup. */
+  if (size < (int)strlen(DESR_COVER_INDEX_HEADER) ||
+      memcmp(index_buf, DESR_COVER_INDEX_HEADER,
+             strlen(DESR_COVER_INDEX_HEADER))) {
+    size = read_index_file(COVER_BAK);
+  }
   if (size < (int)strlen(DESR_COVER_INDEX_HEADER) ||
       memcmp(index_buf, DESR_COVER_INDEX_HEADER,
              strlen(DESR_COVER_INDEX_HEADER))) return 0;
