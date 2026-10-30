@@ -258,7 +258,7 @@ static void draw(void) {
 
   if (status_visible) {
     scr_setXY(2, 22);
-    scr_printf("%.73s", status);
+    scr_printf("%.54s", status); /* keep status left of the cover */
   }
   /* Footer divider stops BEFORE the cover (x=434), which occupies
      y=64..191. Avoid overwriting bottom pixels of the PNG. */
