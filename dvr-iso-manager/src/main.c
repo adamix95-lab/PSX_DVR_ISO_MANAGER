@@ -6,6 +6,7 @@
 
 #include "iso_utils.h"
 #include "cover_runtime.h"
+#include "cover_preview.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -215,18 +216,22 @@ static void draw(void) {
     }
   }
 
-  /* Safe MONO metadata preview. Actual bitmap display requires an
-     explicitly reviewed GS renderer and is not enabled in this build. */
+  /* PNG cover preview: compact color tiles drawn without reinitializing
+     the video system. Missing or unsupported art keeps the text fallback. */
   if (count) {
-    scr_setXY(60, 8);
-    scr_printf("COVER");
-    scr_setXY(60, 10);
-    scr_printf(covers[selected].present ? "FOUND" : "NO COVER");
     if (covers[selected].present) {
-      scr_setXY(60, 12);
+      scr_setXY(61, 7);
       scr_printf("%s", covers[selected].game_id);
-      scr_setXY(60, 14);
-      scr_printf("%s", covers[selected].ext);
+      if (!desr_cover_preview_png(covers[selected].game_id,
+                                  covers[selected].ext)) {
+        scr_setXY(62, 11);
+        scr_printf("ART FOUND");
+        scr_setXY(62, 13);
+        scr_printf(covers[selected].ext[0] == 'j' ? "JPG" : "BAD PNG");
+      }
+    } else {
+      scr_setXY(62, 10);
+      scr_printf("NO COVER");
     }
   }
 
