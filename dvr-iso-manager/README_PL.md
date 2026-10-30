@@ -1,4 +1,4 @@
-# PSX DVR ISO Manager v0.4 — MONO + nawigacja stron
+# PSX DVR ISO Manager v0.5 — okładki (wersja rozwojowa)
 
 **v0.4: NIEPRZETESTOWANA na Sony PSX DESR-7000 — nie scalać przed testami sprzętowymi.**
 Wcześniejsza v0.3 MONO była testowana na konsoli.
