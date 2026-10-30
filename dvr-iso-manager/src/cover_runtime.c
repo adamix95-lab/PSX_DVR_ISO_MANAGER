@@ -1,4 +1,5 @@
 #include "cover_runtime.h"
+#include "cover_report.h"
 #define NEWLIB_PORT_AWARE
 #include <fileXio_rpc.h>
 #include <io_common.h>
@@ -11,12 +12,15 @@
 #define COVER_IDX "mass0:/DESR_DVR/COVERS.IDX"
 #define COVER_NEW "mass0:/DESR_DVR/COVERS.NEW"
 #define COVER_BAK "mass0:/DESR_DVR/COVERS.BAK"
+#define COVER_SCAN_LOG "mass0:/DESR_DVR/COVER_SCAN.LOG"
 #define COVER_ART "mass0:/DESR_DVR/ART/"
 #define SECTOR 2048
 
 /* Bounded static buffers: never keep cover bitmaps or an entire ISO in RAM. */
 static unsigned char sector_buf[SECTOR];
 static char index_buf[DESR_COVER_INDEX_CAP];
+/* Debug report is only written after manual TRIANGLE scan, never at startup. */
+static char scan_report[DESR_COVER_INDEX_CAP];
 static desr_cover_entry pending[DESR_GAME_CAP];
 
 void desr_covers_clear(desr_cover_entry covers[DESR_GAME_CAP]) {
@@ -201,10 +205,29 @@ static int save_index(const char *data, int size) {
   return 0;
 }
 
+/* Diagnostic is optional: write failures never affect the existing cache,
+   the game list, or Quickboot. Only the USB report path is writable. */
+static void write_scan_report(size_t size) {
+  int fd, done = 0, n;
+  if (!size || size >= sizeof(scan_report)) return;
+  fd = fileXioOpen(COVER_SCAN_LOG,
+                   FIO_O_WRONLY | FIO_O_CREAT | FIO_O_TRUNC, 0666);
+  if (fd < 0) return;
+  while (done < (int)size) {
+    int want = (int)size - done;
+    if (want > 1024) want = 1024;
+    n = fileXioWrite(fd, scan_report + done, want);
+    if (n <= 0) break;
+    done += n;
+  }
+  fileXioClose(fd);
+}
+
 int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
                         desr_cover_entry covers[DESR_GAME_CAP],
                         int *identified) {
-  int i, found = 0, ids = 0, size, n;
+  int i, found = 0, ids = 0, size, n, report_ok = 1;
+  size_t report_size = 0;
   char id[DESR_COVER_ID_CAP];
   if (!identified || count < 0 || count > DESR_GAME_CAP) return -1;
   *identified = 0;
@@ -212,14 +235,35 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
   memcpy(index_buf, DESR_COVER_INDEX_HEADER,
          sizeof(DESR_COVER_INDEX_HEADER) - 1);
   size = sizeof(DESR_COVER_INDEX_HEADER) - 1;
+  if (desr_cover_report_init(scan_report, sizeof(scan_report),
+                             &report_size) < 0) report_ok = 0;
   for (i = 0; i < count; i++) {
     int rc = get_id_from_iso(games[i], id);
-    if (rc < 0) return -1; /* Keep old index if DVR read failed. */
-    if (!rc) continue;
+    int png_found, jpg_found;
+    if (rc < 0) {
+      if (report_ok && desr_cover_report_add(
+             scan_report, sizeof(scan_report), &report_size,
+             games[i], DESR_SCAN_READ_ERROR, NULL) < 0) report_ok = 0;
+      if (report_ok) write_scan_report(report_size);
+      return -1; /* Old index survives failed DVR read, as in v0.5. */
+    }
+    if (!rc) {
+      if (report_ok && desr_cover_report_add(
+             scan_report, sizeof(scan_report), &report_size,
+             games[i], DESR_SCAN_NO_ID, NULL) < 0) report_ok = 0;
+      continue;
+    }
     ids++;
-    if (!cover_exists(id, "png") && !cover_exists(id, "jpg")) continue;
+    png_found = cover_exists(id, "png");
+    jpg_found = png_found ? 0 : cover_exists(id, "jpg");
+    if (!png_found && !jpg_found) {
+      if (report_ok && desr_cover_report_add(
+             scan_report, sizeof(scan_report), &report_size,
+             games[i], DESR_SCAN_NO_ART, id) < 0) report_ok = 0;
+      continue;
+    }
     memcpy(pending[i].game_id, id, DESR_COVER_ID_CAP);
-    strcpy(pending[i].ext, cover_exists(id, "png") ? "png" : "jpg");
+    strcpy(pending[i].ext, png_found ? "png" : "jpg");
     pending[i].present = 1;
     n = desr_cover_format(index_buf + size,
                           sizeof(index_buf) - (size_t)size,
@@ -227,9 +271,14 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
     if (n < 0) return -1;
     size += n;
     found++;
+    if (report_ok && desr_cover_report_add(
+           scan_report, sizeof(scan_report), &report_size,
+           games[i], png_found ? DESR_SCAN_FOUND_PNG : DESR_SCAN_FOUND_JPG,
+           id) < 0) report_ok = 0;
   }
   if (save_index(index_buf, size) < 0) return -1;
   memcpy(covers, pending, sizeof(pending));
   *identified = ids;
+  if (report_ok) write_scan_report(report_size);
   return found;
 }
