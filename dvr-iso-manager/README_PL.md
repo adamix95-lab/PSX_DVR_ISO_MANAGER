@@ -1,6 +1,25 @@
-# PSX DVR ISO Manager v0.5.2 — czytelniejsze okładki PNG (TEST)
+# PSX DVR ISO Manager v0.5.3 — czytelniejsze okładki PNG (TEST)
 
 **Nowy renderer v0.5.1 jest NIEPRZETESTOWANY na DESR-7000.** Przed testem zachowaj działający ELF v0.5. Nie scalać do `main`.
+
+## v0.5.3 — awaryjne rozpoznawanie Game ID (test, 30.10.2026)
+
+W dostarczonym `COVER_SCAN.LOG` spośród 40 ISO wystąpiło 34 × `FOUND_PNG` oraz sześć × `NO_ID`: **Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus, Wipeout Fusion**. Nie wystąpiło `NO_ART`, więc nie mamy powodu na tym etapie zmieniać nazw okładek.
+
+**Zmiana (tylko ręczny TRÓJKĄT):** najpierw próbujemy zwykłego `SYSTEM.CNF`/`BOOT2`, a jeżeli odczyt ID się nie powiedzie, przeglądamy wyłącznie katalog główny obrazu ISO9660 (sektory po 2048 bajty) w poszukiwaniu pliku wykonywalnego o nazwie `SLES_123.45;1`, `SLUS_123.45;1` itp. Jeżeli istnieje **dokładnie jeden różny identyfikator**, wykorzystujemy go jako awaryjny Game ID i szukamy istniejącej okładki OPL. Jeżeli jest wiele ID, **nie zgadujemy**.
+
+Nowy raport `mass0:/DESR_DVR/COVER_SCAN.LOG` rozróżnia:
+- `FOUND_PNG_EXE` / `FOUND_JPG_EXE`: okładka po ID odzyskanym z nazwy pojedynczego pliku startowego.
+- `NO_ART_EXE`: rozpoznane ID zapasową metodą, ale nie odnaleziono okładki — sprawdź dokładną nazwę na USB.
+- `NO_PVD`: nierozpoznany standardowy opis ISO9660 (możliwy niestandardowy układ/rozmiar sektora).
+- `NO_SYSTEM`: brak rozpoznanego `SYSTEM.CNF` i brak pojedynczego pliku startowego.
+- `BAD_BOOT2`: `SYSTEM.CNF` istnieje, ale jego wpisu `BOOT2` nie rozpoznano i nie znaleziono zapasowego ID.
+- `BAD_DIRECTORY`: niepoprawny/nieobsługiwany rekord katalogu.
+- `AMBIGUOUS_EXE`: wiele różnych identyfikatorów wykonywalnych, więc pominięto automatyczny wybór.
+- `READ_ERROR`: błąd odczytu DVR.
+- Dotychczasowe `FOUND_PNG`, `FOUND_JPG`, `NO_ART` pozostają bez zmian.
+
+**Test:** zachowaj stary działający ELF v0.5.1 i `COVERS.IDX` na PC. Pobierz `PSX-DVR-ISO-Manager-v0.5.3-BOOT-ID-FALLBACK-UNTESTED`, uruchom jedynie nowy ELF, naciśnij TRÓJKĄT i przekaż nowy `COVER_SCAN.LOG`. Jeżeli skaner odnajdzie dodatkowe okładki, potwierdź je na ekranie. Gdy wyniki nadal są negatywne, nowy status pokaże, którą część ISO trzeba zbadać. Bez zapisu na DVR, bez zmian w Quickboot i rendererze. **Do testu sprzętowego traktuj tę wersję jako Draft.**
 
 ## v0.5.2 — diagnostyka brakujących okładek (Draft, test na konsoli do wykonania)
 
