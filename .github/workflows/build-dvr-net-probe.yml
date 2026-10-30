@@ -1,4 +1,4 @@
-name: Build DESR DVR network compatibility probe v0.7
+name: Build DESR DVR single local PNG fetch test v0.7.1
 on:
   workflow_dispatch:
   push:
@@ -21,16 +21,22 @@ jobs:
             dvr-net-probe/src/probe_config.c dvr-net-probe/tests/test_probe_config.c \
             -o /tmp/test_net_probe_config
           /tmp/test_net_probe_config
+      - name: Test bounded HTTP/PNG parser
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include \
+            dvr-net-probe/src/probe_png.c dvr-net-probe/tests/test_probe_png.c \
+            -o /tmp/test_net_probe_png
+          /tmp/test_net_probe_png
       - name: Build standalone DESR network probe ELF
         run: |
           cmake -S dvr-net-probe -B build-dvr-net-probe
           cmake --build build-dvr-net-probe -j2
-          test -s build-dvr-net-probe/DVR_NET_PROBE.ELF
+          test -s build-dvr-net-probe/DVR_COVER_FETCH_TEST.ELF
       - name: Upload test ELF and example config
         uses: actions/upload-artifact@v4
         with:
-          name: DESR-DVR-NETWORK-PROBE-v0.7-UNTESTED
+          name: DESR-DVR-LOCAL-PNG-FETCH-v0.7.1-UNTESTED
           path: |
-            build-dvr-net-probe/DVR_NET_PROBE.ELF
+            build-dvr-net-probe/DVR_COVER_FETCH_TEST.ELF
             dvr-net-probe/NET_PROBE.EXAMPLE.CNF
             dvr-net-probe/README_PL.md
