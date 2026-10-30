@@ -1,7 +1,7 @@
 ## PSX_DVR_ISO_MANAGER
 
 Proste narzędzie do uruchamiania gier w formacie .ISO z partycji DVR konsoli PSX DESR.
-Jest to prototyp. Bez pięknego GUI i wielu opcji.
+Wersja v0.5.3 przeszła testy na DESR-7000 (40/40 okładek, Quickboot).\nWersja rozwojowa v0.6 odświeża wyłącznie interfejs MONO.
 
 ## Instalacja
 W aktualnym wersji cała konfiguracja programu (patche, pliki OSDLauncher, Neutrino itd) MUSZĄ znajdować się w folderze 
@@ -13,11 +13,11 @@ mass0:/DESR_DVR/
 ├── BOOT.ELF                 # OSDMenu Launcher
 ├── BOOT.CNF                 # Konfiguracja uruchamianej gry
 ├── BOOT_RECOVERY.CNF        # Kopia zapasowa konfiguracji
-├── DVR_TEST.CNF             # Testowa konfiguracja
+├── DVR_TEST.CNF             # Testowa konfiguracja\n├── COVERS.IDX               # Indeks okładek na USB\n├── COVER_SCAN.LOG           # Raport z ręcznego skanowania\n├── ART/                     # Okładki <GAMEID>_COV.png
 │
 ├── neutrino.elf             # Neutrino DVR - SYSTEM
 ├── neutrino_lang.elf        # Neutrino DVR - ENGLISH
-├── DVR_ISO_MANAGER.ELF      # Manager v0.4 (nawigacja stron, w testach) - wprowadza zmiany w BOOT.CNF i uruchamia neutrino.elf lub neutrino_lang.elf
+├── DVR_ISO_MANAGER.ELF      # Manager v0.6 (MONO Refined — test GUI) - zapisuje BOOT.CNF na USB przy uruchomieniu gry
 │
 ├── config/
 │   ├── system.toml          # Podstawowa konfiguracja
@@ -40,9 +40,9 @@ Obrazy ISO muszą znajdować się na partycji DVR w `dvr_pfs0:/ISO/*`
 <img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/344403f5-11b3-4a1d-925e-0c676ad2fbb2" />
 
 - Wciśnij **UP** lub **DOWN**, by wybrać grę z listy
-- Wciśnij **LEFT** lub **RIGHT**, by przełączyć stronę listy (12 gier; v0.4, wymaga testu na DESR-7000)
+- Wciśnij **LEFT** lub **RIGHT**, by przełączyć stronę listy (12 gier; działa od v0.4)
 - Wciśnij **X** aby uruchomić dany tytuł
-- Wciśnij **^** aby odświeżyć listę ISO (w v0.5 także indeks okładek na USB)
+- Wciśnij **^** aby odświeżyć listę ISO, identyfikatory gier i indeks okładek na USB
 - Wciśnij **[]** aby zapisać testową konfigurację do *"DVR_TEST.CNF"*
 - Wciśnij **SELECT** by zmienić język gry - funkcja dla gier które ustawiają język według menu konsoli (*testowane przy REZ i Metal Slug Anthology*)
 - Wciśnij **START** by wyjść z aplikacji

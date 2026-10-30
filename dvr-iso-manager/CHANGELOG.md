@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6 — MONO Refined (hardware untested)
+- Refresh text-only menu styling while keeping the black/white PSX character.
+- Selected title gains a charcoal character background with white pointer/text;
+  remaining titles use understated grayscale text.
+- Dim header and footer separators, padded PAGE 01/04 formatting, clearer
+  two-line controls with consistent colons (UP/DOWN:, X:, SELECT:, etc.)
+  and discreet GAME ID label.
+- Preserve the approved cover placement (row 7 / y=64, 88x128 PNG), bitmap
+  colors, bilinear scaling, Game IDs and index/scan logic.
+- Constrain error/status text so it cannot draw over the cover rectangle.
+- Launch, CNF generation, Neutrino, DVR read paths and pad handling untouched.
+- Draft pending real Sony PSX DESR-7000 hardware validation.
+
+
 ## 0.5.3 — conservative ISO9660 executable-ID fallback (hardware untested)
 - After 34/40 covers found, six missing titles diagnosed as `NO_ID`.
 - Manual rescans now prefer SYSTEM.CNF/BOOT2 then fall back to the *only*
