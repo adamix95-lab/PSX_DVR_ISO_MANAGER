@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.5 Cover Index
+name: Build PSX DVR ISO Manager v0.5.1 OPL Cover Preview
 on:
   workflow_dispatch:
   push:
@@ -34,7 +34,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.5-COVER-INDEX-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.5.1-OPL-PREVIEW-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
