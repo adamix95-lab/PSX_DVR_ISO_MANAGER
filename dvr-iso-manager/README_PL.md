@@ -2,6 +2,12 @@
 
 **Nowy renderer v0.5.1 jest NIEPRZETESTOWANY na DESR-7000.** Przed testem zachowaj działający ELF v0.5. Nie scalać do `main`.
 
+## Poprawka po pierwszym teście v0.5.1 (30.10.2026)
+
+Na prawdziwym DESR-7000 wyświetliła się okładka God of War II, ale kolory były zniekształcone, a obraz miał widoczne schodki. Przyczyną kolorów było błędne zapisanie piksela jako `0xRRGGBB` zamiast kolejności GS PSMCT32 (`R | G<<8 | B<<16`). Bieżąca kompilacja poprawia kanały czerwony/niebieski i zastępuje skalowanie nearest-neighbor **bilinearnym filtrowaniem w poziomie i pionie**.
+
+**Użyj artefaktu `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-BILINEAR-UNTESTED`, nie starszego ZIP `OPL-PREVIEW-UNTESTED`.** Nie jest on jeszcze przetestowany na konsoli. Zmienia wyłącznie odczyt/raster okładki; `COVERS.IDX`, Quickboot i inne funkcje są bez zmian.
+
 ## Co nowego?
 
 - Podgląd PNG zmienia się z mozaiki **11×14 znaków** na bitmapę **88×128 prawdziwych pikseli** (proporcje zbliżone do OPL 140×200).
@@ -13,7 +19,7 @@
 ## Pierwszy test na konsoli
 
 1. Zrób kopię działającego v0.5 ELF i BOOT.CNF na PC.
-2. Pobierz z Actions artefakt `PSX-DVR-ISO-Manager-v0.5.1-OPL-PREVIEW-UNTESTED` i uruchom **tylko** nowy ELF z USB / UDPFS.
+2. Pobierz z Actions artefakt `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-BILINEAR-UNTESTED` i uruchom **tylko** nowy ELF z USB / UDPFS.
 3. Korzystaj ze starego folderu `ART` i indeksu `COVERS.IDX`; nie musisz naciskać TRÓJKĄTA.
 4. Sprawdź Cold Fear / `SLUS_210.47`: czy grafika jest wyraźniejsza, stabilna, nie uszkadza listy ani stopki.
 5. Zmień kilka gier i stron, potwierdź `NO COVER` i na końcu uruchom znany tytuł (np. Silent Hill 2).
