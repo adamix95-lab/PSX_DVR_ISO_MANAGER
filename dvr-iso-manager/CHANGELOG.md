@@ -1,10 +1,8 @@
 # Changelog
 
 ## 0.5.1 – safer OPL-style bitmap preview (hardware untested)
-- After successful RGB/bilinear hardware display and game launch, move the Game ID
-  from row 7 to row 5 (LANGUAGE alignment) and PNG from y=64 to y=48.
-  The 88x128 image now ends at y=176; status/footer remain intact.
-- Recompile with a uniquely named ALIGNED-COVER test artifact; leave PR Draft.
+- The experimental row-5 Game ID / y=48 PNG alignment was rejected
+  during hardware testing and reverted to tested row-7 ID / y=64 PNG layout.
 - Hardware report: bitmap renders, but incorrect `0xRRGGBB` pixel packing
   inverted red/blue and nearest-neighbor sampling produced jagged edges.
 - Fix GS PSMCT32 byte order (R low, G middle, B high); use streamed bilinear
