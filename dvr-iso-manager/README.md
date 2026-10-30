@@ -1,4 +1,4 @@
-# PSX DVR ISO Manager v0.4 — MONO + page navigation
+# PSX DVR ISO Manager v0.5 — cover preview (development)
 
 [Polski / Polish](README_PL.md)
 

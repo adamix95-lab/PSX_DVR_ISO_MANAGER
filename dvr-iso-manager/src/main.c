@@ -1,10 +1,12 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.4: add LEFT/RIGHT 12-game page navigation on top of v0.3 MONO.
-   Existing DVR scanner, USB CNF and Quickboot behavior stays unchanged. */
+   v0.5: add manually refreshed OPL cover metadata index on USB.
+   No changes to existing DVR scanner, USB CNF or Quickboot behavior. */
 
 #include "iso_utils.h"
+#include "cover_runtime.h"
+#include "cover_preview.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -56,6 +58,7 @@ static char games[DESR_GAME_CAP][DESR_FILENAME_CAP];
 static int count;
 static int selected;
 static int force_english; /* 0 = system (proven), 1 = English (experimental) */
+static desr_cover_entry covers[DESR_GAME_CAP];
 static char status[120] = "Starting...";
 static int status_visible; /* only errors/confirmed actions appear in the menu */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
@@ -181,7 +184,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.4");
+  scr_printf("v0.5");
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------");
   scr_setXY(2, 5);
@@ -206,10 +209,29 @@ static void draw(void) {
     for (i = first; i < last; i++) {
       /* Drop .iso/.ISO extension in display only; not in launch path. */
       title_len = (int)strlen(games[i]) - 4; /* validated by scanner */
-      if (title_len > 64) title_len = 64;
+      if (title_len > 49) title_len = 49;
       scr_setXY(4, 9 + i - first);
       scr_printf("%c  %.*s", i == selected ? '>' : ' ',
                  title_len, games[i]);
+    }
+  }
+
+  /* PNG cover preview: compact color tiles drawn without reinitializing
+     the video system. Missing or unsupported art keeps the text fallback. */
+  if (count) {
+    if (covers[selected].present) {
+      scr_setXY(61, 7);
+      scr_printf("%s", covers[selected].game_id);
+      if (!desr_cover_preview_png(covers[selected].game_id,
+                                  covers[selected].ext)) {
+        scr_setXY(62, 11);
+        scr_printf("ART FOUND");
+        scr_setXY(62, 13);
+        scr_printf(covers[selected].ext[0] == 'j' ? "JPG" : "BAD PNG");
+      }
+    } else {
+      scr_setXY(62, 10);
+      scr_printf("NO COVER");
     }
   }
 
@@ -220,7 +242,7 @@ static void draw(void) {
   scr_setXY(2, 24);
   scr_printf("UP/DOWN Game   LEFT/RIGHT Page   X Launch");
   scr_setXY(2, 25);
-  scr_printf("SELECT Language   TRIANGLE Rescan   SQUARE Test   START Exit");
+  scr_printf("SELECT Language   TRIANGLE Index   SQUARE Test   START Exit");
 }
 
 /* Native PS2SDK fileXio requires FIO_O_* flags, not POSIX O_* flags. */
@@ -351,7 +373,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.4\n");
+  scr_printf("PSX DVR ISO MANAGER v0.5\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -386,6 +408,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   scan_dvr();
+  desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_printf("\nUnable to initialize gamepad\n");
     sleep(60);
@@ -399,7 +422,23 @@ int main(int argc, char *argv[]) {
       new_press = bits & ~prev_buttons;
       prev_buttons = bits;
       if (new_press & PAD_START) break;
-      if (new_press & PAD_TRIANGLE) { scan_dvr(); draw(); }
+      if (new_press & PAD_TRIANGLE) {
+        int identified = 0, matched;
+        rc = scan_dvr();
+        if (rc >= 0) {
+          desr_covers_load(games, count, covers);
+          scr_clear();
+          scr_setXY(2, 5);
+          scr_printf("Reading ISO Game IDs; updating USB index...");
+          matched = desr_covers_refresh(games, count, covers, &identified);
+          if (matched >= 0)
+            snprintf(status, sizeof(status), "INDEX: %d IDs / %d covers (USB)", identified, matched);
+          else
+            snprintf(status, sizeof(status), "Index update failed; previous USB index preserved.");
+          status_visible = 1;
+        }
+        draw();
+      }
       if (new_press & PAD_SELECT) {
         force_english = !force_english;
         status_visible = 0;
