@@ -39,4 +39,4 @@ jobs:
           path: |
             build-dvr-net-probe/DVR_COVER_FETCH_TEST.ELF
             dvr-net-probe/NET_PROBE.EXAMPLE.CNF
-            dvr-net-probe/README_PL.md
+            dvr-net-probe/README_PNG_TEST_PL.md
