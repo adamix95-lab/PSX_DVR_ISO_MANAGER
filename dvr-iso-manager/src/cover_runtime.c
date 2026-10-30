@@ -116,8 +116,12 @@ static int get_id_from_iso(const char *filename,
   /* Prefer the launch configuration whenever it gives a valid ID.
      Even if an ISO has multiple executables, valid BOOT2 takes priority. */
   if (found_cnf && cnf_bytes && cnf_bytes <= sizeof(cnf) &&
-      cnf_lba <= (uint32_t)(INT_MAX / SECTOR) &&
-      read_at(fd, cnf_lba * SECTOR, cnf, (int)cnf_bytes) == 0) {
+      cnf_lba <= (uint32_t)(INT_MAX / SECTOR)) {
+    /* A real DVR read failure must not silently turn into a guessed ID.
+       Keep the old index if we could not read an otherwise valid CNF. */
+    if (read_at(fd, cnf_lba * SECTOR, cnf, (int)cnf_bytes) < 0) {
+      rc = -1; *reason = DESR_SCAN_READ_ERROR; goto done;
+    }
     if (desr_cnf_game_id(cnf, cnf_bytes, id)) {
       rc = 1;
       goto done;
