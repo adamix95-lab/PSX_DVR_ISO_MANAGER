@@ -1,8 +1,8 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.5: add manually refreshed OPL cover metadata index on USB.
-   No changes to existing DVR scanner, USB CNF or Quickboot behavior. */
+   v0.5.1: improve only the OPL cover preview to 88x128 true pixels.
+   DVR scanner, USB index, CNF and Quickboot remain unchanged. */
 
 #include "iso_utils.h"
 #include "cover_runtime.h"
@@ -184,7 +184,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.5");
+  scr_printf("v0.5.1");
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------");
   scr_setXY(2, 5);
@@ -373,7 +373,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.5\n");
+  scr_printf("PSX DVR ISO MANAGER v0.5.1\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
