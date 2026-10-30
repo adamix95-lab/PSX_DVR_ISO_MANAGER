@@ -1,0 +1,8 @@
+# Copy as mass0:/DESR_DVR/NET_PROBE.CNF and edit for YOUR LAN.
+# Choose a free static IP outside your router DHCP pool.
+# Only this standalone test reads this file. No writes anywhere.
+IP=192.168.1.220
+NETMASK=255.255.255.0
+GATEWAY=192.168.1.1
+SERVER_IP=192.168.1.100
+SERVER_PORT=8000
