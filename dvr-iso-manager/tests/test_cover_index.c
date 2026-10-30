@@ -38,6 +38,55 @@ static void test_iso_records(void) {
   memset(block, 0, sizeof(block));
   assert(desr_iso_system_record(block, sizeof(block), &extent, &bytes) == 0);
 }
+static void iso_dir_entry(unsigned char *block, size_t offset,
+                          const char *name, unsigned lba) {
+  size_t name_len = strlen(name), rec_len = 33 + name_len;
+  if (rec_len & 1U) rec_len++;
+  assert(offset + rec_len <= 2048 && rec_len <= 255);
+  block[offset] = (unsigned char)rec_len;
+  block[offset + 32] = (unsigned char)name_len;
+  memcpy(block + offset + 33, name, name_len);
+  put32(block + offset + 2, lba);
+  put32(block + offset + 10, 1024);
+}
+
+static void test_root_exe_fallback(void) {
+  unsigned char block[2048] = {0};
+  char id[DESR_COVER_ID_CAP] = {0};
+  size_t offset;
+  int result;
+  /* A root PS2 executable can recover a game whose BOOT2 is inaccessible. */
+  iso_dir_entry(block, 0, "SLUS_210.47;1", 333);
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 1);
+  assert(!strcmp(id, "SLUS_210.47"));
+  offset = block[0];
+  iso_dir_entry(block, offset, "SYSTEM.CNF;1", 99);
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 1);
+  assert(!strcmp(id, "SLUS_210.47"));
+
+  /* Two different PS2 executables are ambiguous; never guess. */
+  offset += block[offset];
+  iso_dir_entry(block, offset, "SCES_533.26;1", 456);
+  result = desr_iso_root_boot_candidate(block, sizeof(block), id);
+  assert(result == 2 && id[0] == '\0');
+
+  /* No false positives for partial IDs, extra suffix or directories. */
+  memset(block, 0, sizeof(block));
+  iso_dir_entry(block, 0, "SLUS_210.4;1", 12);
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 0);
+  memset(block, 0, sizeof(block));
+  iso_dir_entry(block, 0, "SLUS_210.47.ELF;1", 12);
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 0);
+  memset(block, 0, sizeof(block));
+  iso_dir_entry(block, 0, "sles_538.86;1", 12);
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 1);
+  assert(!strcmp(id, "SLES_538.86"));
+  block[25] = 2; /* directory rather than file */
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) == 0);
+  block[0] = 2; /* malformed record */
+  assert(desr_iso_root_boot_candidate(block, sizeof(block), id) < 0);
+}
+
 static void test_cnf_ids(void) {
   char id[DESR_COVER_ID_CAP];
   const char cnf[] = "BOOT2 = cdrom0:\\SLES_544.39;1\r\nVER = 1.0\r\n";
@@ -73,6 +122,7 @@ static void test_index(void) {
 }
 int main(void) {
   test_iso_records();
+  test_root_exe_fallback();
   test_cnf_ids();
   test_index();
   puts("OK: bounded ISO9660/PVD, SYSTEM.CNF Game ID, and safe OPL cover index");

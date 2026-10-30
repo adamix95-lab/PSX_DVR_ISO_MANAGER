@@ -59,6 +59,52 @@ int desr_iso_system_record(const unsigned char *block, size_t n,
   return 0;
 }
 
+/*
+ * Look for a unique executable with a conventional PS2 boot ID in the root
+ * ISO9660 directory. This is a read-only fallback if SYSTEM.CNF/BOOT2 is
+ * unavailable. Never guess between two different boot candidates.
+ */
+int desr_iso_root_boot_candidate(const unsigned char *block, size_t n,
+                                 char out[DESR_COVER_ID_CAP]) {
+  size_t at = 0;
+  int found = 0;
+  if (!block || n != 2048 || !out) return -1;
+  out[0] = '\0';
+  while (at < n) {
+    const unsigned char *r;
+    size_t len = block[at], namelen, k;
+    char candidate[DESR_COVER_ID_CAP];
+    int valid_suffix = 1;
+    if (!len) break; /* Zero padding at sector tail */
+    if (len < 34 || at + len > n) return -1;
+    r = block + at;
+    namelen = r[32];
+    if (namelen == 0 || 33 + namelen > len) return -1;
+    if (!(r[25] & 2) && namelen >= 11) {
+      for (k = 0; k < 11; k++)
+        candidate[k] = (char)up(r[33 + k]);
+      candidate[11] = '\0';
+      if (namelen > 11) {
+        if (r[33 + 11] != ';' || namelen == 12) valid_suffix = 0;
+        for (k = 12; k < namelen; k++) {
+          if (r[33 + k] < '0' || r[33 + k] > '9')
+            valid_suffix = 0;
+        }
+      }
+      if (valid_suffix && desr_valid_game_id(candidate)) {
+        if (found && strcmp(out, candidate)) {
+          out[0] = '\0';
+          return 2;
+        }
+        memcpy(out, candidate, sizeof(candidate));
+        found = 1;
+      }
+    }
+    at += len;
+  }
+  return found;
+}
+
 int desr_valid_game_id(const char *s) {
   int i;
   if (!s || strlen(s) != 11) return 0;

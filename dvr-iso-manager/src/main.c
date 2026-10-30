@@ -184,7 +184,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.5.1");
+  scr_printf("v0.5.3");
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------");
   scr_setXY(2, 5);
@@ -373,7 +373,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.5.1\n");
+  scr_printf("PSX DVR ISO MANAGER v0.5.3\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");

@@ -1,4 +1,14 @@
-# PSX DVR ISO Manager v0.5.2 — clearer OPL-style PNG preview (UNTESTED)
+# PSX DVR ISO Manager v0.5.3 — clearer OPL-style PNG preview (UNTESTED)
+
+## v0.5.3 — conservative root executable Game ID fallback (hardware untested)
+
+The user's actual 40-entry `COVER_SCAN.LOG` confirms **34 FOUND_PNG** and exactly **six NO_ID** (Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus, Wipeout Fusion). There are **zero NO_ART** results. The failure is therefore in ID extraction, not yet proven to be an ART filename problem.
+
+During manual TRIANGLE only, prefer `SYSTEM.CNF`/`BOOT2` as before. If it does not produce an ID, search the ISO9660 root directory for a **unique** `XXXX_###.##[;version]` boot executable filename. Only use that ID if unambiguous; never guess among multiple candidates. No ISO modifications, and no scan on normal startup.
+
+New detailed USB log statuses: `FOUND_PNG_EXE`, `FOUND_JPG_EXE`, `NO_ART_EXE`, `NO_PVD`, `NO_SYSTEM`, `BAD_BOOT2`, `BAD_DIRECTORY`, `AMBIGUOUS_EXE`. Old statuses and `COVERS.IDX` format remain. Existing display location, bilinear scaling, cached index, launch and Neutrino code are unchanged.
+
+**Retest:** keep the working v0.5.1 ELF and a copy of `COVERS.IDX` on a PC, try only `PSX-DVR-ISO-Manager-v0.5.3-BOOT-ID-FALLBACK-UNTESTED`, press TRIANGLE once, and share the resulting `COVER_SCAN.LOG`. The exact ISO cause is not yet known without reading the affected disc structures. Leave Draft pending actual console verification.
 
 ## v0.5.2 — investigate missing OPL covers (hardware UNTESTED)
 

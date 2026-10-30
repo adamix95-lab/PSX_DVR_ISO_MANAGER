@@ -27,10 +27,20 @@ int desr_cover_report_add(char *out, size_t cap, size_t *used,
   else if (status == DESR_SCAN_FOUND_PNG) label = "FOUND_PNG";
   else if (status == DESR_SCAN_FOUND_JPG) label = "FOUND_JPG";
   else if (status == DESR_SCAN_READ_ERROR) label = "READ_ERROR";
+  else if (status == DESR_SCAN_NO_PVD) label = "NO_PVD";
+  else if (status == DESR_SCAN_NO_SYSTEM) label = "NO_SYSTEM";
+  else if (status == DESR_SCAN_BAD_BOOT2) label = "BAD_BOOT2";
+  else if (status == DESR_SCAN_BAD_DIRECTORY) label = "BAD_DIRECTORY";
+  else if (status == DESR_SCAN_AMBIGUOUS_EXE) label = "AMBIGUOUS_EXE";
+  else if (status == DESR_SCAN_NO_ART_EXE) label = "NO_ART_EXE";
+  else if (status == DESR_SCAN_FOUND_PNG_EXE) label = "FOUND_PNG_EXE";
+  else if (status == DESR_SCAN_FOUND_JPG_EXE) label = "FOUND_JPG_EXE";
   else return -1;
 
   if (status == DESR_SCAN_NO_ART || status == DESR_SCAN_FOUND_PNG ||
-      status == DESR_SCAN_FOUND_JPG) {
+      status == DESR_SCAN_FOUND_JPG || status == DESR_SCAN_NO_ART_EXE ||
+      status == DESR_SCAN_FOUND_PNG_EXE ||
+      status == DESR_SCAN_FOUND_JPG_EXE) {
     if (!desr_valid_game_id(game_id)) return -1;
   } else game_id = "-";
 

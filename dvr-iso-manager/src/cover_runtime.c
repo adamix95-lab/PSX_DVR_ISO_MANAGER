@@ -43,43 +43,99 @@ static int read_sector(int fd, uint32_t sector) {
   if (sector > INT_MAX / SECTOR) return -1;
   return read_at(fd, sector * SECTOR, sector_buf, SECTOR);
 }
+/* Extract the boot ID from SYSTEM.CNF first. If the CNF cannot be
+   recognized, use a single unambiguous root executable ID as fallback.
+   We never infer Game IDs from human-readable ISO filenames. */
 static int get_id_from_iso(const char *filename,
-                           char id[DESR_COVER_ID_CAP]) {
-  char path[256], cnf[8192];
+                           char id[DESR_COVER_ID_CAP],
+                           enum desr_cover_scan_status *reason,
+                           int *from_exe) {
+  char path[256], cnf[8192], candidate[DESR_COVER_ID_CAP] = {0};
   uint32_t root_lba = 0, root_bytes = 0, cnf_lba = 0, cnf_bytes = 0;
-  int fd, rc = 0, found = 0, i, sectors;
+  int fd, rc = 0, found_pvd = 0, found_cnf = 0;
+  int candidate_found = 0, ambiguous = 0, i, sectors;
+  if (!id || !reason || !from_exe) return -1;
+  id[0] = '\0';
+  *from_exe = 0;
+  *reason = DESR_SCAN_NO_PVD;
   if (desr_make_iso_path(filename, path, sizeof(path)) < 0) return -1;
   fd = fileXioOpen(path, FIO_O_RDONLY, 0);
-  if (fd < 0) return -1;
-  id[0] = '\0';
-  /* Descriptor sectors 16..31: support a boot record before the PVD. */
+  if (fd < 0) { *reason = DESR_SCAN_READ_ERROR; return -1; }
+
+  /* Conventional ISO9660 2048-byte user-data sectors. */
   for (i = 16; i <= 31; i++) {
-    if (read_sector(fd, (uint32_t)i) < 0) { rc = -1; goto done; }
+    if (read_sector(fd, (uint32_t)i) < 0) {
+      rc = -1; *reason = DESR_SCAN_READ_ERROR; goto done;
+    }
     if (memcmp(sector_buf + 1, "CD001", 5)) continue;
     if (sector_buf[0] == 255) break;
     if (sector_buf[0] == 1) {
-      if (desr_iso_root(sector_buf, SECTOR, &root_lba, &root_bytes) < 0)
-        { rc = 0; goto done; }
-      found = 1;
+      if (desr_iso_root(sector_buf, SECTOR, &root_lba, &root_bytes) < 0) {
+        *reason = DESR_SCAN_BAD_DIRECTORY;
+        goto done;
+      }
+      found_pvd = 1;
       break;
     }
   }
-  if (!found || root_bytes > 262144) goto done;
+  if (!found_pvd) goto done; /* NO_PVD: possibly non-2048 image. */
+  if (root_bytes > 262144U) {
+    *reason = DESR_SCAN_BAD_DIRECTORY;
+    goto done;
+  }
+
   sectors = (int)((root_bytes + SECTOR - 1) / SECTOR);
   for (i = 0; i < sectors; i++) {
-    int r;
-    if (read_sector(fd, root_lba + (uint32_t)i) < 0)
-      { rc = -1; goto done; }
-    r = desr_iso_system_record(sector_buf, SECTOR, &cnf_lba, &cnf_bytes);
-    if (r < 0) goto done; /* Unsupported/corrupt ISO layout. */
-    if (r == 1) {
-      if (cnf_bytes > sizeof(cnf) || !cnf_bytes ||
-          cnf_lba > INT_MAX / SECTOR) goto done;
-      if (read_at(fd, cnf_lba * SECTOR, cnf, (int)cnf_bytes) < 0)
-        { rc = -1; goto done; }
-      rc = desr_cnf_game_id(cnf, cnf_bytes, id);
+    int r, boot_r;
+    char local_id[DESR_COVER_ID_CAP];
+    if (root_lba > (uint32_t)(INT_MAX / SECTOR - i)) {
+      *reason = DESR_SCAN_BAD_DIRECTORY;
       goto done;
     }
+    if (read_sector(fd, root_lba + (uint32_t)i) < 0) {
+      rc = -1; *reason = DESR_SCAN_READ_ERROR; goto done;
+    }
+
+    r = desr_iso_system_record(sector_buf, SECTOR, &cnf_lba, &cnf_bytes);
+    boot_r = desr_iso_root_boot_candidate(sector_buf, SECTOR, local_id);
+    if (r < 0 || boot_r < 0) {
+      *reason = DESR_SCAN_BAD_DIRECTORY;
+      goto done;
+    }
+    if (r == 1) found_cnf = 1;
+    if (boot_r == 2) ambiguous = 1;
+    if (boot_r == 1) {
+      if (candidate_found && strcmp(candidate, local_id)) ambiguous = 1;
+      else {
+        memcpy(candidate, local_id, sizeof(candidate));
+        candidate_found = 1;
+      }
+    }
+  }
+
+  /* Prefer the launch configuration whenever it gives a valid ID.
+     Even if an ISO has multiple executables, valid BOOT2 takes priority. */
+  if (found_cnf && cnf_bytes && cnf_bytes <= sizeof(cnf) &&
+      cnf_lba <= (uint32_t)(INT_MAX / SECTOR)) {
+    /* A real DVR read failure must not silently turn into a guessed ID.
+       Keep the old index if we could not read an otherwise valid CNF. */
+    if (read_at(fd, cnf_lba * SECTOR, cnf, (int)cnf_bytes) < 0) {
+      rc = -1; *reason = DESR_SCAN_READ_ERROR; goto done;
+    }
+    if (desr_cnf_game_id(cnf, cnf_bytes, id)) {
+      rc = 1;
+      goto done;
+    }
+  }
+
+  if (ambiguous) {
+    *reason = DESR_SCAN_AMBIGUOUS_EXE;
+  } else if (candidate_found) {
+    memcpy(id, candidate, sizeof(candidate));
+    *from_exe = 1;
+    rc = 1;
+  } else {
+    *reason = found_cnf ? DESR_SCAN_BAD_BOOT2 : DESR_SCAN_NO_SYSTEM;
   }
 done:
   fileXioClose(fd);
@@ -238,7 +294,9 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
   if (desr_cover_report_init(scan_report, sizeof(scan_report),
                              &report_size) < 0) report_ok = 0;
   for (i = 0; i < count; i++) {
-    int rc = get_id_from_iso(games[i], id);
+    enum desr_cover_scan_status reason = DESR_SCAN_NO_ID;
+    int from_exe = 0;
+    int rc = get_id_from_iso(games[i], id, &reason, &from_exe);
     int png_found, jpg_found;
     if (rc < 0) {
       if (report_ok && desr_cover_report_add(
@@ -250,7 +308,7 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
     if (!rc) {
       if (report_ok && desr_cover_report_add(
              scan_report, sizeof(scan_report), &report_size,
-             games[i], DESR_SCAN_NO_ID, NULL) < 0) report_ok = 0;
+             games[i], reason, NULL) < 0) report_ok = 0;
       continue;
     }
     ids++;
@@ -259,7 +317,8 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
     if (!png_found && !jpg_found) {
       if (report_ok && desr_cover_report_add(
              scan_report, sizeof(scan_report), &report_size,
-             games[i], DESR_SCAN_NO_ART, id) < 0) report_ok = 0;
+             games[i], from_exe ? DESR_SCAN_NO_ART_EXE : DESR_SCAN_NO_ART,
+             id) < 0) report_ok = 0;
       continue;
     }
     memcpy(pending[i].game_id, id, DESR_COVER_ID_CAP);
@@ -273,7 +332,10 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
     found++;
     if (report_ok && desr_cover_report_add(
            scan_report, sizeof(scan_report), &report_size,
-           games[i], png_found ? DESR_SCAN_FOUND_PNG : DESR_SCAN_FOUND_JPG,
+           games[i],
+           from_exe
+             ? (png_found ? DESR_SCAN_FOUND_PNG_EXE : DESR_SCAN_FOUND_JPG_EXE)
+             : (png_found ? DESR_SCAN_FOUND_PNG : DESR_SCAN_FOUND_JPG),
            id) < 0) report_ok = 0;
   }
   if (save_index(index_buf, size) < 0) return -1;

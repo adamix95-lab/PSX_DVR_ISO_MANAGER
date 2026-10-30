@@ -22,6 +22,11 @@ int desr_iso_root(const unsigned char *pvd, size_t n,
                   uint32_t *extent, uint32_t *bytes);
 int desr_iso_system_record(const unsigned char *block, size_t n,
                            uint32_t *extent, uint32_t *bytes);
+/* Identify a unique boot executable name in a 2048-byte ISO9660 root
+   directory sector. 0=none, 1=unique, 2=ambiguous, -1=invalid sector.
+   Only names matching XXXX_###.##[;version] are considered. */
+int desr_iso_root_boot_candidate(const unsigned char *block, size_t n,
+                                 char out[DESR_COVER_ID_CAP]);
 int desr_cnf_game_id(const char *cnf, size_t n,
                      char out[DESR_COVER_ID_CAP]);
 int desr_valid_game_id(const char *id);

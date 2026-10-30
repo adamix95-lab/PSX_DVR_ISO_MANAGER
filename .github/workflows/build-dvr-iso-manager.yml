@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.5.2 Cover Scan Diagnostics
+name: Build PSX DVR ISO Manager v0.5.3 Boot ID Fallback
 on:
   workflow_dispatch:
   push:
@@ -38,7 +38,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.5.3-BOOT-ID-FALLBACK-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
