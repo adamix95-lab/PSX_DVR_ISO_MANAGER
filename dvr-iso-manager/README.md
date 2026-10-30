@@ -1,18 +1,29 @@
-# PSX DVR ISO Manager v0.5.1 — clearer OPL-style PNG preview (UNTESTED)
+# PSX DVR ISO Manager v0.5.2 — clearer OPL-style PNG preview (UNTESTED)
 
-## Reverted alignment experiment
+## v0.5.2 — investigate missing OPL covers (hardware UNTESTED)
 
-The user prefers the previously tested layout: Game ID at text row 7 and
-the 88×128 PNG starting at y=64. The temporary row-5 alignment has been
-reverted. GS RGB packing, bilinear scaling, USB index and Quickboot are unchanged.
+The user prefers the original cover position, so v0.5.1's temporary alignment experiment is **reverted**. RGB channel ordering and bilinear thumbnail scaling remain unchanged.
 
-**Hardware report, 2026-10-30:** v0.5.1 initially displayed a God of War II cover, but red/blue were swapped and nearest-neighbor scaling caused jagged pixels. The latest artifact `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-RESTORED-UNTESTED` corrects the GS PSMCT32 RGB byte order and applies streamed bilinear downsampling. The corrected build remains **hardware untested**. Keep the validated v0.5 ELF and all existing USB assets unchanged.
+When pressing **TRIANGLE** the scanner now creates optional `mass0:/DESR_DVR/COVER_SCAN.LOG` with each ISO filename, diagnostic status and any detected Game ID:
+- `NO_ID`: failed to extract ID from ISO / SYSTEM.CNF.
+- `NO_ART`: extracted ID, but no matching USB `ART/GAMEID_COV.png` or `.jpg` could be opened.
+- `FOUND_PNG`: cover PNG successfully matched.
+- `FOUND_JPG`: JPG matched, but preview decoder doesn't support JPG.
+- `READ_ERROR`: DVR ISO read error; previous index preserved.
+
+This file is written **only** after manual rescan, does not affect boot, and failure to write the optional report does not affect the validated `COVERS.IDX`. The user reported missing covers for Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus and Wipeout Fusion. Compare their report lines against the USB ART filenames before adjusting the ISO parser. The existing v0.5.1 hardware-tested RGB renderer remains available as fallback.
+
+## Returned to earlier layout
+
+Game ID remains on row 7 and cover at y=64; the temporary LANGUAGE alignment was rejected by the user.
+
+**Hardware report, 2026-10-30:** v0.5.1 initially displayed a God of War II cover, but red/blue were swapped and nearest-neighbor scaling caused jagged pixels. The latest artifact `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED` corrects the GS PSMCT32 RGB byte order and applies streamed bilinear downsampling. The corrected build remains **hardware untested**. Keep the validated v0.5 ELF and all existing USB assets unchanged.
 
 **Keep the hardware-tested v0.5 ELF.** This renderer-only build has not yet been verified on a physical DESR-7000.
 
 It replaces the 11×14 glyph mosaic with an **88×128-pixel PNG preview** in the original right column, using the already initialized PS2SDK GS GIF/DMA framebuffer. It does **not** reset GS or initialize gsKit. ISO scanning, `COVERS.IDX`, USB BOOT.CNF, Neutrino, Quickboot and game selection are unchanged.
 
-**Test:** keep a PC backup of the working v0.5 ELF and BOOT.CNF; download `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-RESTORED-UNTESTED` and replace only Manager ELF. Use the existing ART/index without rescanning. Verify Cold Fear `SLUS_210.47` has a sharper cover; check paging, footer text, NO COVER fallback and a known-good X launch. Restore v0.5 ELF if the video becomes unstable.
+**Test:** keep a PC backup of the working v0.5 ELF and BOOT.CNF; download `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED` and replace only Manager ELF. Use the existing ART/index without rescanning. Verify Cold Fear `SLUS_210.47` has a sharper cover; check paging, footer text, NO COVER fallback and a known-good X launch. Restore v0.5 ELF if the video becomes unstable.
 
 ---
 
