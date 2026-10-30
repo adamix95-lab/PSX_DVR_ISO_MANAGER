@@ -1,18 +1,41 @@
-# PSX DVR ISO Manager v0.5.1 — czytelniejsze okładki PNG (TEST)
+# PSX DVR ISO Manager v0.5.2 — czytelniejsze okładki PNG (TEST)
 
 **Nowy renderer v0.5.1 jest NIEPRZETESTOWANY na DESR-7000.** Przed testem zachowaj działający ELF v0.5. Nie scalać do `main`.
 
-## Wyrównanie panelu okładki — test układu
+## v0.5.2 — diagnostyka brakujących okładek (Draft, test na konsoli do wykonania)
 
-Po potwierdzeniu poprawnych kolorów i uruchamiania gry na DESR-7000 przesunęliśmy panel okładki o **16 pikseli w górę**. Game ID jest teraz w wierszu `LANGUAGE: SYSTEM` (wiersz 5), a bitmapa PNG zaczyna się bezpośrednio pod nim (wiersz 6). Grafika nadal ma **88×128 px** i kończy się przed komunikatem statusu oraz dolną stopką. Nie zmieniono odczytu ISO, Game ID, indeksu USB ani Quickboot.
+W v0.5.2 **przywrócono ulubione położenie panelu** z v0.5.1 (Game ID w wierszu 7, okładka od y=64). Nie wprowadzamy wyrównania do LANGUAGE.
 
-**Do nowego testu pobierz** `PSX-DVR-ISO-Manager-v0.5.1-ALIGNED-COVER-UNTESTED` zamiast wcześniejszych wersji. Zachowaj dotychczasowy sprawdzony ELF jako kopię.
+Dodano wyłącznie diagnostykę ręcznego skanowania: po naciśnięciu **TRÓJKĄTA** oprócz zwykłego `COVERS.IDX` program próbuje zapisać `mass0:/DESR_DVR/COVER_SCAN.LOG`. Zwykłe uruchomienie nie generuje logu.
+
+Przykład:
+```text
+PSXCOVSCAN1
+Black.iso	NO_ID	-
+Burnout Dominator.iso	NO_ART	SLUS_123.45
+God of War.iso	FOUND_PNG	SCUS_973.99
+```
+Przykładowy `SLUS_123.45` nie jest rzeczywistym Game ID Burnout.
+
+- `NO_ID` — brak Game ID z `SYSTEM.CNF` w ISO albo nierozpoznany układ ISO9660.
+- `NO_ART` — Game ID rozpoznano (widać go w logu), ale nie otwarto pliku `ART/ID_COV.png` ani `.jpg`. Porównaj znak po znaku nazwę z logu i nazwy na USB.
+- `FOUND_PNG` — okładka dopasowana i gotowa do podglądu.
+- `FOUND_JPG` — JPEG dopasowany, ale renderer v0.5.1 nie dekoduje JPG.
+- `READ_ERROR` — błąd odczytu obrazu ISO z DVR; poprzedni indeks jest zachowany.
+
+**Nie trzeba podmieniać innych plików.** Zachowaj ostatni działający ELF. Po skanowaniu otwórz `COVER_SCAN.LOG` na komputerze i prześlij linie dotyczące Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus i Wipeout Fusion. Pozwoli to naprawić konkretną przyczynę bez zgadywania Game ID.
+
+Indeks `COVERS.IDX`, uruchamianie gier, Neutrino, BOOT.CNF i odczyt DVR pozostają bez zmian. Nie scalać bez testów sprzętowych.
+
+## Położenie okładki
+
+Powrócono do poprzedniego, preferowanego układu Game ID / okładki: wiersz 7 / y=64. Odrzucono eksperyment z wyrównaniem do LANGUAGE.
 
 ## Poprawka po pierwszym teście v0.5.1 (30.10.2026)
 
 Na prawdziwym DESR-7000 wyświetliła się okładka God of War II, ale kolory były zniekształcone, a obraz miał widoczne schodki. Przyczyną kolorów było błędne zapisanie piksela jako `0xRRGGBB` zamiast kolejności GS PSMCT32 (`R | G<<8 | B<<16`). Bieżąca kompilacja poprawia kanały czerwony/niebieski i zastępuje skalowanie nearest-neighbor **bilinearnym filtrowaniem w poziomie i pionie**.
 
-**Użyj artefaktu `PSX-DVR-ISO-Manager-v0.5.1-ALIGNED-COVER-UNTESTED`, nie starszego ZIP `OPL-PREVIEW-UNTESTED`.** Nie jest on jeszcze przetestowany na konsoli. Zmienia wyłącznie odczyt/raster okładki; `COVERS.IDX`, Quickboot i inne funkcje są bez zmian.
+**Użyj artefaktu `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED`, nie starszego ZIP `OPL-PREVIEW-UNTESTED`.** Nie jest on jeszcze przetestowany na konsoli. Zmienia wyłącznie odczyt/raster okładki; `COVERS.IDX`, Quickboot i inne funkcje są bez zmian.
 
 ## Co nowego?
 
@@ -25,7 +48,7 @@ Na prawdziwym DESR-7000 wyświetliła się okładka God of War II, ale kolory by
 ## Pierwszy test na konsoli
 
 1. Zrób kopię działającego v0.5 ELF i BOOT.CNF na PC.
-2. Pobierz z Actions artefakt `PSX-DVR-ISO-Manager-v0.5.1-ALIGNED-COVER-UNTESTED` i uruchom **tylko** nowy ELF z USB / UDPFS.
+2. Pobierz z Actions artefakt `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED` i uruchom **tylko** nowy ELF z USB / UDPFS.
 3. Korzystaj ze starego folderu `ART` i indeksu `COVERS.IDX`; nie musisz naciskać TRÓJKĄTA.
 4. Sprawdź Cold Fear / `SLUS_210.47`: czy grafika jest wyraźniejsza, stabilna, nie uszkadza listy ani stopki.
 5. Zmień kilka gier i stron, potwierdź `NO COVER` i na końcu uruchom znany tytuł (np. Silent Hill 2).
