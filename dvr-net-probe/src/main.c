@@ -7,7 +7,7 @@
 #include "probe_config.h"
 #include <debug.h>
 #include <errno.h>
-#include <sys/ioctl.h>
+#include <fcntl.h>
 #include <iopcontrol.h>
 #include <kernel.h>
 #include <libcdvd.h>
@@ -123,7 +123,6 @@ static int http_probe(const probe_config *cfg) {
   char req[160], reply[MAX_REPLY + 1];
   int s = -1, rc, soerr = 0, n;
   socklen_t optlen = sizeof(soerr);
-  unsigned long nonblock = 1;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(cfg->port);
@@ -135,7 +134,7 @@ static int http_probe(const probe_config *cfg) {
   scr_printf(":%u\n", (unsigned)cfg->port);
   s = lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s < 0) { scr_printf("socket: %d\n", errno); return -1; }
-  if (lwip_ioctl(s, FIONBIO, &nonblock) < 0) {
+  if (fcntl(s, F_SETFL, O_NONBLOCK) < 0) {
     scr_printf("nonblocking socket unsupported: %d\n", errno);
     lwip_close(s);
     return -1;
