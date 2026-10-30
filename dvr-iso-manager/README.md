@@ -1,16 +1,62 @@
-# PSX DVR ISO Manager v0.5.1 — OPL-style clearer preview
+# PSX DVR ISO Manager v0.5.1 — clearer OPL-style PNG preview (UNTESTED)
 
-**UNTESTED on physical DESR-7000 hardware.** Preserve the proven v0.5 Manager ELF and do not merge before a console test.
+**Keep the hardware-tested v0.5 ELF.** This renderer-only build has not yet been verified on a physical DESR-7000.
 
-## Scope
+It replaces the 11×14 glyph mosaic with an **88×128-pixel PNG preview** in the original right column, using the already initialized PS2SDK GS GIF/DMA framebuffer. It does **not** reset GS or initialize gsKit. ISO scanning, `COVERS.IDX`, USB BOOT.CNF, Neutrino, Quickboot and game selection are unchanged.
 
-- Replace the v0.5 11×14 colored character mosaic with a true-color **88×128-pixel PNG bitmap**, fitting the same right-hand MONO column.
-- Decode the selected USB PNG with the existing libpng; nearest-neighbor downscale into a bounded 44 KiB buffer; upload through the existing PS2SDK GS GIF/DMA framebuffer (no gsKit video reinitialization).
-- Unchanged: Game ID extraction, TRIANGLE manual USB `COVERS.IDX` refresh, cached startup load, no writes to DVR, all Quickboot/Neutrino/BOOT.CNF paths, language switching and 12-game paging.
-- JPEG and interlaced PNG preview remain unsupported and show the same fallback text.
+**Test:** keep a PC backup of the working v0.5 ELF and BOOT.CNF; download `PSX-DVR-ISO-Manager-v0.5.1-OPL-PREVIEW-UNTESTED` and replace only Manager ELF. Use the existing ART/index without rescanning. Verify Cold Fear `SLUS_210.47` has a sharper cover; check paging, footer text, NO COVER fallback and a known-good X launch. Restore v0.5 ELF if the video becomes unstable.
 
-## Test
+---
 
-Keep your working v0.5 ELF and a PC backup of USB BOOT.CNF. Download `PSX-DVR-ISO-Manager-v0.5.1-OPL-PREVIEW-UNTESTED` from Actions and launch only the updated Manager ELF using USB or wLE-R3Z/UDPFS. Existing `COVERS.IDX` and `ART` are reused without pressing TRIANGLE. Check Cold Fear's `SLUS_210.47` thumbnail, menu text/footer, switching selection/pages and NO COVER fallback. Finally test one known-good X launch. If the video glitches, restore the previous ELF.
+## Previous release: PSX DVR ISO Manager v0.5 — cover preview (development)
 
-See [Polish documentation](README_PL.md) for installation and hardware-test details.
+[Polski / Polish](README_PL.md)
+
+**v0.4 is UNTESTED on physical Sony PSX DESR-7000 hardware.** The v0.3 MONO baseline was previously tested.
+
+## What's new in v0.4
+
+- **LEFT / RIGHT** jumps between 12-game pages, retaining the highlighted row when possible and clamping to the last available game on a short final page.
+- Stops at the first/last page; no page wrap. UP / DOWN still selects one game at a time, as before.
+- **TRIANGLE** remains a simple ISO directory rescan. Game ID scanning, cover art and USB index files are deferred to v0.5.
+- No changes to DVR access, CNF generation, language selection, or Quickboot.
+
+## v0.3 MONO baseline
+
+## What's new in v0.3
+
+- `PSX DVR ISO MANAGER` heading with a small `v0.3` label.
+- Monochrome interface: black background and white text; the selected game is marked with `>`.
+- Diagnostic lines `DVR: dvr_pfs0:/ISO` and `DVRP notice / hdd0 / pfs0 root` are hidden.
+- The standard scan result is replaced with an `N GAMES` counter.
+- The `.iso` or `.ISO` extension is hidden on screen, but the full original filename is still written to BOOT.CNF.
+- `Selected 1 / 7` and the technical `Backup: ... No DVR writes` line are hidden.
+- The PS2SDK block cursor (`scr_setCursor(0)`) is disabled to prevent white squares from appearing between sections.
+- Up to 12 games are displayed per page; page numbers appear only when there are more games.
+- Only the controls and, when needed, CNF test or error messages are shown at the bottom.
+
+## Controls
+
+- Press **UP** or **DOWN** to select a game.
+- Press **LEFT** or **RIGHT** to move between pages of 12 games.
+- Press **X** to launch the selected game.
+- Press **Triangle (△)** to rescan the "ISO" folder.
+- Press **Square (□)** to save a test configuration to `DVR_TEST.CNF`.
+- Press **SELECT** to change the game language — for games that use the console menu language (*tested with REZ and Metal Slug Anthology*).
+- Press **START** to exit.
+
+## Unchanged from the working v0.2 release
+
+- ISO images are still read from `dvr_pfs0:/ISO/` (the `__xcontents` partition).
+- `SYSTEM` uses the verified `neutrino.elf`; `ENGLISH` uses the separate `neutrino_lang.elf` with `ee_core_lang.elf`.
+- On the first press of X, the manager creates a `BOOT_RECOVERY.CNF` backup, writes and verifies `BOOT.CNF`, then launches OSDLauncher (`BOOT.ELF`) with the appropriate arguments.
+- Nothing is written to the DVR/APA partitions.
+- Switching languages does not translate game content if the ISO lacks English-language resources.
+- The same CNF generators and launcher functions as in v0.2 are used.
+
+**Important:** Launching the manager itself from UDPFS does **not** move the Quickboot path to the network.
+`mass0:/DESR_DVR/BOOT.ELF`, `BOOT.CNF`, and both Neutrino executables must remain on USB.
+
+## v0.4 hardware test plan
+
+Keep the working v0.3 Manager ELF and a PC backup of BOOT.CNF. Download the `PSX-DVR-ISO-Manager-v0.4-PAGING-UNTESTED` Actions artifact and replace **only** the Manager ELF. For 1–12 games LEFT/RIGHT should have no effect; with 13+ games verify page changes, short final pages, UP/DOWN and language selection. Finally check SQUARE and one known-working X Quickboot. **Do not merge until verified on DESR-7000.**
