@@ -216,21 +216,22 @@ static void draw(void) {
     }
   }
 
-  /* PNG cover preview: compact color tiles drawn without reinitializing
-     the video system. Missing or unsupported art keeps the text fallback. */
+  /* Align the Game ID with LANGUAGE on row 5; image starts on row 6.
+     This is only an on-screen layout shift, with no index/launch changes.
+     Missing or unsupported art keeps the text fallback. */
   if (count) {
     if (covers[selected].present) {
-      scr_setXY(61, 7);
+      scr_setXY(61, 5);
       scr_printf("%s", covers[selected].game_id);
       if (!desr_cover_preview_png(covers[selected].game_id,
                                   covers[selected].ext)) {
-        scr_setXY(62, 11);
+        scr_setXY(62, 9);
         scr_printf("ART FOUND");
-        scr_setXY(62, 13);
+        scr_setXY(62, 11);
         scr_printf(covers[selected].ext[0] == 'j' ? "JPG" : "BAD PNG");
       }
     } else {
-      scr_setXY(62, 10);
+      scr_setXY(62, 8);
       scr_printf("NO COVER");
     }
   }
