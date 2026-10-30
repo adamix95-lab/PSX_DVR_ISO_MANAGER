@@ -222,8 +222,12 @@ static void draw(void) {
       scr_setbgcolor(i == selected ? 0x242424 : 0x000000);
       scr_setfontcolor(i == selected ? 0xFFFFFF : 0xC8C8C8);
       scr_setXY(4, 9 + i - first);
-      scr_printf("%c  %-49.*s", i == selected ? '>' : ' ',
-                 title_len, games[i]);
+      if (i == selected)
+        scr_printf(">  %-49.*s", title_len, games[i]);
+      else
+        scr_printf("   %.*s", title_len, games[i]);
+      /* Only the selected row needs padding: reduces repeated tiny DMA
+         transfers when navigating 12-game pages on the DESR. */
       scr_setbgcolor(0x000000);
       scr_setfontcolor(0xFFFFFF);
     }
