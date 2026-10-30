@@ -1,91 +1,35 @@
-# PSX DVR ISO Manager v0.5.3 — clearer OPL-style PNG preview (UNTESTED)
+# PSX DVR ISO Manager v0.6 — MONO Refined
 
-## v0.5.3 — conservative root executable Game ID fallback (hardware untested)
+**Experimental visual-only update. Not yet tested on physical Sony PSX DESR-7000 hardware.** Preserve the verified v0.5.3 ELF and USB BOOT.CNF before testing.
 
-The user's actual 40-entry `COVER_SCAN.LOG` confirms **34 FOUND_PNG** and exactly **six NO_ID** (Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus, Wipeout Fusion). There are **zero NO_ART** results. The failure is therefore in ID extraction, not yet proven to be an ART filename problem.
+## What's new
 
-During manual TRIANGLE only, prefer `SYSTEM.CNF`/`BOOT2` as before. If it does not produce an ID, search the ISO9660 root directory for a **unique** `XXXX_###.##[;version]` boot executable filename. Only use that ID if unambiguous; never guess among multiple candidates. No ISO modifications, and no scan on normal startup.
-
-New detailed USB log statuses: `FOUND_PNG_EXE`, `FOUND_JPG_EXE`, `NO_ART_EXE`, `NO_PVD`, `NO_SYSTEM`, `BAD_BOOT2`, `BAD_DIRECTORY`, `AMBIGUOUS_EXE`. Old statuses and `COVERS.IDX` format remain. Existing display location, bilinear scaling, cached index, launch and Neutrino code are unchanged.
-
-**Retest:** keep the working v0.5.1 ELF and a copy of `COVERS.IDX` on a PC, try only `PSX-DVR-ISO-Manager-v0.5.3-BOOT-ID-FALLBACK-UNTESTED`, press TRIANGLE once, and share the resulting `COVER_SCAN.LOG`. The exact ISO cause is not yet known without reading the affected disc structures. Leave Draft pending actual console verification.
-
-## v0.5.2 — investigate missing OPL covers (hardware UNTESTED)
-
-The user prefers the original cover position, so v0.5.1's temporary alignment experiment is **reverted**. RGB channel ordering and bilinear thumbnail scaling remain unchanged.
-
-When pressing **TRIANGLE** the scanner now creates optional `mass0:/DESR_DVR/COVER_SCAN.LOG` with each ISO filename, diagnostic status and any detected Game ID:
-- `NO_ID`: failed to extract ID from ISO / SYSTEM.CNF.
-- `NO_ART`: extracted ID, but no matching USB `ART/GAMEID_COV.png` or `.jpg` could be opened.
-- `FOUND_PNG`: cover PNG successfully matched.
-- `FOUND_JPG`: JPG matched, but preview decoder doesn't support JPG.
-- `READ_ERROR`: DVR ISO read error; previous index preserved.
-
-This file is written **only** after manual rescan, does not affect boot, and failure to write the optional report does not affect the validated `COVERS.IDX`. The user reported missing covers for Black, Burnout Dominator, Killzone, Mafia, Shadow of the Colossus and Wipeout Fusion. Compare their report lines against the USB ART filenames before adjusting the ISO parser. The existing v0.5.1 hardware-tested RGB renderer remains available as fallback.
-
-## Returned to earlier layout
-
-Game ID remains on row 7 and cover at y=64; the temporary LANGUAGE alignment was rejected by the user.
-
-**Hardware report, 2026-10-30:** v0.5.1 initially displayed a God of War II cover, but red/blue were swapped and nearest-neighbor scaling caused jagged pixels. The latest artifact `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED` corrects the GS PSMCT32 RGB byte order and applies streamed bilinear downsampling. The corrected build remains **hardware untested**. Keep the validated v0.5 ELF and all existing USB assets unchanged.
-
-**Keep the hardware-tested v0.5 ELF.** This renderer-only build has not yet been verified on a physical DESR-7000.
-
-It replaces the 11×14 glyph mosaic with an **88×128-pixel PNG preview** in the original right column, using the already initialized PS2SDK GS GIF/DMA framebuffer. It does **not** reset GS or initialize gsKit. ISO scanning, `COVERS.IDX`, USB BOOT.CNF, Neutrino, Quickboot and game selection are unchanged.
-
-**Test:** keep a PC backup of the working v0.5 ELF and BOOT.CNF; download `PSX-DVR-ISO-Manager-v0.5.2-COVER-SCAN-LOG-UNTESTED` and replace only Manager ELF. Use the existing ART/index without rescanning. Verify Cold Fear `SLUS_210.47` has a sharper cover; check paging, footer text, NO COVER fallback and a known-good X launch. Restore v0.5 ELF if the video becomes unstable.
-
----
-
-## Previous release: PSX DVR ISO Manager v0.5 — cover preview (development)
-
-[Polski / Polish](README_PL.md)
-
-**v0.4 is UNTESTED on physical Sony PSX DESR-7000 hardware.** The v0.3 MONO baseline was previously tested.
-
-## What's new in v0.4
-
-- **LEFT / RIGHT** jumps between 12-game pages, retaining the highlighted row when possible and clamping to the last available game on a short final page.
-- Stops at the first/last page; no page wrap. UP / DOWN still selects one game at a time, as before.
-- **TRIANGLE** remains a simple ISO directory rescan. Game ID scanning, cover art and USB index files are deferred to v0.5.
-- No changes to DVR access, CNF generation, language selection, or Quickboot.
-
-## v0.3 MONO baseline
-
-## What's new in v0.3
-
-- `PSX DVR ISO MANAGER` heading with a small `v0.3` label.
-- Monochrome interface: black background and white text; the selected game is marked with `>`.
-- Diagnostic lines `DVR: dvr_pfs0:/ISO` and `DVRP notice / hdd0 / pfs0 root` are hidden.
-- The standard scan result is replaced with an `N GAMES` counter.
-- The `.iso` or `.ISO` extension is hidden on screen, but the full original filename is still written to BOOT.CNF.
-- `Selected 1 / 7` and the technical `Backup: ... No DVR writes` line are hidden.
-- The PS2SDK block cursor (`scr_setCursor(0)`) is disabled to prevent white squares from appearing between sections.
-- Up to 12 games are displayed per page; page numbers appear only when there are more games.
-- Only the controls and, when needed, CNF test or error messages are shown at the bottom.
+- The PS2SDK MONO browser stays black, white and grayscale; no GS reinitialization or extra sprite library.
+- Highlighted game uses a **dark-gray character background** with a white `>` and white title; other entries use slightly dimmer gray lettering. Only the highlighted row is padded to avoid unnecessary DMA transfers.
+- Subtle gray separators, padded page indicator (`PAGE 01/04`), clearer controls at the bottom and a small `GAME ID` label.
+- **Original preferred cover position is retained**: Game ID text row 7, PNG preview at y=64, 88×128 pixels, existing bilinear scaling and corrected RGB colors.
+- Status/footer text is constrained to the left so it cannot draw over the cover.
+- Scanner, unique-executable ID fallback, USB index, cover ART files, Quickboot, language modes, BOOT.CNF and all DVR access are unchanged.
 
 ## Controls
 
-- Press **UP** or **DOWN** to select a game.
-- Press **LEFT** or **RIGHT** to move between pages of 12 games.
-- Press **X** to launch the selected game.
-- Press **Triangle (△)** to rescan the "ISO" folder.
-- Press **Square (□)** to save a test configuration to `DVR_TEST.CNF`.
-- Press **SELECT** to change the game language — for games that use the console menu language (*tested with REZ and Metal Slug Anthology*).
-- Press **START** to exit.
+UP/DOWN: select one game. LEFT/RIGHT: move one page (12 titles).
+X: launch through USB OSDMenu/Neutrino. TRIANGLE: manual ISO + cover index scan.
+SELECT: SYSTEM / experimental ENGLISH. SQUARE: verify DVR_TEST.CNF. START: exit.
 
-## Unchanged from the working v0.2 release
+## Storage and safety
 
-- ISO images are still read from `dvr_pfs0:/ISO/` (the `__xcontents` partition).
-- `SYSTEM` uses the verified `neutrino.elf`; `ENGLISH` uses the separate `neutrino_lang.elf` with `ee_core_lang.elf`.
-- On the first press of X, the manager creates a `BOOT_RECOVERY.CNF` backup, writes and verifies `BOOT.CNF`, then launches OSDLauncher (`BOOT.ELF`) with the appropriate arguments.
-- Nothing is written to the DVR/APA partitions.
-- Switching languages does not translate game content if the ISO lacks English-language resources.
-- The same CNF generators and launcher functions as in v0.2 are used.
+ISO images remain read-only at `dvr_pfs0:/ISO/`.
+On USB the program uses `mass0:/DESR_DVR/COVERS.IDX`, `ART/<GAMEID>_COV.png` and the optional `COVER_SCAN.LOG` created only on manual rescan. `BOOT.ELF`, `BOOT.CNF` and Neutrino must remain on USB even if Manager itself is loaded through UDPFS.
 
-**Important:** Launching the manager itself from UDPFS does **not** move the Quickboot path to the network.
-`mass0:/DESR_DVR/BOOT.ELF`, `BOOT.CNF`, and both Neutrino executables must remain on USB.
+The v0.5.3 hardware test matched all 40/40 covers using SYSTEM.CNF/BOOT2 or the unique root boot executable fallback. Normal startup uses the index, without rescanning ISO contents.
 
-## v0.4 hardware test plan
+## DESR-7000 test procedure
 
-Keep the working v0.3 Manager ELF and a PC backup of BOOT.CNF. Download the `PSX-DVR-ISO-Manager-v0.4-PAGING-UNTESTED` Actions artifact and replace **only** the Manager ELF. For 1–12 games LEFT/RIGHT should have no effect; with 13+ games verify page changes, short final pages, UP/DOWN and language selection. Finally check SQUARE and one known-working X Quickboot. **Do not merge until verified on DESR-7000.**
+1. Keep a copy of the proven v0.5.3 ELF and USB BOOT.CNF.
+2. Download `PSX-DVR-ISO-Manager-v0.6-MONO-REFINED-UNTESTED`, replace **only** the Manager ELF.
+3. Check the gray selection bar, navigation across all pages, readability of the longest title, and that status/footer never overwrite the artwork.
+4. Confirm covers are still cached after restart, TRIANGLE and SELECT work, then perform one known-good X launch (e.g. Black).
+5. If there is screen corruption, lag or freezing, restore the old ELF.
+
+**Do not merge this Draft before physical testing.** See [Polish guide](README_PL.md) and [changelog](CHANGELOG.md).
