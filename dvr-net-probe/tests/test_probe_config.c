@@ -13,6 +13,22 @@ int main(void) {
   probe_config c;
   char bad[512];
   assert(probe_parse_config(config, strlen(config), &c) == 0);
+  /* Regression: original shipped example had a 64-char comment and
+     was rejected even though all five IPv4/port fields were valid. */
+  {
+    const char *actual_user_config =
+      "# Copy as mass0:/DESR_DVR/NET_PROBE.CNF and edit for YOUR LAN.\n"
+      "# Choose a free static IP outside your router DHCP pool.\n"
+      "# Only this standalone test reads this file. No writes anywhere.\n"
+      "IP=192.168.0.240\n"
+      "NETMASK=255.255.255.0\n"
+      "GATEWAY=192.168.0.1\n"
+      "SERVER_IP=192.168.0.122\n"
+      "SERVER_PORT=8000\n";
+    assert(strlen("# Only this standalone test reads this file. No writes anywhere.") == 64);
+    assert(probe_parse_config(actual_user_config, strlen(actual_user_config), &c) == 0);
+    assert(c.ip[3] == 240 && c.server[3] == 122 && c.port == 8000);
+  }
   assert(c.ip[0] == 192 && c.ip[3] == 220);
   assert(c.server[3] == 100 && c.port == 8000);
   strcpy(bad, config);
