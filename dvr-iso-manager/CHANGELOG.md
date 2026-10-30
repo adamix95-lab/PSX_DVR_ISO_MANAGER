@@ -1,6 +1,12 @@
 # Changelog
 
 ## 0.5.1 – safer OPL-style bitmap preview (hardware untested)
+- Hardware report: bitmap renders, but incorrect `0xRRGGBB` pixel packing
+  inverted red/blue and nearest-neighbor sampling produced jagged edges.
+- Fix GS PSMCT32 byte order (R low, G middle, B high); use streamed bilinear
+  resampling and add host tests for primaries, transparency and interpolation.
+- Corrected ELF requires a new physical DESR test; keep v0.5 available.
+
 - Replace 11x14 glyph-based mosaic with 88x128 real PNG pixels.
 - Transfer one bounded PSMCT32 rectangle to PS2SDK's existing debug framebuffer
   using the same GIF/DMA channel and transfer packet layout as scr_putchar.
