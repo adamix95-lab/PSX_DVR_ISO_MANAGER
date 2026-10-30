@@ -26,7 +26,7 @@ int desr_iso_root(const unsigned char *pvd, size_t n,
   if (pvd[0] != 1 || memcmp(pvd + 1, "CD001", 5) || pvd[6] != 1)
     return -1;
   r = pvd + 156;
-  if (r[0] < 34 || r[0] > 2048 - 156 || r[32] != 1) return -1;
+  if (r[0] < 34 || r[32] != 1) return -1;
   *extent = le32(r + 2);
   *bytes = le32(r + 10);
   if (!*extent || !*bytes) return -1;
