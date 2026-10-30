@@ -1,5 +1,6 @@
 #include "cover_preview.h"
 #include "cover_index.h"
+#include "cover_color.h"
 
 #define NEWLIB_PORT_AWARE
 #include <fileXio_rpc.h>
@@ -52,6 +53,11 @@ typedef char cover_blit_setup_is_96_bytes[(sizeof(cover_blit_setup)==96)?1:-1];
 static cover_blit_setup cover_setup_packet __attribute__((aligned(16)));
 static uint32_t pixels[PREVIEW_W * PREVIEW_H] __attribute__((aligned(16)));
 static unsigned char scanline[MAX_COVER_W * 4];
+static unsigned char previous_scanline[MAX_COVER_W * 4];
+/* Precomputed horizontal bilinear samples, refreshed for each opened PNG. */
+static uint16_t src_x0[PREVIEW_W];
+static uint16_t src_x1[PREVIEW_W];
+static uint16_t weight_x[PREVIEW_W];
 
 static const cover_blit_setup setup_template = {
   {0x1000000000000004ULL, 0xEULL, 0xA000000000000ULL, 0x50ULL},
@@ -153,29 +159,54 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
     return 0;
   }
 
-  /* Bounded nearest-neighbor scaling while decoding. No full-size source
-   * bitmap allocation: at most 2 KB of PNG scanline + 44 KB of output.
-   * Output is prebuilt in uncached RAM before any GS DMA is issued.
-   * Center-of-source samples avoid the old 11x14 mosaic. */
+  /* Streamed bilinear downsampling: preserve small lettering better than
+   * the previous nearest-neighbor approach, without allocating a complete
+   * source bitmap. Two RGBA scanlines (<= 4096 B) + ~44 KiB destination.
+   * The sampling grid is clamped at the edges of the source image. */
+  for (x = 0; x < PREVIEW_W; x++) {
+    int64_t fx = ((((int64_t)2 * x + 1) * w * 65536) /
+                   (2 * PREVIEW_W)) - 32768;
+    uint32_t x0, x1;
+    if (fx < 0) fx = 0;
+    if (fx > ((int64_t)w - 1) * 65536)
+      fx = ((int64_t)w - 1) * 65536;
+    x0 = (uint32_t)(fx >> 16);
+    x1 = x0 + 1 < w ? x0 + 1 : x0;
+    src_x0[x] = (uint16_t)x0;
+    src_x1[x] = (uint16_t)x1;
+    weight_x[x] = (uint16_t)(fx & 65535);
+  }
+
   next_y = 0;
   for (y = 0; y < h; y++) {
     png_read_row(png, scanline, NULL);
-    while (next_y < PREVIEW_H &&
-           ((uint32_t)next_y * h + PREVIEW_H / 2) / PREVIEW_H == y) {
+    while (next_y < PREVIEW_H) {
+      int64_t fy = ((((int64_t)2 * next_y + 1) * h * 65536) /
+                    (2 * PREVIEW_H)) - 32768;
+      uint32_t y0, y1, wy;
+      const unsigned char *top;
+      if (fy < 0) fy = 0;
+      if (fy > ((int64_t)h - 1) * 65536)
+        fy = ((int64_t)h - 1) * 65536;
+      y0 = (uint32_t)(fy >> 16);
+      y1 = y0 + 1 < h ? y0 + 1 : y0;
+      if (y1 != y) break; /* Wait for the next PNG row. */
+      wy = (uint32_t)(fy & 65535);
+      top = (y0 == y) ? scanline : previous_scanline;
       for (x = 0; x < PREVIEW_W; x++) {
-        uint32_t sx = ((uint32_t)x * w + PREVIEW_W / 2) / PREVIEW_W;
-        const unsigned char *p;
-        uint32_t color;
-        if (sx >= w) sx = w - 1;
-        p = scanline + sx * 4;
-        /* Composite RGBA against original black UI background. */
-        color = (((uint32_t)p[0] * p[3] / 255) << 16) |
-                (((uint32_t)p[1] * p[3] / 255) << 8) |
-                 ((uint32_t)p[2] * p[3] / 255);
+        uint32_t color = desr_gs_bilinear_rgba_black(
+          top + (size_t)src_x0[x] * 4,
+          top + (size_t)src_x1[x] * 4,
+          scanline + (size_t)src_x0[x] * 4,
+          scanline + (size_t)src_x1[x] * 4,
+          weight_x[x], wy);
+        /* PSMCT32 is little-endian R|G<<8|B<<16, not 0xRRGGBB.
+         * The v0.5.1 prototype swapped red and blue in the GS framebuffer. */
         *(uint32_t *)UNCACHED_SEG(&pixels[next_y * PREVIEW_W + x]) = color;
       }
       next_y++;
     }
+    memcpy(previous_scanline, scanline, (size_t)w * 4);
   }
   png_read_end(png, NULL);
   png_destroy_read_struct(&png, &info, NULL);
