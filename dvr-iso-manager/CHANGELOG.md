@@ -5,7 +5,8 @@
 - Selected title gains a charcoal character background with white pointer/text;
   remaining titles use understated grayscale text.
 - Dim header and footer separators, padded PAGE 01/04 formatting, clearer
-  two-line controls and discreet GAME ID label.
+  two-line controls with consistent colons (UP/DOWN:, X:, SELECT:, etc.)
+  and discreet GAME ID label.
 - Preserve the approved cover placement (row 7 / y=64, 88x128 PNG), bitmap
   colors, bilinear scaling, Game IDs and index/scan logic.
 - Constrain error/status text so it cannot draw over the cover rectangle.
