@@ -49,7 +49,7 @@ typedef struct {
 } cover_blit_setup;
 typedef char cover_blit_setup_is_96_bytes[(sizeof(cover_blit_setup)==96)?1:-1];
 
-static cover_blit_setup setup __attribute__((aligned(16)));
+static cover_blit_setup cover_setup_packet __attribute__((aligned(16)));
 static uint32_t pixels[PREVIEW_W * PREVIEW_H] __attribute__((aligned(16)));
 static unsigned char scanline[MAX_COVER_W * 4];
 
@@ -73,9 +73,9 @@ static void cover_dma_submit(const void *buf, int qwc) {
 static void cover_blit(void) {
   /* Existing scr_putchar also writes packets via UNCACHED_SEG. This
    * guarantees DMA sees the exact setup and pixels without cache flushes. */
-  *(cover_blit_setup *)UNCACHED_SEG(&setup) = setup_template;
+  *(cover_blit_setup *)UNCACHED_SEG(&cover_setup_packet) = setup_template;
   cover_dma_wait();
-  cover_dma_submit(&setup, 6);
+  cover_dma_submit(&cover_setup_packet, 6);
   cover_dma_wait();
   cover_dma_submit(pixels, PREVIEW_QWC);
   cover_dma_wait();
