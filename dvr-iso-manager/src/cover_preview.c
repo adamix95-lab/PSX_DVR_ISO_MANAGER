@@ -74,6 +74,13 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
     fileXioClose(fd);
     return 0;
   }
+  /* Adam7 needs multiple image passes; reject it rather than painting
+     a misleading partial preview on the DESR framebuffer. */
+  if (png_get_interlace_type(png, info) != PNG_INTERLACE_NONE) {
+    png_destroy_read_struct(&png, &info, NULL);
+    fileXioClose(fd);
+    return 0;
+  }
   bit_depth = png_get_bit_depth(png, info);
   color_type = png_get_color_type(png, info);
   if (bit_depth == 16) png_set_strip_16(png);
@@ -86,7 +93,6 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
   if (!(color_type & PNG_COLOR_MASK_ALPHA) &&
       !png_get_valid(png, info, PNG_INFO_tRNS))
     png_set_filler(png, 0xff, PNG_FILLER_AFTER);
-  png_set_interlace_handling(png);
   png_read_update_info(png, info);
   channels = png_get_channels(png, info);
   if (channels != 4 || png_get_rowbytes(png, info) != w * 4) {
