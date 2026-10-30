@@ -1,4 +1,22 @@
-# PSX DVR ISO Manager v0.5 — cover preview (development)
+# PSX DVR ISO Manager v0.5.1 — clearer OPL-style PNG preview (UNTESTED)
+
+## Reverted alignment experiment
+
+The user prefers the previously tested layout: Game ID at text row 7 and
+the 88×128 PNG starting at y=64. The temporary row-5 alignment has been
+reverted. GS RGB packing, bilinear scaling, USB index and Quickboot are unchanged.
+
+**Hardware report, 2026-10-30:** v0.5.1 initially displayed a God of War II cover, but red/blue were swapped and nearest-neighbor scaling caused jagged pixels. The latest artifact `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-RESTORED-UNTESTED` corrects the GS PSMCT32 RGB byte order and applies streamed bilinear downsampling. The corrected build remains **hardware untested**. Keep the validated v0.5 ELF and all existing USB assets unchanged.
+
+**Keep the hardware-tested v0.5 ELF.** This renderer-only build has not yet been verified on a physical DESR-7000.
+
+It replaces the 11×14 glyph mosaic with an **88×128-pixel PNG preview** in the original right column, using the already initialized PS2SDK GS GIF/DMA framebuffer. It does **not** reset GS or initialize gsKit. ISO scanning, `COVERS.IDX`, USB BOOT.CNF, Neutrino, Quickboot and game selection are unchanged.
+
+**Test:** keep a PC backup of the working v0.5 ELF and BOOT.CNF; download `PSX-DVR-ISO-Manager-v0.5.1-RGBFIX-RESTORED-UNTESTED` and replace only Manager ELF. Use the existing ART/index without rescanning. Verify Cold Fear `SLUS_210.47` has a sharper cover; check paging, footer text, NO COVER fallback and a known-good X launch. Restore v0.5 ELF if the video becomes unstable.
+
+---
+
+## Previous release: PSX DVR ISO Manager v0.5 — cover preview (development)
 
 [Polski / Polish](README_PL.md)
 
