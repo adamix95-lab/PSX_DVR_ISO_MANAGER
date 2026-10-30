@@ -1,8 +1,17 @@
-# PSX DVR ISO Manager v0.3 — MONO
+# PSX DVR ISO Manager v0.4 — MONO + page navigation
 
 [Polski / Polish](README_PL.md)
 
-**GUI test version: tested on Sony PSX DESR-7000.**
+**v0.4 is UNTESTED on physical Sony PSX DESR-7000 hardware.** The v0.3 MONO baseline was previously tested.
+
+## What's new in v0.4
+
+- **LEFT / RIGHT** jumps between 12-game pages, retaining the highlighted row when possible and clamping to the last available game on a short final page.
+- Stops at the first/last page; no page wrap. UP / DOWN still selects one game at a time, as before.
+- **TRIANGLE** remains a simple ISO directory rescan. Game ID scanning, cover art and USB index files are deferred to v0.5.
+- No changes to DVR access, CNF generation, language selection, or Quickboot.
+
+## v0.3 MONO baseline
 
 ## What's new in v0.3
 
@@ -19,6 +28,7 @@
 ## Controls
 
 - Press **UP** or **DOWN** to select a game.
+- Press **LEFT** or **RIGHT** to move between pages of 12 games.
 - Press **X** to launch the selected game.
 - Press **Triangle (△)** to rescan the "ISO" folder.
 - Press **Square (□)** to save a test configuration to `DVR_TEST.CNF`.
@@ -36,3 +46,7 @@
 
 **Important:** Launching the manager itself from UDPFS does **not** move the Quickboot path to the network.
 `mass0:/DESR_DVR/BOOT.ELF`, `BOOT.CNF`, and both Neutrino executables must remain on USB.
+
+## v0.4 hardware test plan
+
+Keep the working v0.3 Manager ELF and a PC backup of BOOT.CNF. Download the `PSX-DVR-ISO-Manager-v0.4-PAGING-UNTESTED` Actions artifact and replace **only** the Manager ELF. For 1–12 games LEFT/RIGHT should have no effect; with 13+ games verify page changes, short final pages, UP/DOWN and language selection. Finally check SQUARE and one known-working X Quickboot. **Do not merge until verified on DESR-7000.**
