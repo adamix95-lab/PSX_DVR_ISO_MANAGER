@@ -25,13 +25,14 @@
  * Never call gsKit_init_screen, SetGsCrt or reset DMA/GS here: the working
  * console screen, IRX stack, ISO index and Quickboot remain untouched.
  *
- * Position: 62 text columns * 7 px, y = 8 rows * 8 px, end at y=192.
- * Debug footer starts at y=192, so cover pixels cannot overlap it.
+ * Position: 62 text columns * 7 px, y = 6 rows * 8 px, end at y=176.
+ * Game ID is on row 5, aligned with LANGUAGE; the debug footer starts
+ * at y=192, so the 88x128 PNG remains above status/footer rows.
  */
 #define PREVIEW_W 88
 #define PREVIEW_H 128
 #define PREVIEW_X (62 * 7)
-#define PREVIEW_Y (8 * 8)
+#define PREVIEW_Y (6 * 8)
 #define PREVIEW_QWC (PREVIEW_W * PREVIEW_H * 4 / 16)
 #define MAX_COVER_W 512
 #define MAX_COVER_H 512
