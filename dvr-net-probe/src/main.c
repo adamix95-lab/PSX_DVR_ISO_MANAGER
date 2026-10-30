@@ -17,8 +17,6 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#include <lwip/ip4_addr.h>
-#include <lwip/sockets.h>
 #include <netman.h>
 #include <ps2ip.h>
 
