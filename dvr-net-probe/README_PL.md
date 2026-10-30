@@ -12,6 +12,12 @@
 - Nie pobiera PNG ani danych z internetu, nie zapisuje nic na USB/DVR/APA, nie modyfikuje `BOOT.CNF` i nie wywołuje OSDMenu/Neutrino. Brak dyskowych działań zapisu.
 - Po zakończeniu pozostawia wynik na ekranie i czeka na ręczne ponowne uruchomienie konsoli. Nie gwarantuje braku zawieszenia przy niedopasowanych modułach SMAP/DVR, dlatego zaczynamy wyłącznie od osobnego ELF.
 
+## Naprawa parsera NET_PROBE.CNF (30.10.2026)
+
+Pierwszy test z poprawną konfiguracją `192.168.0.240` / `192.168.0.122` zgłosił `NET_PROBE.CNF invalid`. Powodem był **błąd w programie**: trzeci komentarz oryginalnego pliku przykładowego ma 64 znaki, podczas gdy bufor przeznaczony na krótkie linie `KLUCZ=WARTOŚĆ` dopuszczał mniej. Poprawka odrzuca komentarze przed kopiowaniem do bufora, zachowując globalny limit 512 bajtów i ścisłą walidację pól. Dodano test dokładnej zawartości pliku dostarczonego z konsoli.
+
+**Dla pierwszego ELF bez poprawki:** usuń trzy linie zaczynające się od `#` z `NET_PROBE.CNF`; wszystkie pięć ustawień IPv4 i port 8000 są prawidłowe, o ile IP konsoli jest wolne. **Dla nowego ELF:** komentarze można zachować bez zmian.
+
 ## Przygotowanie
 
 1. Zachowaj działający `DVR_ISO_MANAGER.ELF` v0.5.3 (i ewentualnie v0.6) oraz `BOOT.CNF`; nie zastępuj żadnego z nich.
