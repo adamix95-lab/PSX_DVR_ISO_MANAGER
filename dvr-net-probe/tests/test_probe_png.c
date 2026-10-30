@@ -19,7 +19,7 @@ static const uint8_t png[] = {
 int main(void) {
   uint8_t response[1024];
   const uint8_t *image;
-  size_t size, head_len, n;
+  size_t size, n;
   char hdr[256];
   assert(sizeof(png)==70);
   assert(probe_png_check(png,sizeof(png))==0);
@@ -32,7 +32,6 @@ int main(void) {
              "Last-Modified: Fri, 30 Oct 2026 13:00:00 GMT\r\n\r\n",
              (unsigned)sizeof(png));
   assert(n<sizeof(hdr));
-  head_len=n;
   memcpy(response,hdr,n);
   memcpy(response+n,png,sizeof(png));
   assert(probe_http_extract_png(response,n+sizeof(png),&image,&size)==0);
