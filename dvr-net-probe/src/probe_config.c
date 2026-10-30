@@ -44,6 +44,17 @@ int probe_parse_config(const char *source, size_t size, probe_config *out) {
     char line[64], *key, *val;
     size_t len = 0;
     int id, rc;
+    /* Comments are ignored before copying into the short key/value buffer.
+       The shipped example had a 64-character comment which used to make
+       otherwise valid user configurations fail parsing. Global 512-byte
+       file limit still applies; no unbounded copying or allocations. */
+    if (source[at] == '#') {
+      while (at < size && source[at] != '\r' && source[at] != '\n')
+        at++;
+      while (at < size && (source[at] == '\r' || source[at] == '\n'))
+        at++;
+      continue;
+    }
     while (at < size && source[at] != '\r' && source[at] != '\n') {
       if (len + 1 >= sizeof(line)) return -1;
       line[len++] = source[at++];
