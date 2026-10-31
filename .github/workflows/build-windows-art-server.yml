@@ -1,0 +1,37 @@
+name: Build PSX DVR ART Server v0.7.3 Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pc-art-server/**'
+      - '.github/workflows/build-windows-art-server.yml'
+permissions:
+  contents: read
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Pillow and PyInstaller
+        run: python -m pip install -r pc-art-server/requirements.txt "pyinstaller>=6.12,<7"
+      - name: Test HTTPS gateway, local cache and LAN HTTP
+        run: python -m unittest discover -s pc-art-server/tests -p "test_*.py" -v
+        env:
+          PYTHONPATH: pc-art-server
+      - name: Build single-file GUI EXE
+        run: python -m PyInstaller --onefile --windowed --noconfirm --clean --name PSX-DVR-ART-Server-v0.7.3 pc-art-server/psx_dvr_art_server.py
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          if (!(Test-Path dist/PSX-DVR-ART-Server-v0.7.3.exe)) { throw "EXE not found" }
+          if ((Get-Item dist/PSX-DVR-ART-Server-v0.7.3.exe).Length -lt 100000) { throw "EXE looks too small" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ART-Server-v0.7.3-Windows-EXE
+          path: |
+            dist/PSX-DVR-ART-Server-v0.7.3.exe
+            pc-art-server/README_PL.md
+          if-no-files-found: error
