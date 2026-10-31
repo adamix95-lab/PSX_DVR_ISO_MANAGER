@@ -110,7 +110,7 @@ Tutaj można później dodać aktualne zdjęcie interfejsu MONO v0.8.
 
 ## Kompilacja
 
-Repozytorium zawiera projekt CMake/PS2SDK, testy skanera i PNG, osobne narzędzia diagnostyczne sieci oraz konfigurację tworzenia Windows EXE przez PyInstaller. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README_PL.md) i [pc-art-server](pc-art-server/README.md).
+Repozytorium zawiera projekt CMake/PS2SDK, testy skanera, sieci i PNG zintegrowane z Managerem oraz konfigurację tworzenia Windows EXE przez PyInstaller. Dawny samodzielny Probe został wycofany. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README_PL.md) i [pc-art-server](pc-art-server/README.md).
 
 ## Do zrobienia i współpraca
 
