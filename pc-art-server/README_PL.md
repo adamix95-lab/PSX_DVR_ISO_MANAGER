@@ -12,9 +12,27 @@ Prosta aplikacja dla komputera Windows, która na żądanie Sony PSX DESR-7000 p
 https://archive.org/download/OPLM_ART_2024_09/OPLM_ART_2024_09.zip/PS2/SLES_538.86/SLES_538.86_COV.png
 ```
 
-**Dostępność plików zależy od Archive.org, regionu wydania oraz kompletności archiwum. Nie wszystkie ID muszą występować.** Serwer nie pobiera metadanych gier, nie korzysta z niezweryfikowanych domen ani nie szuka losowych plików. Gdy archiwum nie odpowiada lub nie ma grafiki, serwer zwraca konsoli 404 — nie generuje fałszywej okładki.
+**Dostępność plików zależy od Archive.org, regionu wydania oraz kompletności archiwum. Nie wszystkie ID muszą występować.** Serwer nie pobiera metadanych gier, nie korzysta z niezweryfikowanych domen ani nie szuka losowych plików. Jeśli OPL nie zwróci poprawnej okładki, serwer spróbuje osobnej bazy PSBBN; 404 zostanie zwrócone, gdy **oba** źródła zawiodą.
 
 Działanie konsoli: `GET /SLES_538.86_COV.png` → Windows pobiera po HTTPS (jeżeli nie ma w cache) → PNG 140×200 → HTTP 200 z `Content-Length` → konsola zapisuje nowy plik w `ART`.
+
+## Druga baza: PSBBN Art Database od CosmicScale (fallback)
+
+Po sprawdzeniu źródeł [PSBBN Definitive Project](https://github.com/CosmicScale/PSBBN-Definitive-Project) ustalono, że CosmicScale korzysta **z dwóch różnych typów grafik**:
+- OPL/NHDDL: **to samo archiwum OPL Manager na Archive.org**, które nasz serwer już obsługuje.
+- PSBBN Game Collection: osobna **[PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database)** na GitHubie, indeksowana Game ID. To właśnie ona stanowi nową **rezerwową bazę**.
+
+Kolejność w aplikacji Windows od tej poprawki:
+1. Sprawdź istniejący cache PC, bez nadpisywania plików.
+2. Spróbuj pobrać **pionową okładkę OPL** z Archive.org (bez zmian w działającym kodzie źródła podstawowego).
+3. Dopiero gdy archiwum OPL nie zwróci poprawnego PNG, spróbuj grafiki PSBBN:
+   `https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/main/art/<GAMEID>.png`
+4. Przy udanym pobraniu PSBBN w logu pojawia się `HTTPS PSBBN FALLBACK` i `SOURCE <GAMEID>: PSBBN`. Obraz jest zwykle **kwadratowy** (PSBBN wymaga grafik 256×256 lub większych), więc aplikacja skaluje go do pionowego **140×200 PNG RGB z czarnymi marginesami, bez rozciągania**.
+5. Przy braku obrazów w obu bazach aplikacja zwraca 404. Nie zapisuje uszkodzonej grafiki w cache. **Nie pobieramy automatycznie z IGN** — to inny mechanizm wyszukiwania, wymagający osobnej weryfikacji.
+
+Nie wszystkie grafiki PSBBN muszą przypominać prawdziwe okładki pudełkowe OPL. Nowe źródło jest rozwiązaniem awaryjnym, a nie zamiennikiem pionowych okładek. Dostępność konkretnego obrazka na GitHubie wymaga jeszcze praktycznego testu w Windows EXE; testy automatyczne symulują odpowiedzi źródeł. Linki i przekierowania PSBBN są ograniczone do oficjalnego, dokładnego adresu repozytorium GitHub przez HTTPS.
+
+**Dotychczasowy działający Windows EXE nadal wystarcza do pobierania z OPL.** Nowy plik EXE jest potrzebny jedynie do korzystania z dodatkowego źródła PSBBN. Kod konsoli nie wymaga nowych ustawień.
 
 ## Jak uruchomić aplikację .exe
 
@@ -57,7 +75,7 @@ py pc-art-server/psx_dvr_art_server.py
 
 ## Ograniczenia
 
-- Konsola komunikuje się **HTTP tylko wewnątrz LAN**, komputer używa **HTTPS wyłącznie do archiwum Archive.org**.
+- Konsola komunikuje się **HTTP tylko wewnątrz LAN**, komputer używa **HTTPS do Archive.org oraz wyłącznie wyznaczonej ścieżki obrazów PSBBN w raw.githubusercontent.com**.
 - Program akceptuje tylko ścisłe nazwy `XXXX_123.45_COV.png`, pobiera maksymalnie 4 MiB danych źródłowych i generuje PNG maksymalnie 256 KiB. Nie wykonuje żądań do dowolnych adresów podanych przez klienta.
 - Cache nie nadpisuje istniejących plików. Prawidłowe pliki pozostają na dysku PC, więc późniejsze pobranie jest szybkie.
 - Prawa do grafik pozostają u ich właścicieli; używaj ich zgodnie z właściwymi licencjami i warunkami źródła.
