@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.3 source fallback and ART SYNC start-screen polish (new PC EXE + ELF)
+- Confirmed from CosmicScale's Game Installer: its OPL/NHDDL covers use the
+  same OPL Manager Archive.org backup as our proven Windows server.
+- Added CosmicScale PSBBN Art Database on raw.githubusercontent.com as a
+  *secondary*, Game ID-specific source ONLY when OPL artwork is unavailable.
+- PSBBN images are square; convert with proportional padding to 140x200 RGB
+  PNG without stretching. Distinguish the successful source in PC logs.
+- Strict HTTPS host/path checking for the PSBBN source and redirects,
+  4MiB remote cap, 256KiB normalized PNG cap and unchanged USB protocol.
+- Keep local cache immutable and preserve the OPL primary source.
+- On the Manager's download-progress screen, remove only the redundant
+  "PSX DVR ART SYNC v0.7.3" title. No network / index / boot changes.
+- Physical hardware: previous safe-retry v0.7.3 downloaded 32 missing
+  covers after O cancel and X launched a game. These two new cosmetic/PC
+  changes still require their own smoke test.
+
+
 ## 0.7.3 scan-screen safe retry (untested after 19-cover baseline)
 - A/B hardware evidence: original 0.7.3 completed 19 missing covers; the
   subsequent UI rewrite froze near NETMAN/SMAP and must not be used.
