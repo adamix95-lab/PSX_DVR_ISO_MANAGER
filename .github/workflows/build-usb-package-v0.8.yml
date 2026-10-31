@@ -5,9 +5,6 @@ on:
     paths:
       - 'release-tools/**'
       - '.github/workflows/build-usb-package-v0.8.yml'
-      - 'README.md'
-      - 'README_PL.md'
-      - 'RELEASE_NOTES.md'
 permissions:
   contents: read
 jobs:
