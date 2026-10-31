@@ -1,4 +1,4 @@
-name: Build PSX DVR ART Server v0.7.3 Windows EXE
+name: Build PSX DVR ART Server v0.8 Windows EXE
 on:
   workflow_dispatch:
   push:
@@ -22,16 +22,16 @@ jobs:
         env:
           PYTHONPATH: pc-art-server
       - name: Build single-file GUI EXE
-        run: python -m PyInstaller --onefile --windowed --noconfirm --clean --name PSX-DVR-ART-Server-v0.7.3 pc-art-server/psx_dvr_art_server.py
+        run: python -m PyInstaller --onefile --windowed --noconfirm --clean --name PSX-DVR-ART-Server-v0.8 pc-art-server/psx_dvr_art_server.py
       - name: Verify EXE
         shell: pwsh
         run: |
-          if (!(Test-Path dist/PSX-DVR-ART-Server-v0.7.3.exe)) { throw "EXE not found" }
-          if ((Get-Item dist/PSX-DVR-ART-Server-v0.7.3.exe).Length -lt 100000) { throw "EXE looks too small" }
+          if (!(Test-Path dist/PSX-DVR-ART-Server-v0.8.exe)) { throw "EXE not found" }
+          if ((Get-Item dist/PSX-DVR-ART-Server-v0.8.exe).Length -lt 100000) { throw "EXE looks too small" }
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ART-Server-v0.7.3-OPL-PSBBN-FALLBACK-Windows-EXE
+          name: PSX-DVR-ART-Server-v0.8-Windows-EXE
           path: |
-            dist/PSX-DVR-ART-Server-v0.7.3.exe
+            dist/PSX-DVR-ART-Server-v0.8.exe
             pc-art-server/README_PL.md
           if-no-files-found: error
