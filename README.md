@@ -29,13 +29,28 @@
 
 Page navigation does not wrap from the first page to the last. After cancelling a cover download, **Triangle** can offer the missing artwork again without restarting Manager.
 
-## Installation
+## Complete USB package (recommended)
 
-Copy the existing OSDMenu / Neutrino DVR support files and the Manager to **`mass0:/DESR_DVR/`** on USB. The Manager ELF can also be started through UDPFS, but its boot files and artwork cache remain on USB.
+**Download [PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/v0.8/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip).** This is the easiest way to install the Manager; you do **not** need to download v0.3 separately or search for Neutrino/OSDMenu modules.
+
+1. Extract the ZIP file on your computer.
+2. Copy the **entire `DESR_DVR` folder** to the **root of your USB drive**, so the Manager is at `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF`.
+3. Launch `DVR_ISO_MANAGER.ELF` via wLE or UDPFS. Your ISO games must already be on the DVR partition at `dvr_pfs0:/ISO/`.
+4. To download covers, run the **separate Windows ART Server `.exe`** from the same v0.8 release. Edit the included `DESR_DVR/NET_PROBE.CNF` to match your network as described below.
+
+The complete ZIP contains all original **OSDMenu/Neutrino modules, configurations and launch files from the published v0.3.0 USB ZIP**, plus the official **v0.8 Manager ELF**, an empty `ART/` directory, a sample `NET_PROBE.CNF`, startup guides and a checksum manifest. The v0.3 `BOOT.elf` has the filename **`BOOT.ELF`** in the new package to match the current Manager's launch path; its binary contents are unchanged. Game ISOs, cover images and the Windows program are **not** bundled inside the USB folder.
+
+**Upgrading an existing USB installation?** First make a complete backup of your current `DESR_DVR` folder. In particular, preserve your `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/`, `COVERS.IDX` and `COVER_SCAN.LOG` rather than replacing your working personal settings or covers with the clean-install samples.
+
+## USB folder layout
+
+The Manager ELF can also be started through UDPFS, but its boot files and artwork cache remain in `mass0:/DESR_DVR/` on USB.
 
 ```text
 mass0:/DESR_DVR/
 ├── DVR_ISO_MANAGER.ELF           # Manager v0.8
+├── START_HERE_PL.txt              # First-install guide (Polish)
+├── START_HERE_EN.txt              # First-install guide (English)
 ├── BOOT.ELF                      # OSDMenu launcher
 ├── BOOT.CNF                      # Game launch configuration
 ├── BOOT_RECOVERY.CNF             # Existing configuration backup
@@ -53,7 +68,7 @@ mass0:/DESR_DVR/
     └── ee_core_lang.elf          # ENGLISH support (other modules omitted)
 ```
 
-The listing is illustrative; keep all the other working DVR/Neutrino modules and config files. The game ISO files themselves must be on the DVR HDD under **`dvr_pfs0:/ISO/`** (mapped from the `__xcontents` partition). Manager does **not** write to the DVR partition, APA or ISO images.
+The listing is abbreviated; **the full USB ZIP includes the entire v0.3 module and config set**. The game ISO files themselves must be on the DVR HDD under **`dvr_pfs0:/ISO/`** (mapped from the `__xcontents` partition). Manager does **not** write to the DVR partition, APA or ISO images.
 
 ## Downloading missing covers with the PC app
 

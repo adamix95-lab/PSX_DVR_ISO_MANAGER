@@ -1,0 +1,93 @@
+name: Build complete PSX DVR ISO Manager v0.8 USB ZIP
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'release-tools/**'
+      - '.github/workflows/build-usb-package-v0.8.yml'
+      - 'README.md'
+      - 'README_PL.md'
+      - 'RELEASE_NOTES.md'
+permissions:
+  contents: read
+jobs:
+  build-complete-usb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the USB bundle assembly and safety checks
+        run: python3 -m unittest discover -s release-tools -p 'test_*.py' -v
+      - name: Download the repository's exact published v0.3 and v0.8 assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/usb-build/v03 /tmp/usb-build/v08
+          gh release download v0.3.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'PSX.DVR.ISO.MANAGER.03.zip' --dir /tmp/usb-build/v03
+          gh release download v0.8 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'DVR_ISO_MANAGER.ELF' --dir /tmp/usb-build/v08
+          test -s /tmp/usb-build/v03/PSX.DVR.ISO.MANAGER.03.zip
+          test -s /tmp/usb-build/v08/DVR_ISO_MANAGER.ELF
+      - name: Assemble checked single-folder USB ZIP
+        run: |
+          python3 release-tools/build_usb_bundle_v08.py \
+            --legacy /tmp/usb-build/v03/PSX.DVR.ISO.MANAGER.03.zip \
+            --manager /tmp/usb-build/v08/DVR_ISO_MANAGER.ELF \
+            --output dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
+          test -s dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
+      - name: Verify every original v0.3 module/config and official v0.8 ELF
+        run: |
+          python3 - <<'PY'
+          import hashlib, zipfile
+          old='/tmp/usb-build/v03/PSX.DVR.ISO.MANAGER.03.zip'
+          new='dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip'
+          elf='/tmp/usb-build/v08/DVR_ISO_MANAGER.ELF'
+          with zipfile.ZipFile(old) as legacy, zipfile.ZipFile(new) as packed:
+              old_files=[n for n in legacy.namelist() if n.startswith('DESR_DVR/') and not n.endswith('/')]
+              print('Legacy DESR_DVR file count:',len(old_files))
+              for src in old_files:
+                  dst='DESR_DVR/BOOT.ELF' if src=='DESR_DVR/BOOT.elf' else src
+                  assert packed.read(dst)==legacy.read(src),f'Changed original v0.3 file: {src}'
+              assert packed.read('DESR_DVR/DVR_ISO_MANAGER.ELF')==open(elf,'rb').read()
+              names=packed.namelist()
+              assert all(n.startswith('DESR_DVR/') for n in names)
+              assert 'DESR_DVR/ART/' in names
+              assert 'DESR_DVR/NET_PROBE.CNF' in names
+              assert 'DESR_DVR/BOOT.ELF' in names
+              assert 'DVR_ISO_MANAGER.ELF' not in names
+              assert packed.testzip() is None
+              print('PASS: ALL original OSDMenu/Neutrino files preserved byte for byte')
+              print('PASS: Official v0.8 Manager ELF placed in DESR_DVR')
+              print('PASS: ART, network config and startup guides included')
+              print('ZIP SHA-256:', hashlib.sha256(open(new,'rb').read()).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE
+          path: dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
+          if-no-files-found: error
+
+  publish-zip:
+    if: github.ref == 'refs/heads/main'
+    needs: build-complete-usb
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE
+          path: dist
+      - name: Add the full USB ZIP without modifying the original ELF or Windows EXE
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$(tr -d '\r\n' < VERSION)" = '0.8'
+          test -s dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
+          gh release view v0.8 --repo "$GITHUB_REPOSITORY"
+          gh release upload v0.8 dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit v0.8 --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES.md
+          gh release view v0.8 --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[].name'
