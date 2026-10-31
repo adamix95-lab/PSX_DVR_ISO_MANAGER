@@ -10,7 +10,8 @@ from pathlib import Path
 from PIL import Image
 from psx_dvr_art_server import (
     CoverHandler, CoverService, GAME_PATH, MAX_PNG_BYTES, normalize_png,
-    trusted_archive_url, ArchiveRedirects,
+    trusted_archive_url, ArchiveRedirects, trusted_psbbn_url,
+    PsbbnRedirects, download_from_psbbn, PSBBN_SOURCE,
 )
 
 
@@ -37,6 +38,91 @@ class ArtworkTests(unittest.TestCase):
         req = urllib.request.Request("https://archive.org/foo")
         with self.assertRaises(urllib.error.URLError):
             handler.redirect_request(req, None, 302, "Found", {}, "http://127.0.0.1/a")
+
+    def test_psbbn_source_is_exact_game_id_and_https_only(self):
+        url = PSBBN_SOURCE.format(id="SLES_538.86")
+        self.assertEqual(
+            url,
+            "https://raw.githubusercontent.com/CosmicScale/"
+            "psbbn-art-database/main/art/SLES_538.86.png",
+        )
+        self.assertTrue(trusted_psbbn_url(url, "SLES_538.86"))
+        for bad in (
+            "http://raw.githubusercontent.com/CosmicScale/"
+            "psbbn-art-database/main/art/SLES_538.86.png",
+            "https://evil.example/CosmicScale/"
+            "psbbn-art-database/main/art/SLES_538.86.png",
+            "https://raw.githubusercontent.com/CosmicScale/"
+            "psbbn-art-database/main/art/SCUS_974.02.png",
+            url + "?download=1",
+        ):
+            self.assertFalse(trusted_psbbn_url(bad, "SLES_538.86"))
+        request = urllib.request.Request(url)
+        with self.assertRaises(urllib.error.URLError):
+            PsbbnRedirects("SLES_538.86").redirect_request(
+                request, None, 302, "Found", {},
+                "https://untrusted.example/art.png",
+            )
+
+    def test_opl_success_never_uses_psbbn_fallback(self):
+        attempted = []
+        with tempfile.TemporaryDirectory() as path:
+            def primary(game_id):
+                attempted.append(("OPL", game_id))
+                return fixture_png()
+            def secondary(game_id):
+                attempted.append(("PSBBN", game_id))
+                return fixture_png()
+            svc = CoverService(
+                Path(path), log=lambda _: None,
+                fetch=primary, fallback_fetch=secondary,
+            )
+            self.assertIsNotNone(svc.get("SLES_538.86"))
+            self.assertEqual(attempted, [("OPL", "SLES_538.86")])
+
+    def test_psbbn_fallback_for_missing_opl_with_square_art(self):
+        tried = []
+        logs = []
+        square = io.BytesIO()
+        Image.new("RGB", (256, 256), (255, 127, 0)).save(
+            square, format="PNG")
+        with tempfile.TemporaryDirectory() as path:
+            def missing_opl(game_id):
+                tried.append(("OPL", game_id))
+                raise urllib.error.HTTPError(
+                    "https://archive.org/missing", 404, "not found", {}, None)
+            def psbbn(game_id):
+                tried.append(("PSBBN", game_id))
+                return square.getvalue()
+            svc = CoverService(
+                Path(path), log=logs.append,
+                fetch=missing_opl, fallback_fetch=psbbn,
+            )
+            image = svc.get("SLES_538.86")
+            self.assertIsNotNone(image)
+            self.assertEqual(
+                tried,
+                [("OPL", "SLES_538.86"), ("PSBBN", "SLES_538.86")],
+            )
+            with Image.open(io.BytesIO(image)) as png:
+                self.assertEqual((png.size, png.mode), ((140, 200), "RGB"))
+                self.assertEqual(png.getpixel((0, 0)), (0, 0, 0))
+                self.assertEqual(png.getpixel((70, 100)), (255, 127, 0))
+            self.assertTrue(any("SOURCE" in msg and "PSBBN" in msg for msg in logs))
+            self.assertEqual(svc.get("SLES_538.86"), image)
+            self.assertEqual(len(tried), 2)  # second request from cache
+
+    def test_both_missing_keeps_cache_empty(self):
+        with tempfile.TemporaryDirectory() as path:
+            def missing(_):
+                raise urllib.error.URLError("server unavailable")
+            svc = CoverService(
+                Path(path), log=lambda _: None,
+                fetch=missing, fallback_fetch=missing,
+            )
+            self.assertIsNone(svc.get("SLES_538.86"))
+            self.assertFalse(
+                (Path(path) / "SLES_538.86_COV.png").exists())
 
     def test_normalize_png(self):
         output = normalize_png(fixture_png())
