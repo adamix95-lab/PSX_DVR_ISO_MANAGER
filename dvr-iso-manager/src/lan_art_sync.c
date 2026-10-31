@@ -1,6 +1,5 @@
-/* v0.7.3: optional Ethernet only AFTER explicit controller consent.
- * All USB/DVR base IRXs are loaded by the proven Manager init_drivers().
- * No IOP reset, no second DEV9 and no changes to Quickboot modules.
+/* Ethernet is initialized on demand after the user selects X on the
+ * cover scan screen. The DVR DEV9 and USB stack are already initialized.
  */
 #include "lan_art_sync.h"
 #include "art_sync_runtime.h"
