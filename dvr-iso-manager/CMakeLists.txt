@@ -4,7 +4,7 @@ project(desr_dvr_iso_manager C)
 
 set(SOURCES
   src/main.c src/iso_utils.c src/cover_index.c src/cover_runtime.c
-  src/cover_preview.c src/cover_color.c src/cover_report.c src/lan_art_sync.c
+  src/cover_preview.c src/cover_color.c src/cover_report.c src/art_prompt_state.c src/lan_art_sync.c
   ../dvr-net-probe/src/probe_config.c ../dvr-net-probe/src/probe_png.c
   ../dvr-net-probe/src/art_sync.c ../dvr-net-probe/src/art_sync_runtime.c)
 # Drivers from PS2SDK, plus DVR drivers from the user's confirmed PR #228 build.
