@@ -1,9 +1,7 @@
-/*
- * Experimental v0.7.2 ART SYNC, standalone, LAN-only.
- * All ISO/DVR access remains read-only. No updates to existing USB files.
- * Reads COVER_SCAN.LOG (NO_ART / NO_ART_EXE) from a manual TRIANGLE scan.
- * Writes ONLY NEW validated ART/<ID>_COV.png via a .PART staging file.
- * No COVERS.IDX modifications: run Manager TRIANGLE to rebuild index.
+/* LAN artwork fetcher shared by Manager and the standalone diagnostic.
+ * Reads missing Game IDs from a USB scan report. Downloads validated PNGs
+ * into new USB ART files via .PART staging; index updates are caller-owned.
+ * DVR/ISO and existing USB art are never modified.
  */
 #include "art_sync_runtime.h"
 #include "art_sync.h"
