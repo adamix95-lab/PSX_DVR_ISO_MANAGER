@@ -4,8 +4,6 @@ on:
   push:
     paths:
       - 'dvr-iso-manager/**'
-      - 'dvr-net-probe/src/**'
-      - 'dvr-net-probe/include/**'
       - '.github/workflows/build-dvr-iso-manager.yml'
 permissions:
   contents: read
@@ -27,11 +25,11 @@ jobs:
           /tmp/test_cover_color
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/iso_utils.c dvr-iso-manager/src/cover_index.c dvr-iso-manager/src/cover_report.c dvr-iso-manager/tests/test_cover_report.c -o /tmp/test_cover_report
           /tmp/test_cover_report
-          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include dvr-net-probe/src/probe_config.c dvr-net-probe/tests/test_probe_config.c -o /tmp/test_net_cfg
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/probe_config.c dvr-iso-manager/tests/net/test_probe_config.c -o /tmp/test_net_cfg
           /tmp/test_net_cfg
-          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include dvr-net-probe/src/probe_png.c dvr-net-probe/tests/test_probe_png.c -o /tmp/test_http_png
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/probe_png.c dvr-iso-manager/tests/net/test_probe_png.c -o /tmp/test_http_png
           /tmp/test_http_png
-          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include dvr-net-probe/src/art_sync.c dvr-net-probe/tests/test_art_sync.c -o /tmp/test_art_sync
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/art_sync.c dvr-iso-manager/tests/net/test_art_sync.c -o /tmp/test_art_sync
           /tmp/test_art_sync
       - name: Check available image libraries
         run: |
