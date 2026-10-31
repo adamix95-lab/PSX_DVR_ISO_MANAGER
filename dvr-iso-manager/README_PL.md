@@ -1,5 +1,24 @@
 # PSX DVR ISO Manager v0.5.3 — czytelniejsze okładki PNG (TEST)
 
+## Poprawka eksperymentalna — ekran skanowania i anulowanie O
+
+**Ważne, 31.10.2026:** użytkownik przetestował dwie kompilacje na fizycznym DESR-7000:
+
+- Pierwsza v0.7.3 (GitHub Actions **41200955251**) działa prawidłowo: pobrano **19 brakujących okładek**, a wcześniejszy film pokazywał pobranie 3/3. Jest to **zalecana stabilna wersja testowa** do momentu potwierdzenia nowej poprawki.
+- Kolejna próba zmiany układu i obsługi O (Actions **41205607956**) powodowała zawieszenie przy starcie NETMAN/SMAP lub powrót z `no new PNG`. Nie należy jej dalej używać. Przyczyny sprzętowej nie potwierdzono jednoznacznie.
+
+**Bezpieczniejsza poprawka** została oparta bezpośrednio na dokładnie tym samym kodzie Managera i LAN, na którym pobrano 19 PNG. Nie zmienia `lan_art_sync.c`, `art_sync_runtime.c`, Windows EXE ani obsługi ISO, BOOT.CNF, Neutrino i Quickboot. Zmienia wyłącznie ekran pytania i logikę powtórnego wywołania:
+
+1. Pierwszy TRÓJKĄT jak dotąd skanuje DVR i ART, zapisuje COVERS.IDX oraz COVER_SCAN.LOG.
+2. Jeśli brakuje okładek, pytanie X/O pojawia się **na oddzielnym ekranie wyniku skanowania**, nie na liście gier.
+3. O wraca do listy. Na kolejnym TRÓJKĄCIE Manager **ponownie sprawdza braki na USB według ostatniego poprawnego COVER_SCAN.LOG**, bez ponownego skanowania wszystkich ISO. Jeśli braki są nadal obecne, oferuje X drugi i kolejny raz. Brak lub nieaktualność raportu powoduje powrót do pełnego skanowania.
+4. X na ekranie pytania uruchamia dokładnie ten sam kod pobierania co w działającej wersji. Po wyjściu z pytania X nadal uruchamia grę.
+
+Zachowaj kopię działającego ELF z Actions 41200955251 oraz BOOT.CNF, COVERS.IDX i okładek. Nową wersję identyfikuje artefakt `PSX-DVR-ISO-Manager-v0.7.3-SCAN-SCREEN-SAFE-RETRY-UNTESTED`. **Nie scalać tej poprawki z main bez testu sprzętowego.**
+
+Przy komplecie 40/40 okładek Manager nie wyświetli pytania. Jeśli zechcesz przetestować, przygotuj kontrolowany brak przez zmianę nazwy jednej okładki na `.SAVED` i zachowaj jej kopię PC. Sprawdź sekwencję `TRÓJKĄT → O → TRÓJKĄT → X` oraz Quickboot po zamknięciu ekranu. W razie problemu wróć do poprzedniego ELF.
+
+
 ## v0.7.3 — ART SYNC w Managerze + serwer Windows .exe (Draft, bez testu na konsoli)
 
 Po ręcznym skanie **TRÓJKĄTEM** program aktualizuje zwykły `COVERS.IDX` i `COVER_SCAN.LOG`, a następnie wylicza **tylko braki z rozpoznanym Game ID** (`NO_ART` / `NO_ART_EXE`). Na ekranie pojawia się liczba brakujących okładek oraz pytanie `X: DOWNLOAD LAN HTTP`. Naciśnięcie **X** w tym oknie włącza Ethernet (NETMAN/SMAP bez drugiego DEV9) i pobiera okładki przez lokalny HTTP. **O (kółko)** anuluje. Gdy okna nie ma, **X nadal uruchamia grę** przez BOOT.ELF / Neutrino.
