@@ -22,6 +22,6 @@ Zapasowa baza PSBBN została sprawdzona testami automatycznymi, ale użycie jej 
 
 - `DVR_ISO_MANAGER.ELF` — program na konsolę, uruchamiany z USB albo UDPFS; wymaga pozostałych plików OSDMenu/Neutrino na USB.
 - `PSX-DVR-ART-Server-v0.8.exe` — aplikacja PC na Windows z interfejsem Start/Stop. Nie wymaga ręcznej instalacji Pythona.
-- [README po polsku](README_PL.md) oraz [English README](README.md) zawierają instalację, konfigurację sieci i sterowanie.
+- [README po polsku](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/v0.8/README_PL.md) oraz [English README](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/v0.8/README.md) zawierają instalację, konfigurację sieci i sterowanie.
 
 **Uwaga:** nie jest to zestaw pełnych plików Neutrino ani bibliotek gier. Nie zastępuj działającego `BOOT.ELF`, `BOOT.CNF`, Neutrino ani sterowników DVR bez potrzeby. Zachowaj kopie zapasowe. Manager nie zapisuje na partycji DVR.
