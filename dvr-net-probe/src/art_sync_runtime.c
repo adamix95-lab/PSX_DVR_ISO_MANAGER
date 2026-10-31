@@ -197,7 +197,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
   return 0;
 }
 int art_sync_run(const probe_config *cfg) {
-  int i,attempted=0,saved=0;
+  int i,attempted=0,saved=0,fail_streak=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];
@@ -214,8 +214,13 @@ int art_sync_run(const probe_config *cfg) {
     scr_printf("GAME %s\n",games[i].id);
     if (download(cfg,games[i].id,&png,&bytes)<0) {
       scr_printf("FAIL: HTTP missing or invalid PNG\n");
+      if (++fail_streak>=3) {
+        scr_printf("STOP: 3 consecutive failed downloads.\n");
+        break; /* Avoid dozens of long timeouts when PC is offline. */
+      }
       continue;
     }
+    fail_streak=0;
     scr_printf("PNG: CRC OK, %lu bytes\n",(unsigned long)bytes);
     if (write_new_art(games[i].id,png,bytes)<0) {
       scr_printf("FAIL: USB staging/verify/rename\n");
