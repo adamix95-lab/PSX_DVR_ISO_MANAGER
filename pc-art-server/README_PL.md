@@ -36,7 +36,7 @@ Nie wszystkie grafiki PSBBN muszą przypominać prawdziwe okładki pudełkowe OP
 
 ## Jak uruchomić aplikację .exe
 
-1. Pobierz artefakt **`PSX-DVR-ART-Server-v0.7.3-Windows-EXE`** z workflow **Build PSX DVR ART Server v0.7.3 Windows EXE** w GitHub Actions.
+1. Pobierz artefakt **`PSX-DVR-ART-Server-v0.7.3-OPL-PSBBN-FALLBACK-Windows-EXE`** z workflow **Build PSX DVR ART Server v0.7.3 Windows EXE** w GitHub Actions.
 2. Wypakuj ZIP i uruchom **`PSX-DVR-ART-Server-v0.7.3.exe`**. Program nie wymaga ręcznego instalowania Pythona na Windows, ale jest niepodpisanym eksperymentalnym EXE — Windows SmartScreen może pokazać ostrzeżenie.
 3. W aplikacji ustaw IP komputera, np. `192.168.0.122`; IP konsoli `192.168.0.240`; port `8000`, tak jak w poprzednich udanych testach. W razie zmiany adresów, zmień je w programie i w `NET_PROBE.CNF` na USB.
 4. Kliknij **Start serwera HTTP**. Windows może poprosić o zgodę zapory — zezwalaj **tylko dla sieci prywatnej**. Nie przekierowuj portu na routerze, nie wystawiaj serwera na internet. Program odrzuca żądania od IP innych niż wpisana konsola.
