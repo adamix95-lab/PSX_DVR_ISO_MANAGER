@@ -108,7 +108,8 @@ The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source
 <img width="4096" height="2710" alt="1000055890" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
 <img width="4096" height="3072" alt="1000055891" src="https://github.com/user-attachments/assets/444d9328-27a6-46b2-9c41-ec29764f5023" />
 <img width="4096" height="2939" alt="1000055892" src="https://github.com/user-attachments/assets/3fb9f935-9e6d-4acb-b610-2abc85b59300" />
-<img width="756" height="563" alt="Zrzut ekranu 2026-11-01 000809" src="https://github.com/user-attachments/assets/ff72eb3a-a41e-42b3-995e-bfb14f32d7a0" />
+<img width="756" height="563" alt="Zrzut ekranu 2026-11-01 000809" src="https://github.com/user-attachments/assets/c51621d8-efad-4acf-adf2-25108692f17c" />
+
 
 ## Build and development
 
