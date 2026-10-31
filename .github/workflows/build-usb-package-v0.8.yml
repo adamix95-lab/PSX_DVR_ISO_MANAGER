@@ -1,4 +1,4 @@
-name: Build complete PSX DVR ISO Manager v0.8 USB ZIP
+name: Build clean user-approved PSX DVR ISO Manager v0.8 USB ZIP
 on:
   workflow_dispatch:
   push:
@@ -35,30 +35,53 @@ jobs:
             --manager /tmp/usb-build/v08/DVR_ISO_MANAGER.ELF \
             --output dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
           test -s dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip
-      - name: Verify every original v0.3 module/config and official v0.8 ELF
+      - name: Verify user-uploaded clean USB file set and unchanged v0.8 Manager
         run: |
           python3 - <<'PY'
-          import hashlib, zipfile
+          import hashlib
+          import sys
+          import zipfile
+          sys.path.insert(0, 'release-tools')
+          from build_usb_bundle_v08 import (
+              ZIP_ROOT, FOLDER, LEGACY_FOLDER, OLD_MANAGER, NEW_MANAGER,
+              EXCLUDED_V03_FILES, USER_UPLOADED_FILES,
+              USER_UPLOADED_CONTENT_FINGERPRINT, content_fingerprint,
+          )
           old='/tmp/usb-build/v03/PSX.DVR.ISO.MANAGER.03.zip'
           new='dist/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip'
           elf='/tmp/usb-build/v08/DVR_ISO_MANAGER.ELF'
           with zipfile.ZipFile(old) as legacy, zipfile.ZipFile(new) as packed:
-              old_files=[n for n in legacy.namelist() if n.startswith('DESR_DVR/') and not n.endswith('/')]
-              print('Legacy DESR_DVR file count:',len(old_files))
+              old_files=[
+                  n for n in legacy.namelist()
+                  if n.startswith(LEGACY_FOLDER) and not n.endswith('/')
+                  and n[len(LEGACY_FOLDER):] not in EXCLUDED_V03_FILES
+              ]
               for src in old_files:
-                  dst='DESR_DVR/BOOT.ELF' if src=='DESR_DVR/BOOT.elf' else src
-                  assert packed.read(dst)==legacy.read(src),f'Changed original v0.3 file: {src}'
-              assert packed.read('DESR_DVR/DVR_ISO_MANAGER.ELF')==open(elf,'rb').read()
-              names=packed.namelist()
-              assert all(n.startswith('DESR_DVR/') for n in names)
-              assert 'DESR_DVR/ART/' in names
-              assert 'DESR_DVR/NET_PROBE.CNF' in names
-              assert 'DESR_DVR/BOOT.ELF' in names
-              assert 'DVR_ISO_MANAGER.ELF' not in names
+                  relative=src[len(LEGACY_FOLDER):]
+                  if relative=='BOOT.elf':
+                      relative='BOOT.ELF'
+                  dst=FOLDER+relative
+                  assert packed.read(dst)==legacy.read(src), f'Changed v0.3 file: {src}'
+              assert packed.read(NEW_MANAGER)==open(elf,'rb').read()
+              dirs={ZIP_ROOT,FOLDER,FOLDER+'ART/',FOLDER+'config/',FOLDER+'modules/'}
+              assert set(n for n in packed.namelist() if n.endswith('/'))==dirs
+              assert not any(n in packed.namelist() for n in (
+                  OLD_MANAGER, FOLDER+'BOOT_RECOVERY.CNF', FOLDER+'DVR_TEST.CNF',
+                  FOLDER+'info.sys', FOLDER+'jkt_001.png',
+                  FOLDER+'jkt_002.png', FOLDER+'jkt_cp.png',
+                  FOLDER+'SHA256SUMS.txt',
+              ))
               assert packed.testzip() is None
-              print('PASS: ALL original OSDMenu/Neutrino files preserved byte for byte')
-              print('PASS: Official v0.8 Manager ELF placed in DESR_DVR')
-              print('PASS: ART, network config and startup guides included')
+              members={
+                  n:packed.read(n) for n in packed.namelist() if not n.endswith('/')
+              }
+              assert len(members)==USER_UPLOADED_FILES
+              assert len(packed.namelist())==86
+              actual=content_fingerprint(members)
+              assert actual==USER_UPLOADED_CONTENT_FINGERPRINT,actual
+              print('PASS: 81 exact filenames and contents match the user ZIP')
+              print('PASS: 5 original directories retained, no old tests')
+              print('PASS: Official v0.8 ELF unchanged')
               print('ZIP SHA-256:', hashlib.sha256(open(new,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4

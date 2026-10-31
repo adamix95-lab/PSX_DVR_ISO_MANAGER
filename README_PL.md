@@ -35,11 +35,11 @@ Po anulowaniu pobierania KÓŁKIEM można ponownie nacisnąć TRÓJKĄT, aby jes
 **Pobierz [PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/v0.8/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip).** Do instalacji nie trzeba osobno pobierać v0.3 ani szukać modułów OSDMenu/Neutrino.
 
 1. Rozpakuj ZIP na komputerze.
-2. Skopiuj **cały folder `DESR_DVR` do katalogu głównego USB**, aby Manager znajdował się w `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF`.
+2. W rozpakowanym folderze `PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE` znajdź **wewnętrzny `DESR_DVR`** i skopiuj **ten folder** do katalogu głównego USB. Poprawna ścieżka: `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF`. Nie kopiuj na USB zewnętrznego folderu paczki.
 3. Uruchom `DVR_ISO_MANAGER.ELF` przez wLE albo UDPFS. Gry ISO muszą już być na partycji DVR w `dvr_pfs0:/ISO/`.
 4. Aby pobierać okładki, uruchom **osobną aplikację Windows ART Server `.exe`** z tego samego wydania. Dopasuj do swojej sieci dołączony plik `DESR_DVR/NET_PROBE.CNF`.
 
-Paczka zawiera **wszystkie moduły i konfiguracje OSDMenu/Neutrino z opublikowanego ZIP-a v0.3.0**, oficjalny **Manager ELF v0.8**, pusty folder `ART/`, przykładowy `NET_PROBE.CNF`, krótkie instrukcje oraz sumy kontrolne. Plik `BOOT.elf` z v0.3 został nazwany **`BOOT.ELF`**, ponieważ takiej ścieżki używa Manager; zawartość binarna pliku nie została zmieniona. Obrazy gier ISO, pobrane okładki i aplikacja Windows nie są częścią folderu USB.
+Przesłana przez autora **oczyszczona paczka ma 81 plików**: wymagane moduły i konfiguracje OSDMenu/Neutrino z wydania v0.3.0, oficjalny **Manager ELF v0.8**, pusty folder `ART/`, przykładowy `NET_PROBE.CNF` oraz instrukcje. Usunięto pozostałości dawnych testów (`DVR_TEST.CNF`, `info.sys`, `jkt_*.png`), wcześniejszy `BOOT_RECOVERY.CNF` i dodatkowy manifest sum kontrolnych. Pliki testowe i kopia konfiguracji mogą być tworzone później przez Managera, kiedy są potrzebne. Plik `BOOT.elf` z v0.3 nazwano **`BOOT.ELF`** zgodnie ze ścieżką Managera, bez zmiany jego zawartości. Gry ISO, pobrane okładki i aplikacja Windows pozostają osobnymi plikami.
 
 **Aktualizujesz działającą instalację?** Najpierw wykonaj kopię **całego** folderu `DESR_DVR`. Nie nadpisuj bez zastanowienia własnych `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/`, `COVERS.IDX` i `COVER_SCAN.LOG`. Paczka jest przeznaczona przede wszystkim do czystej instalacji.
 
@@ -54,13 +54,9 @@ mass0:/DESR_DVR/
 ├── START_HERE_EN.txt              # Quick-start in English
 ├── BOOT.ELF                      # OSDMenu Launcher
 ├── BOOT.CNF                      # Konfiguracja startowa gry
-├── BOOT_RECOVERY.CNF             # Kopia zapasowa konfiguracji
-├── DVR_TEST.CNF                  # Testowa konfiguracja
 ├── neutrino.elf                  # Język SYSTEM
 ├── neutrino_lang.elf             # Język ENGLISH
 ├── NET_PROBE.CNF                 # Ustawienia sieciowe
-├── COVERS.IDX                    # Indeks okładek tworzony przez Managera
-├── COVER_SCAN.LOG                # Raport skanowania i brakujące Game ID
 ├── ART/
 │   └── SLES_538.86_COV.png      # Przykład okładki po Game ID
 ├── config/
@@ -69,7 +65,7 @@ mass0:/DESR_DVR/
     └── ee_core_lang.elf          # Obsługa ENGLISH (pozostałe moduły pominięto)
 ```
 
-To uproszczony przykład; **pełna paczka ZIP zawiera cały zestaw modułów i konfiguracji v0.3**. Gry ISO muszą być zapisane na partycji DVR w `dvr_pfs0:/ISO/` (partycja `__xcontents`). Manager **nie zapisuje nic na DVR, APA ani do obrazów ISO**.
+To uproszczony przykład; **paczka zachowuje wszystkie wymagane moduły i konfiguracje TOML z v0.3**. `COVERS.IDX` i `COVER_SCAN.LOG` powstaną przy pierwszym skanowaniu TRÓJKĄTEM, a `BOOT_RECOVERY.CNF` i `DVR_TEST.CNF` mogą zostać utworzone później. Gry ISO muszą być zapisane na partycji DVR w `dvr_pfs0:/ISO/` (partycja `__xcontents`). Manager **nie zapisuje nic na DVR, APA ani do obrazów ISO**.
 
 ## Pobieranie okładek z komputera Windows
 
