@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.3 scan-screen safe retry (untested after 19-cover baseline)
+- A/B hardware evidence: original 0.7.3 completed 19 missing covers; the
+  subsequent UI rewrite froze near NETMAN/SMAP and must not be used.
+- Restore exact original working network and download source.
+- Show the X/O confirmation on the scan results screen, not over browser.
+- After O, the next TRIANGLE rechecks existing USB COVER_SCAN.LOG and ART
+  without rescanning all DVR ISO files; X still calls the original downloader.
+- No scanner, COVERS.IDX, Quickboot, Windows server or IRX changes.
+- New artifact distinctly named SCAN-SCREEN-SAFE-RETRY-UNTESTED.
+
+
 ## v0.7.3 — integrated LAN ART SYNC and Windows HTTPS art gateway (hardware untested)
 - Reuses the preferred user-tested MONO v0.6 layout, including footer colons.
 - TRIANGLE scans games, reports count of missing Game ID-matched covers and
