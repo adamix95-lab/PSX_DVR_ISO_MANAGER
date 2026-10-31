@@ -22,6 +22,24 @@ def fixture_png():
 
 
 class ArtworkTests(unittest.TestCase):
+    def test_gui_labels_are_english(self):
+        # CI can verify GUI copy without opening a graphical window.
+        import inspect
+        from psx_dvr_art_server import run_gui
+        source = inspect.getsource(run_gui)
+        for label in (
+            "Cover Sources", "Primary", "Fallback", "PC IPv4 Address",
+            "Console IPv4 Address", "HTTP Port", "PNG Cache:",
+            "Start HTTP Server", "Stop Server", "Server stopped",
+            "Private LAN only",
+        ):
+            self.assertIn(label, source)
+        for old_label in (
+            "Źródło:", "IP komputera", "IP konsoli",
+            "Start serwera HTTP", "Serwer zatrzymany",
+        ):
+            self.assertNotIn(old_label, source)
+
     def test_id_whitelist(self):
         self.assertIsNotNone(GAME_PATH.fullmatch("/SLES_538.86_COV.png"))
         for name in ("/../SLES_538.86_COV.png", "/bad.png",
