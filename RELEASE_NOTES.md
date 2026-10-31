@@ -24,6 +24,14 @@ Pierwsze pełne wydanie z **automatycznym pobieraniem brakujących okładek** z 
 
 Zapasowa baza PSBBN została sprawdzona testami automatycznymi, ale użycie jej w rzeczywistym zestawie 40/40 nie jest potwierdzone osobnym logiem.
 
+## Pełny zestaw USB — od teraz jeden ZIP
+
+- **`PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip` (zalecany)** — pełna paczka do skopiowania na USB. Wystarczy rozpakować plik i przenieść cały folder `DESR_DVR/` do katalogu głównego pamięci USB.
+- W środku zachowano wszystkie oryginalne moduły OSDMenu/Neutrino i konfiguracje z **wydania v0.3.0**, podmieniono stary ELF Managera na **oficjalny v0.8**, dodano pusty `ART/`, przykładowy `NET_PROBE.CNF` i instrukcje PL/EN. Oryginalny `BOOT.elf` zachowano bajt po bajcie pod nazwą `BOOT.ELF`, zgodną z Managerem.
+- **`NET_PROBE.CNF` zawiera przykładowe IP z testów sprzętowych**, które trzeba dopasować do własnej sieci. Nie dołączamy gier ISO ani okładek; mogą zostać pobrane przez osobną aplikację Windows.
+- **Aktualizacja istniejącej instalacji:** wykonaj kopię całego `DESR_DVR/` i zachowaj własne `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/` oraz indeksy.
+- Oddzielne `DVR_ISO_MANAGER.ELF` oraz `PSX-DVR-ART-Server-v0.8.exe` nadal są dostępne w wydaniu dla użytkowników aktualizujących tylko jeden komponent.
+
 ## Zawartość wydania
 
 - `DVR_ISO_MANAGER.ELF` — program na konsolę, uruchamiany z USB albo UDPFS; wymaga pozostałych plików OSDMenu/Neutrino na USB.
