@@ -8,6 +8,7 @@
 #include "cover_runtime.h"
 #include "cover_preview.h"
 #include "lan_art_sync.h"
+#include "art_prompt_state.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -62,8 +63,7 @@ static int force_english; /* 0 = system (proven), 1 = English (experimental) */
 static desr_cover_entry covers[DESR_GAME_CAP];
 static char status[120] = "Starting...";
 static int status_visible; /* only errors/confirmed actions appear in the menu */
-static int art_prompt; /* X downloads ONLY after an explicit TRIANGLE scan. */
-static int art_missing;
+static desr_art_prompt_state art_ui; /* X downloads only on the scan screen. */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -259,14 +259,6 @@ static void draw(void) {
     }
   }
 
-  if (art_prompt) {
-    /* Row 21 is below the 12-game list, never in the PNG's right side.
-       X here confirms a LAN download; elsewhere X always Quickboots. */
-    scr_setfontcolor(0xFFFFFF);
-    scr_setXY(2, 21);
-    scr_printf("MISSING: %d COVER%s. X: DOWNLOAD LAN HTTP O: NO",
-               art_missing, art_missing == 1 ? "" : "S");
-  }
   if (status_visible) {
     scr_setXY(2, 22);
     scr_printf("%.54s", status); /* keep status left of the cover */
@@ -282,6 +274,48 @@ static void draw(void) {
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
   scr_printf("SELECT: LANG   TRIANGLE: INDEX   SQUARE: TEST   START: EXIT");
+  scr_setfontcolor(0xFFFFFF);
+}
+
+/* Scan results remain on the same page as the "Updating..." message.
+   No game browser, cover preview or X: LAUNCH footer is drawn under
+   the confirmation. X can therefore only mean DOWNLOAD here. */
+static void draw_scan_progress(void) {
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 1);
+  scr_printf("PSX DVR ISO MANAGER v0.7.3");
+  scr_setfontcolor(0x787878);
+  scr_setXY(2, 3);
+  scr_printf("-------------------------------------------------------");
+  scr_setfontcolor(0xFFFFFF);
+  scr_setXY(2, 6);
+  scr_printf("UPDATING GAME LIST AND COVER INDEX...");
+  scr_setXY(2, 9);
+  scr_printf("READING ISO GAME IDs FROM DVR (READ-ONLY)");
+  scr_setXY(2, 11);
+  scr_printf("CHECKING USB ART / COVERS.IDX");
+}
+static void draw_scan_art_question(int identified, int matched,
+                                    int missing) {
+  /* Deliberately stay on the scan/progress screen after TRIANGLE. */
+  draw_scan_progress();
+  scr_setXY(2, 9);
+  scr_printf("SCAN COMPLETE - DVR IS READ-ONLY            ");
+  scr_setXY(2, 11);
+  scr_printf("GAMES: %d   GAME IDs: %d", count, identified);
+  scr_setXY(2, 13);
+  scr_printf("COVERS FOUND: %d   MISSING: %d", matched, missing);
+  scr_setfontcolor(0xFFFFFF);
+  scr_setXY(2, 16);
+  scr_printf("DOWNLOAD %d MISSING COVER%s FROM LOCAL HTTP?",
+             missing, missing == 1 ? "" : "S");
+  scr_setXY(2, 19);
+  scr_printf("X: DOWNLOAD     O: SKIP / RETURN");
+  scr_setfontcolor(0xA0A0A0);
+  scr_setXY(2, 24);
+  scr_printf("Only NEW PNGs are written to USB ART.");
   scr_setfontcolor(0xFFFFFF);
 }
 
@@ -455,6 +489,7 @@ int main(int argc, char *argv[]) {
     return 2;
   }
   prev_buttons = 0;
+  desr_art_prompt_reset(&art_ui);
   draw();
   while (1) {
     if (padRead(0, 0, &btn) > 0) {
@@ -463,19 +498,19 @@ int main(int argc, char *argv[]) {
       prev_buttons = bits;
       if (new_press & PAD_START) break;
 
-      /* Modal scan result: no accidental Quickboot while X means SYNC.
-         CIRCLE cancels. START exits as before. Input outside this prompt
-         remains identical to tested v0.6 / v0.5.3. */
-      if (art_prompt) {
+      /* X is DOWNLOAD only while the dedicated scan screen is active.
+         Cancel via O returns to the usual menu; next TRIANGLE can always
+         rescan and offer the same missing covers again (no app restart). */
+      if (art_ui.active) {
         if (new_press & PAD_CIRCLE) {
-          art_prompt = 0;
+          desr_art_prompt_cancel(&art_ui);
           snprintf(status, sizeof(status),
-                   "ART DOWNLOAD CANCELED. X: LAUNCH AS USUAL");
+                   "ART SKIPPED. TRIANGLE: SCAN / RETRY ANYTIME");
           status_visible = 1;
           draw();
         } else if (new_press & PAD_CROSS) {
           int saved,identified=0,matched;
-          art_prompt = 0;
+          desr_art_prompt_cancel(&art_ui);
           scr_setbgcolor(0x000000);
           scr_setfontcolor(0xFFFFFF);
           scr_clear();
@@ -485,8 +520,8 @@ int main(int argc, char *argv[]) {
           scr_printf("DVR/ISO remain READ-ONLY.\n");
           saved = desr_lan_art_download();
           if (saved > 0) {
-            /* Rebuild exactly the same validated USB index as TRIANGLE.
-               If a DVR read fails, previous COVERS.IDX is preserved. */
+            /* Use the existing proven USB index refresh; if DVR read fails,
+               old COVERS.IDX is preserved. Never touch Quickboot/BOOT.CNF. */
             matched = desr_covers_refresh(games, count, covers, &identified);
             if (matched >= 0)
               snprintf(status,sizeof(status),
@@ -498,49 +533,52 @@ int main(int argc, char *argv[]) {
                        saved);
           } else {
             snprintf(status,sizeof(status),
-                     "ART SYNC: no new PNG. Check PC server / USB.");
+                     "ART SYNC: no new PNG. TRIANGLE: RETRY");
           }
           status_visible = 1;
           draw();
         }
-        /* Consume the whole key event even if another pad button is held. */
+        /* A modal button event must NEVER fall through to X Quickboot. */
         continue;
       }
 
       if (new_press & PAD_TRIANGLE) {
-        int identified = 0, matched;
+        int identified=0, matched=-1, report_missing=-1, result;
+        desr_art_prompt_reset(&art_ui);
         rc = scan_dvr();
         if (rc >= 0) {
           desr_covers_load(games, count, covers);
-          scr_clear();
-          scr_setXY(2, 5);
-          scr_printf("Reading ISO Game IDs; updating USB index...");
+          draw_scan_progress();
           matched = desr_covers_refresh(games, count, covers, &identified);
-          art_prompt = 0;
-          art_missing = 0;
-          if (matched >= 0) {
-            art_missing = desr_lan_art_missing();
-            if (art_missing > 0) {
-              art_prompt = 1;
-              snprintf(status,sizeof(status),
-                       "INDEX: %d IDs / %d COVERS. MISSING: %d",
-                       identified,matched,art_missing);
-            } else if (art_missing == 0) {
+          if (matched >= 0)
+            report_missing = desr_lan_art_missing();
+          result = desr_art_prompt_after_scan(
+              &art_ui, identified, matched, report_missing);
+          if (result > 0) {
+            /* Stay on scan/update screen for X/O, not the browser. */
+            draw_scan_art_question(identified, matched, result);
+          } else {
+            if (result == 0) {
               snprintf(status,sizeof(status),
                        "INDEX: %d IDs / %d COVERS. MISSING: 0",
                        identified,matched);
+            } else if (matched < 0) {
+              snprintf(status,sizeof(status),
+                       "Index update failed; previous USB index preserved.");
             } else {
               snprintf(status,sizeof(status),
-                       "INDEX OK (%d); cannot read COVER_SCAN.LOG.",
-                       matched);
+                       "MISSING: %d. Invalid USB scan log; retry TRIANGLE.",
+                       art_ui.missing);
             }
-          } else {
-            snprintf(status,sizeof(status),
-                     "Index update failed; previous USB index preserved.");
+            status_visible = 1;
+            draw();
           }
+        } else {
           status_visible = 1;
+          draw();
         }
-        draw();
+        /* Consumes simultaneous TRIANGLE+X: cannot accidentally launch. */
+        continue;
       }
       if (new_press & PAD_SELECT) {
         force_english = !force_english;
