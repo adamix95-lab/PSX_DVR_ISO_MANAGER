@@ -61,8 +61,8 @@ To uproszczony przykład. **Nie usuwaj pozostałych modułów Neutrino ani dzia�
 Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](pc-art-server/README_PL.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
 
 1. Pobierz plik **`PSX-DVR-ART-Server-v0.8.exe`** z artefaktu kompilacji Windows w [wydaniu v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) i uruchom na komputerze.
-2. Wprowadź adres komputera, adres konsoli i port. Kliknij **Start serwera HTTP**. Poniżej przykładowa, przetestowana konfiguracja LAN.
-3. Na USB utwórz lub popraw `mass0:/DESR_DVR/NET_PROBE.CNF`:
+2. W aplikacji Windows wpisz **PC IPv4 Address** (adres komputera), **Console IPv4 Address** (adres konsoli) oraz **HTTP Port**. Kliknij **Start HTTP Server**. Poniższe wartości pochodzą z przetestowanej sieci DESR-7000; w swojej sieci wpisz własne adresy.
+3. Na USB utwórz lub popraw plik `mass0:/DESR_DVR/NET_PROBE.CNF`, tak aby odpowiadał ustawieniom:
 
    ```ini
    IP=192.168.0.240
@@ -72,10 +72,22 @@ Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Window
    SERVER_PORT=8000
    ```
 
+   **Skąd wziąć adresy?** Na komputerze Windows uruchom **Wiersz polecenia (CMD)** lub **PowerShell** i wpisz `ipconfig /all` (poprawna składnia to **ukośnik /**, a nie `ipconfig -all`). Sprawdź kartę sieciową, przez którą komputer komunikuje się z konsolą.
+
+   | Parametr | Co wpisać |
+   | --- | --- |
+   | `IP` | **Ręcznie przydzielony statyczny adres IPv4 konsoli PSX DESR**. Wybierz wolny adres z tej samej podsieci co komputer. **To nie jest adres komputera** i nie pojawi się w wyniku `ipconfig /all`. |
+   | `NETMASK` | **Maska podsieci (Subnet Mask)** odczytana w `ipconfig /all`. |
+   | `GATEWAY` | **Brama domyślna (Default Gateway)** odczytana w `ipconfig /all`, zazwyczaj adres routera. |
+   | `SERVER_IP` | **Adres IPv4 komputera (IPv4 Address)**, na którym działa PSX DVR ART Server — odczytany w `ipconfig /all`. |
+   | `SERVER_PORT` | **HTTP Port** z aplikacji na PC, domyślnie `8000`; tej wartości nie podaje `ipconfig`. |
+
+   **Ważne:** `IP` i `SERVER_IP` muszą być różne. Nie używaj adresu zajętego przez inne urządzenie. Jeśli zmieni się adres komputera, popraw `SERVER_IP` i pole **PC IPv4 Address** w aplikacji.
+
 4. W Managerze naciśnij **TRÓJKĄT**. Po skanowaniu zobaczysz liczbę brakujących okładek i pytanie, czy pobrać je z lokalnego HTTP.
 5. **X: DOWNLOAD** rozpoczyna pobieranie, **O: SKIP** anuluje. Komputer pobierze grafiki według Game ID, zapisze je w swojej pamięci podręcznej i wyśle konsoli. Manager zapisze tylko **nowe** PNG do USB `ART` i automatycznie przebuduje indeks.
 
-Aplikacja na PC sprawdza najpierw archiwum okładek **OPL Manager na Archive.org**, a następnie — jeśli trzeba — bazę **PSBBN Art Database od CosmicScale** na GitHubie. Druga baza może zawierać grafiki kwadratowe zamiast pionowych okładek pudełkowych; program zachowuje proporcje i dodaje czarne marginesy. Nie każda gra musi mieć grafikę w obu źródłach.
+**Cover Sources (źródła okładek):** **Primary — OPL Manager Archive (Archive.org)** to główne źródło, zawierające zwykle pionowe okładki pudełkowe PS2. **Fallback — CosmicScale PSBBN Art Database (GitHub)** to oddzielna baza grafik gier, często kwadratowych; aplikacja sięga po nią **dopiero gdy OPL nie zwróci poprawnej okładki PNG**. Kwadratowy obraz dopasowywany jest do 140×200 pikseli z czarnymi marginesami, bez rozciągania. Jeżeli nie ma grafiki w żadnym źródle, serwer zgłasza brak okładki.
 
 Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i testy serwera opisano w [instrukcji aplikacji Windows](pc-art-server/README_PL.md).
 
