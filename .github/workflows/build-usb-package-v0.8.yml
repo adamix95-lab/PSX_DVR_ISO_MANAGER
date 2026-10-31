@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'release-tools/**'
-      - '.github/workflows/build-usb-package-v0.8.yml'
 permissions:
   contents: read
 jobs:
