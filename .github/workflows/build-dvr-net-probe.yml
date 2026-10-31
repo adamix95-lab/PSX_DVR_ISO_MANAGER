@@ -1,4 +1,4 @@
-name: Build DESR DVR single local PNG fetch test v0.7.1
+name: Build DESR missing OPL cover ART sync test v0.7.2
 on:
   workflow_dispatch:
   push:
@@ -27,16 +27,22 @@ jobs:
             dvr-net-probe/src/probe_png.c dvr-net-probe/tests/test_probe_png.c \
             -o /tmp/test_net_probe_png
           /tmp/test_net_probe_png
+      - name: Test missing-cover report parser and safe Game ID URLs
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include \
+            dvr-net-probe/src/art_sync.c dvr-net-probe/tests/test_art_sync.c \
+            -o /tmp/test_art_sync
+          /tmp/test_art_sync
       - name: Build standalone DESR network probe ELF
         run: |
           cmake -S dvr-net-probe -B build-dvr-net-probe
           cmake --build build-dvr-net-probe -j2
-          test -s build-dvr-net-probe/DVR_COVER_FETCH_TEST.ELF
+          test -s build-dvr-net-probe/DVR_ART_SYNC_TEST.ELF
       - name: Upload test ELF and example config
         uses: actions/upload-artifact@v4
         with:
-          name: DESR-DVR-LOCAL-PNG-FETCH-v0.7.1-UNTESTED
+          name: DESR-DVR-MISSING-ART-SYNC-v0.7.2-UNTESTED
           path: |
-            build-dvr-net-probe/DVR_COVER_FETCH_TEST.ELF
+            build-dvr-net-probe/DVR_ART_SYNC_TEST.ELF
             dvr-net-probe/NET_PROBE.EXAMPLE.CNF
-            dvr-net-probe/README_PNG_TEST_PL.md
+            dvr-net-probe/README_ART_SYNC_PL.md
