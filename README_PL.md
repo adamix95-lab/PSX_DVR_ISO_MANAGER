@@ -8,7 +8,7 @@
 
 ## Możliwości programu
 
-- Lista gier w `dvr_pfs0:/ISO` — do 12 tytułów na stronie, nawigacja bez zawijania od ostatniej strony do pierwszej.
+- Przeglądanie do **128 plików ISO** z katalogu `dvr_pfs0:/ISO` w trybie tylko do odczytu — po 12 tytułów na stronie, bez zawijania nawigacji między pierwszą a ostatnią stroną.
 - Wykrywanie **Game ID** (np. `SLES_538.86`) na podstawie danych wewnątrz obrazu ISO i wyszukiwanie okładek w `mass0:/DESR_DVR/ART`.
 - Podgląd kolorowych okładek PNG w prawym panelu i zapis indeksu `COVERS.IDX` na USB.
 - Ręczne skanowanie TRÓJKĄTEM, raport brakujących grafik `COVER_SCAN.LOG` i pytanie o pobranie ich z lokalnego serwera HTTP.
@@ -104,9 +104,16 @@ Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i
 
 **Bezpieczeństwo:** uruchamiaj serwer tylko w zaufanej sieci prywatnej, bez przekierowania portów na routerze. Przed aktualizacją zachowaj kopię działającego ELF, `BOOT.CNF` i folderu `ART`. Nowe okładki są sprawdzane przed zapisem, istniejące PNG/JPG nie są nadpisywane.
 
-## Aktualny wygląd Managera
+## Zdjęcia i zrzuty ekranu
 
-Tutaj można później dodać aktualne zdjęcie interfejsu MONO v0.8.
+Poniżej znajdują się te same zdjęcia i zrzuty ekranu aktualnego interfejsu Managera v0.8, które zamieszczono w angielskim README.
+
+<img width="4096" height="2452" alt="1000055888" src="https://github.com/user-attachments/assets/dd491fb4-30a7-4120-9857-029a78d36b99" />
+<img width="4096" height="2864" alt="1000055889" src="https://github.com/user-attachments/assets/c5a5c06e-5f05-423e-844a-10007cee015c" />
+<img width="4096" height="2710" alt="1000055890" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
+<img width="4096" height="3072" alt="1000055891" src="https://github.com/user-attachments/assets/444d9328-27a6-46b2-9c41-ec29764f5023" />
+<img width="4096" height="2939" alt="1000055892" src="https://github.com/user-attachments/assets/3fb9f935-9e6d-4acb-b610-2abc85b59300" />
+<img width="756" height="563" alt="Zrzut ekranu 2026-11-01 000809" src="https://github.com/user-attachments/assets/ff72eb3a-a41e-42b3-995e-bfb14f32d7a0" />
 
 ## Kompilacja
 
