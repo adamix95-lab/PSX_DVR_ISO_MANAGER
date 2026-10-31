@@ -26,8 +26,9 @@ Zapasowa baza PSBBN została sprawdzona testami automatycznymi, ale użycie jej 
 
 ## Pełny zestaw USB — od teraz jeden ZIP
 
-- **`PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip` (zalecany)** — pełna paczka do skopiowania na USB. Wystarczy rozpakować plik i przenieść cały folder `DESR_DVR/` do katalogu głównego pamięci USB.
-- W środku zachowano wszystkie oryginalne moduły OSDMenu/Neutrino i konfiguracje z **wydania v0.3.0**, podmieniono stary ELF Managera na **oficjalny v0.8**, dodano pusty `ART/`, przykładowy `NET_PROBE.CNF` i instrukcje PL/EN. Oryginalny `BOOT.elf` zachowano bajt po bajcie pod nazwą `BOOT.ELF`, zgodną z Managerem.
+- **`PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip` (zalecany)** — **oczyszczona przez autora paczka** z **81 plikami**. Po rozpakowaniu należy skopiować **wewnętrzny folder `DESR_DVR/`** z `PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE/` do katalogu głównego pamięci USB.
+- W środku zachowano wszystkie wymagane moduły OSDMenu/Neutrino oraz konfiguracje TOML z **wydania v0.3.0**, podmieniono stary ELF Managera na **oficjalny v0.8**, zachowano pusty `ART/`, przykładowy `NET_PROBE.CNF` i instrukcje PL/EN. Oryginalny `BOOT.elf` zachowano bajt po bajcie pod nazwą `BOOT.ELF`.
+- Z paczki usunięto stare pliki testowe i dekoracyjne (`DVR_TEST.CNF`, `info.sys`, `jkt_*.png`), starszy `BOOT_RECOVERY.CNF` i dodatkowy manifest SHA256. Nie zmieniano kodu Managera ani modułów uruchomieniowych.
 - **`NET_PROBE.CNF` zawiera przykładowe IP z testów sprzętowych**, które trzeba dopasować do własnej sieci. Nie dołączamy gier ISO ani okładek; mogą zostać pobrane przez osobną aplikację Windows.
 - **Aktualizacja istniejącej instalacji:** wykonaj kopię całego `DESR_DVR/` i zachowaj własne `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/` oraz indeksy.
 - Oddzielne `DVR_ISO_MANAGER.ELF` oraz `PSX-DVR-ART-Server-v0.8.exe` nadal są dostępne w wydaniu dla użytkowników aktualizujących tylko jeden komponent.
