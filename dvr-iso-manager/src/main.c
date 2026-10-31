@@ -506,7 +506,6 @@ int main(int argc, char *argv[]) {
           scr_setfontcolor(0xFFFFFF);
           scr_clear();
           scr_setXY(2, 1);
-          scr_printf("PSX DVR ART SYNC v0.7.3\n");
           scr_printf("LAN HTTP: downloading missing PNG covers...\n");
           scr_printf("DVR/ISO remain READ-ONLY.\n");
           saved = desr_lan_art_download();
