@@ -1,17 +1,5 @@
 # PSX DVR ISO Manager v0.5.3 — czytelniejsze okładki PNG (TEST)
 
-## Poprawka v0.7.3 — ekran skanowania i ponowne pytanie po O (31.10.2026)
-
-Na DESR-7000 użytkownik potwierdził pobieranie **3/3** brakujących PNG i automatyczne **40/40**. Zgłoszone uwagi:
-1. Pytanie **„X: DOWNLOAD / O: SKIP”** powinno pozostać na ekranie **„UPDATING GAME LIST AND COVER INDEX...”**, nie nakładać się na zwykłą listę gier.
-2. Po anulowaniu przyciskiem **O** kolejny skan **TRÓJKĄTEM** ma ponownie wykryć braki i wyświetlić pytanie bez restartowania programu.
-
-Poprawka pokazuje odrębny ekran wyniku skanu z liczbą rozpoznanych gier, znalezionych i brakujących okładek oraz przyciskami `X: DOWNLOAD` / `O: SKIP / RETURN`. O nie zmienia ani plików, ani informacji o tym, ile okładek brakuje; ponowny TRÓJKĄT zawsze wykonuje skan i może ponownie zaproponować pobieranie. Wynik skanowania jest dodatkowo porównywany z `COVER_SCAN.LOG`: błędy raportu są sygnalizowane jawnie zamiast fałszywego `MISSING: 0`.
-
-**Do ponownego testu** pobierz artefakt `PSX-DVR-ISO-Manager-v0.7.3-SCAN-PROMPT-CANCEL-FIX-UNTESTED`. Podmień **wyłącznie** `DVR_ISO_MANAGER.ELF`; aplikacja Windows `.exe` v0.7.3 i `NET_PROBE.CNF` pozostają bez zmian.
-
-**Test sprzętowy:** zrób kopię v0.7.3 oraz ART, przygotuj jeden brak (np. Black przez zmianę nazwy `.png` na `.png.SAVED`), wciśnij TRÓJKĄT, zobacz osobny ekran `MISSING: 1`, wciśnij O, ponownie TRÓJKĄT — pytanie powinno wrócić. Dopiero teraz X pobiera, po czym Manager odbudowuje `COVERS.IDX`. Sprawdź Quickboot X poza pytaniem. Nie scalamy tej korekty z `main` przed testem.
-
 ## v0.7.3 — ART SYNC w Managerze + serwer Windows .exe (Draft, bez testu na konsoli)
 
 Po ręcznym skanie **TRÓJKĄTEM** program aktualizuje zwykły `COVERS.IDX` i `COVER_SCAN.LOG`, a następnie wylicza **tylko braki z rozpoznanym Game ID** (`NO_ART` / `NO_ART_EXE`). Na ekranie pojawia się liczba brakujących okładek oraz pytanie `X: DOWNLOAD LAN HTTP`. Naciśnięcie **X** w tym oknie włącza Ethernet (NETMAN/SMAP bez drugiego DEV9) i pobiera okładki przez lokalny HTTP. **O (kółko)** anuluje. Gdy okna nie ma, **X nadal uruchamia grę** przez BOOT.ELF / Neutrino.

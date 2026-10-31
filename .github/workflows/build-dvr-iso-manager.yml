@@ -33,8 +33,6 @@ jobs:
           /tmp/test_http_png
           cc -std=c99 -Wall -Wextra -Werror -Idvr-net-probe/include dvr-net-probe/src/art_sync.c dvr-net-probe/tests/test_art_sync.c -o /tmp/test_art_sync
           /tmp/test_art_sync
-          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/art_prompt_state.c dvr-iso-manager/tests/test_art_prompt_state.c -o /tmp/test_art_prompt
-          /tmp/test_art_prompt
       - name: Check available image libraries
         run: |
           for p in "$PS2SDK/ports/include/png.h" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" "$GSKIT/include/gsKit.h"; do
@@ -48,7 +46,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.7.3-SCAN-PROMPT-CANCEL-FIX-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.7.3-ART-SYNC-UNTESTED
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
