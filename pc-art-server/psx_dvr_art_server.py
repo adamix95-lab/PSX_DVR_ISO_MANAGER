@@ -1,7 +1,7 @@
-"""PSX DVR ART Server — on-demand HTTPS OPL artwork -> LAN HTTP/1.0.
+"""PSX DVR ART Server v0.8 — HTTPS OPL/PSBBN artwork to LAN HTTP.
 
-Run as Python (>=3.10) or build a single Windows exe with PyInstaller.
-Never touches the Sony PSX or the user's USB directly.
+The PC handles internet downloads and caches PNGs locally. Console and
+USB contents are accessed only by the Manager, not by this server.
 """
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import queue
 import re
 import socket
 import ssl
-import sys
 import threading
 import urllib.error
 import urllib.parse
@@ -26,16 +25,12 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 GAME_PATH = re.compile(r"^/([A-Z]{4}_[0-9]{3}\.[0-9]{2})_COV\.png$")
 MAX_REMOTE_BYTES = 4 * 1024 * 1024
 MAX_PNG_BYTES = 256 * 1024
-# Exact HTTPS artwork location used by CosmicScale's Game Installer.
-# Online availability is not guaranteed; a failure returns 404, never an
-# HTML error page mislabelled as an image.
+# Primary artwork source: the OPL Manager archive used by CosmicScale.
 OPL_SOURCE = (
     "https://archive.org/download/OPLM_ART_2024_09/"
     "OPLM_ART_2024_09.zip/PS2/{id}/{id}_COV.png"
 )
-# CosmicScale's *separate* PSBBN Game Collection art database. Unlike
-# OPL covers, these are square images indexed by the same PS2 Game ID.
-# Use only when the preferred OPL archive fails, and normalize to RGB PNG.
+# Fallback: CosmicScale's separate PSBBN square artwork collection.
 PSBBN_SOURCE = (
     "https://raw.githubusercontent.com/CosmicScale/"
     "psbbn-art-database/main/art/{id}.png"
@@ -68,7 +63,7 @@ def download_from_archive(game_id: str) -> bytes:
         raise ValueError("Untrusted artwork URL")
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "PSX-DVR-ART-Server/0.7.3",
+        headers={"User-Agent": "PSX-DVR-ART-Server/0.8",
                  "Accept": "image/png"})
     opener = urllib.request.build_opener(
         urllib.request.HTTPSHandler(context=ssl.create_default_context()),
@@ -125,7 +120,7 @@ def download_from_psbbn(game_id: str) -> bytes:
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "PSX-DVR-ART-Server/0.7.3",
+            "User-Agent": "PSX-DVR-ART-Server/0.8",
             "Accept": "image/png",
         },
     )
@@ -214,9 +209,7 @@ class CoverService:
                 self.log(f"CACHE INVALID: {game_id}")
                 return None  # Never overwrite existing cache files.
 
-            # First source stays exactly the hardware-proven OPL backup.
-            # Only a failed/missing/invalid OPL PNG triggers the distinct
-            # CosmicScale PSBBN Game Collection art source (square artwork).
+            # Prefer OPL covers; use square PSBBN artwork only as fallback.
             self.log(f"HTTPS OPL  {game_id} — querying archive...")
             try:
                 raw = self.fetch(game_id)
@@ -246,7 +239,7 @@ class CoverService:
 
 
 class CoverHandler(BaseHTTPRequestHandler):
-    server_version = "DESR-Art-Server/0.7.3"
+    server_version = "DESR-Art-Server/0.8"
     protocol_version = "HTTP/1.0"
 
     def do_GET(self):
@@ -307,13 +300,13 @@ def run_gui() -> None:
 
     events: queue.Queue[str] = queue.Queue()
     root = tk.Tk()
-    root.title("PSX DVR ART Server v0.7.3")
+    root.title("PSX DVR ART Server v0.8")
     root.geometry("730x485")
     root.minsize(620, 430)
 
     frame = ttk.Frame(root, padding=14)
     frame.pack(fill="both", expand=True)
-    ttk.Label(frame, text="PSX DVR ART Server  •  v0.7.3",
+    ttk.Label(frame, text="PSX DVR ART Server  •  v0.8",
               font=("Segoe UI", 15, "bold")).pack(anchor="w")
     ttk.Label(
         frame,
