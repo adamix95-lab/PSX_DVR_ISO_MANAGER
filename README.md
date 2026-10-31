@@ -1,4 +1,4 @@
-# PSX DVR ISO Manager v0.8
+# PSX DVR ISO Manager
 
 [Polski / Polish](README_PL.md)
 
