@@ -92,6 +92,7 @@ static int network_init(const probe_config *cfg) {
 }
 int desr_lan_art_download(void) {
   probe_config cfg;
+  /* No network/module loading unless missing covers were just confirmed. */
   if (config_read(&cfg)<0) return -1;
   if (network_init(&cfg)<0) return -1;
   return art_sync_run(&cfg);
