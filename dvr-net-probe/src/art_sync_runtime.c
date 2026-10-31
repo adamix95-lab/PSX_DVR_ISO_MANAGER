@@ -92,7 +92,8 @@ static int ready(int sock, int writable) {
   int rc;
   FD_ZERO(&fds);
   FD_SET(sock,&fds);
-  tv.tv_sec=5;tv.tv_usec=0;
+  tv.tv_sec=writable ? 5 : 35; /* Allow PC HTTPS cache miss. */
+  tv.tv_usec=0;
   rc=lwip_select(sock+1,writable?NULL:&fds,
                  writable?&fds:NULL,NULL,&tv);
   return rc>0 && FD_ISSET(sock,&fds);
