@@ -303,7 +303,7 @@ int desr_covers_refresh(char games[][DESR_FILENAME_CAP], int count,
              scan_report, sizeof(scan_report), &report_size,
              games[i], DESR_SCAN_READ_ERROR, NULL) < 0) report_ok = 0;
       if (report_ok) write_scan_report(report_size);
-      return -1; /* Old index survives failed DVR read, as in v0.5. */
+      return -1; /* Preserve the current index on DVR read errors. */
     }
     if (!rc) {
       if (report_ok && desr_cover_report_add(
