@@ -69,7 +69,7 @@ To uproszczony przykład; **paczka zachowuje wszystkie wymagane moduły i konfig
 
 ## Pobieranie okładek z komputera Windows
 
-Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](pc-art-server/README_PL.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
+Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](pc-art-server/README.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
 
 1. Pobierz plik **`PSX-DVR-ART-Server-v0.8.exe`** z artefaktu kompilacji Windows w [wydaniu v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) i uruchom na komputerze.
 2. W aplikacji Windows wpisz **PC IPv4 Address** (adres komputera), **Console IPv4 Address** (adres konsoli) oraz **HTTP Port**. Kliknij **Start HTTP Server**. Poniższe wartości pochodzą z przetestowanej sieci DESR-7000; w swojej sieci wpisz własne adresy.
@@ -100,7 +100,7 @@ Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Window
 
 **Cover Sources (źródła okładek):** **Primary — OPL Manager Archive (Archive.org)** to główne źródło, zawierające zwykle pionowe okładki pudełkowe PS2. **Fallback — CosmicScale PSBBN Art Database (GitHub)** to oddzielna baza grafik gier, często kwadratowych; aplikacja sięga po nią **dopiero gdy OPL nie zwróci poprawnej okładki PNG**. Kwadratowy obraz dopasowywany jest do 140×200 pikseli z czarnymi marginesami, bez rozciągania. Jeżeli nie ma grafiki w żadnym źródle, serwer zgłasza brak okładki.
 
-Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i testy serwera opisano w [instrukcji aplikacji Windows](pc-art-server/README_PL.md).
+Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i testy serwera opisano w [instrukcji aplikacji Windows](pc-art-server/README.md).
 
 **Bezpieczeństwo:** uruchamiaj serwer tylko w zaufanej sieci prywatnej, bez przekierowania portów na routerze. Przed aktualizacją zachowaj kopię działającego ELF, `BOOT.CNF` i folderu `ART`. Nowe okładki są sprawdzane przed zapisem, istniejące PNG/JPG nie są nadpisywane.
 
@@ -110,7 +110,7 @@ Tutaj można później dodać aktualne zdjęcie interfejsu MONO v0.8.
 
 ## Kompilacja
 
-Repozytorium zawiera projekt CMake/PS2SDK, testy skanera i PNG, osobne narzędzia diagnostyczne sieci oraz konfigurację tworzenia Windows EXE przez PyInstaller. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README_PL.md) i [pc-art-server](pc-art-server/README_PL.md).
+Repozytorium zawiera projekt CMake/PS2SDK, testy skanera i PNG, osobne narzędzia diagnostyczne sieci oraz konfigurację tworzenia Windows EXE przez PyInstaller. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README_PL.md) i [pc-art-server](pc-art-server/README.md).
 
 ## Do zrobienia i współpraca
 
