@@ -112,7 +112,7 @@ The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source
 
 ## Build and development
 
-The repository includes PS2SDK/CMake build configuration for the Manager, standalone network diagnostics, automated tests and a Windows PyInstaller workflow for the PC application. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for details.
+The repository includes the PS2SDK/CMake Manager build with integrated LAN artwork sync, automated HTTP/PNG tests and a Windows PyInstaller workflow for the PC application. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for details.
 
 ## Known limitation and contributions
 
