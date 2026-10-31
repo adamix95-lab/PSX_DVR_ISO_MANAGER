@@ -6,7 +6,6 @@ on:
       - 'pc-art-server/psx_dvr_art_server.py'
       - 'pc-art-server/requirements.txt'
       - 'pc-art-server/tests/**'
-      - '.github/workflows/build-windows-art-server.yml'
 permissions:
   contents: read
 jobs:
