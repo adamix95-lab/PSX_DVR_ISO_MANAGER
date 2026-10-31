@@ -1,0 +1,29 @@
+name: Update v0.8 GitHub Release description (English)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - RELEASE_NOTES.md
+      - '.github/workflows/update-v08-release-notes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  update-description:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update release description without touching binary assets or tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$(tr -d '\r\n' < VERSION)" = "0.8"
+          gh release view v0.8 --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release edit v0.8 --repo "$GITHUB_REPOSITORY" \
+            --notes-file RELEASE_NOTES.md
+          gh release view v0.8 --repo "$GITHUB_REPOSITORY" \
+            --json tagName,assets --jq '{tag: .tagName, assets: [.assets[].name]}'

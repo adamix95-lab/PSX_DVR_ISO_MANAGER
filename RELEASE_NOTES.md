@@ -1,42 +1,52 @@
 # PSX DVR ISO Manager v0.8
 
-Pierwsze pełne wydanie z **automatycznym pobieraniem brakujących okładek** z poziomu Sony PSX DESR.
+A complete Sony PSX DESR homebrew launcher for PS2 ISO games stored on the DVR partition, featuring a paged game library, cover previews and automatic cover downloads through a Windows PC.
 
-## Aktualizacja pliku EXE i instrukcji (v0.8)
+## Features
 
-- **Cały interfejs programu Windows jest po angielsku.** Nagłówek **Cover Sources** opisuje źródło główne **OPL Manager Archive (Archive.org)** — pionowe okładki pudełkowe PS2 — oraz zapasowe **CosmicScale PSBBN Art Database (GitHub)** — często kwadratowe grafiki gier używane tylko wtedy, gdy OPL nie zwróci poprawnego PNG.
-- W obu README wyjaśniono konfigurację `NET_PROBE.CNF`, w tym **`IP` jako ręcznie nadany statyczny adres konsoli PSX DESR**, oraz odczytywanie `NETMASK`, `GATEWAY` i `SERVER_IP` z polecenia Windows **`ipconfig /all`**. Pole `SERVER_PORT` musi odpowiadać portowi w aplikacji.
-- Plik **`PSX-DVR-ART-Server-v0.8.exe`** dołączony do tego wydania został przebudowany i podmieniony po udanych testach na Windows. **`DVR_ISO_MANAGER.ELF` pozostaje bez zmian.**
+- **12 games per page**, with Left/Right page navigation and Up/Down game selection.
+- **Game ID detection** from ISO contents (including the executable-ID fallback), plus a color PNG cover preview.
+- Press **Triangle** to rescan the read-only DVR ISO library and update the USB artwork index and scan report.
+- When covers are missing, press **X** on the scan result screen to download them from a local HTTP server, or **Circle (O)** to skip. You can rescan and retry after cancelling, without restarting the Manager.
+- The **Windows ART Server** fetches images via HTTPS from the **OPL Manager Archive on Archive.org** (primary source) and **CosmicScale PSBBN Art Database on GitHub** (fallback). The PC caches images and serves normalized PNG covers to the console over a private LAN.
+- New PNG covers are validated before being saved to USB and automatically reindexed. Existing covers are not overwritten.
+- **Quickboot through OSDMenu / Neutrino** remains available, including SYSTEM/ENGLISH language selection.
 
-## Co nowego
+## Hardware testing
 
-- **12 gier na stronie** — LEWO/PRAWO zmienia stronę, GÓRA/DÓŁ wybiera grę.
-- **Game ID + PNG ART** — kolorowe okładki i indeks `mass0:/DESR_DVR/COVERS.IDX`.
-- **TRÓJKĄT** odczytuje gry z DVR, tworzy indeks i raportuje brakujące okładki.
-- **X** na ekranie pytania uruchamia ART SYNC, **O** anuluje; ponowny TRÓJKĄT pozwala spróbować ponownie bez restartu.
-- **Windows ART Server v0.8.exe** — PC pobiera okładki przez HTTPS z OPL Manager Archive.org; bazę CosmicScale PSBBN wykorzystuje jako zapasowe źródło. Konsola komunikuje się z PC przez lokalny HTTP.
-- Zapis wyłącznie nowych obrazów PNG do `mass0:/DESR_DVR/ART`; weryfikacja CRC i pliku tymczasowego przed publikacją, a potem **automatyczna odbudowa indeksu**.
-- Quickboot przez OSDMenu/Neutrino oraz wybór języka SYSTEM/ENGLISH bez zmian.
+Validated on a **Sony PSX DESR-7000** with **40 ISO games**: starting without cover images or index files, the Manager and Windows ART Server downloaded **40/40 covers**, displayed every cover and successfully launched **REZ in English**. The cancel → rescan → download workflow and game launch after syncing were also confirmed.
 
-## Test sprzętowy
+The PSBBN fallback has automated tests, but its use during the 40-game hardware test has not been separately confirmed from the Windows server logs.
 
-**Sony PSX DESR-7000:** 40 obrazów ISO na partycji DVR, usunięte wszystkie okładki oraz pliki indeksu; pobrano **40/40**, wszystkie poprawnie wyświetlone, uruchomiono **REZ po angielsku**. Potwierdzono też anulowanie pobierania O, ponowny TRÓJKĄT i uruchamianie gry po synchronizacji.
+## Downloads
 
-Zapasowa baza PSBBN została sprawdzona testami automatycznymi, ale użycie jej w rzeczywistym zestawie 40/40 nie jest potwierdzone osobnym logiem.
+### Complete USB package — recommended
 
-## Pełny zestaw USB — od teraz jeden ZIP
+**`PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip`** — the author's approved **clean USB package containing 81 files**, including the v0.8 Manager ELF, OSDMenu/Neutrino executables and modules, DVR configuration files, an empty `ART/` directory, a sample `NET_PROBE.CNF` and quick-start instructions.
 
-- **`PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip` (zalecany)** — **oczyszczona przez autora paczka** z **81 plikami**. Po rozpakowaniu należy skopiować **wewnętrzny folder `DESR_DVR/`** z `PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE/` do katalogu głównego pamięci USB.
-- W środku zachowano wszystkie wymagane moduły OSDMenu/Neutrino oraz konfiguracje TOML z **wydania v0.3.0**, podmieniono stary ELF Managera na **oficjalny v0.8**, zachowano pusty `ART/`, przykładowy `NET_PROBE.CNF` i instrukcje PL/EN. Oryginalny `BOOT.elf` zachowano bajt po bajcie pod nazwą `BOOT.ELF`.
-- Z paczki usunięto stare pliki testowe i dekoracyjne (`DVR_TEST.CNF`, `info.sys`, `jkt_*.png`), starszy `BOOT_RECOVERY.CNF` i dodatkowy manifest SHA256. Nie zmieniano kodu Managera ani modułów uruchomieniowych.
-- **`NET_PROBE.CNF` zawiera przykładowe IP z testów sprzętowych**, które trzeba dopasować do własnej sieci. Nie dołączamy gier ISO ani okładek; mogą zostać pobrane przez osobną aplikację Windows.
-- **Aktualizacja istniejącej instalacji:** wykonaj kopię całego `DESR_DVR/` i zachowaj własne `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/` oraz indeksy.
-- Oddzielne `DVR_ISO_MANAGER.ELF` oraz `PSX-DVR-ART-Server-v0.8.exe` nadal są dostępne w wydaniu dla użytkowników aktualizujących tylko jeden komponent.
+**Installation:** Extract the ZIP and copy the *inner* `DESR_DVR/` directory from `PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE/DESR_DVR/` to the root of the USB drive. The Manager should be located at:
 
-## Zawartość wydania
+```text
+mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF
+```
 
-- `DVR_ISO_MANAGER.ELF` — program na konsolę, uruchamiany z USB albo UDPFS; wymaga pozostałych plików OSDMenu/Neutrino na USB.
-- `PSX-DVR-ART-Server-v0.8.exe` — aplikacja PC na Windows z interfejsem Start/Stop. Nie wymaga ręcznej instalacji Pythona.
-- [README po polsku](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/README_PL.md) oraz [English README](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/README.md) zawierają instalację, konfigurację sieci i sterowanie.
+The clean package excludes obsolete diagnostic/test files and example graphics. ISO games, cover images and the Windows EXE are not included in the USB directory.
 
-**Uwaga:** nie jest to zestaw pełnych plików Neutrino ani bibliotek gier. Nie zastępuj działającego `BOOT.ELF`, `BOOT.CNF`, Neutrino ani sterowników DVR bez potrzeby. Zachowaj kopie zapasowe. Manager nie zapisuje na partycji DVR.
+### Individual files
+
+- **`DVR_ISO_MANAGER.ELF`** — standalone v0.8 Manager binary for users who already have the necessary OSDMenu/Neutrino USB files.
+- **`PSX-DVR-ART-Server-v0.8.exe`** — Windows companion application with an English GUI. It does not require a separate Python installation.
+
+Configure `NET_PROBE.CNF` for your private LAN. On Windows, run **`ipconfig /all`** to find the PC's IPv4 address, subnet mask and default gateway; assign the console an unused static IP on the same subnet. Match the configured HTTP port (default 8000).
+
+**Before upgrading an existing installation**, back up the complete `DESR_DVR/` folder and preserve your personal `BOOT.CNF`, `NET_PROBE.CNF`, `ART/`, `COVERS.IDX` and `COVER_SCAN.LOG`.
+
+## Documentation
+
+- [English installation and controls](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/README.md)
+- [Polish installation and controls](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/README_PL.md)
+- [Windows ART Server documentation](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/pc-art-server/README.md)
+
+The standalone network probe was an early development tool; its ART SYNC functionality is now integrated into the Manager. No additional network tester executable is required.
+
+**Safety:** The Manager accesses game ISOs on the DVR partition in **read-only mode**. Cover images, index files and launch configuration are stored on USB. Do not expose the Windows HTTP server to the public internet.

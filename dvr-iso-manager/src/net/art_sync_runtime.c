@@ -1,4 +1,4 @@
-/* LAN artwork fetcher shared by Manager and the standalone diagnostic.
+/* LAN artwork fetcher integrated with PSX DVR ISO Manager.
  * Reads missing Game IDs from a USB scan report. Downloads validated PNGs
  * into new USB ART files via .PART staging; index updates are caller-owned.
  * DVR/ISO and existing USB art are never modified.

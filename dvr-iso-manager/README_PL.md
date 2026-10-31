@@ -1,6 +1,6 @@
 # PSX DVR ISO Manager v0.8 — informacje techniczne
 
-[Instrukcja użytkownika po polsku](../README_PL.md) · [English README](../README.md) · [Serwer okładek Windows](../pc-art-server/README_PL.md)
+[Instrukcja użytkownika po polsku](../README_PL.md) · [English README](../README.md) · [Serwer okładek Windows](../pc-art-server/README.md)
 
 ## Stan wydania
 
@@ -10,7 +10,7 @@
 
 ## Budowanie
 
-Manager wymaga PS2SDK, biblioteki libpng/libz dla PS2 oraz modułów IOP zgodnych z DVR. Projekt CMake: `dvr-iso-manager/CMakeLists.txt`. Aktualne źródła zawierają też współdzielone, przetestowane procedury LAN/PNG w `dvr-net-probe/`.
+Manager wymaga PS2SDK, biblioteki libpng/libz dla PS2 oraz modułów IOP zgodnych z DVR. Projekt CMake: `dvr-iso-manager/CMakeLists.txt`. Przetestowane procedury LAN/HTTP/PNG i ART SYNC są częścią Managera w `src/net/` oraz `include/`; osobny program Probe nie jest już potrzebny.
 
 ```sh
 cmake -S dvr-iso-manager -B build-dvr-manager
@@ -44,4 +44,4 @@ Zachowaj działające sterowniki DVR / Neutrino, pliki startowe i konfigurację.
 
 ## Rozwój
 
-Starsze eksperymenty v0.4–v0.7.x pozostają opisane w [CHANGELOG.md](CHANGELOG.md). Osobne narzędzia `dvr-net-probe/` są pomocne do diagnostyki Ethernetu bez uruchamiania pełnego Managera.
+Starsze eksperymenty v0.4–v0.7.x pozostają opisane w [CHANGELOG.md](CHANGELOG.md). Historyczne testy Probe zostały włączone do testów Managera (`tests/net/`). Osobna aplikacja diagnostyczna nie jest dostarczana ani budowana.

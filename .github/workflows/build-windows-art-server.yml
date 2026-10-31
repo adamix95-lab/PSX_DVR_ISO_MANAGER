@@ -3,8 +3,9 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'pc-art-server/**'
-      - '.github/workflows/build-windows-art-server.yml'
+      - 'pc-art-server/psx_dvr_art_server.py'
+      - 'pc-art-server/requirements.txt'
+      - 'pc-art-server/tests/**'
 permissions:
   contents: read
 jobs:
@@ -33,7 +34,7 @@ jobs:
           name: PSX-DVR-ART-Server-v0.8-Windows-EXE
           path: |
             dist/PSX-DVR-ART-Server-v0.8.exe
-            pc-art-server/README_PL.md
+            pc-art-server/README.md
           if-no-files-found: error
 
   refresh-v08-release:

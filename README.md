@@ -68,7 +68,7 @@ The listing is abbreviated; **the cleaned USB ZIP retains all required v0.3 modu
 
 ## Downloading missing covers with the PC app
 
-The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source is also provided under [pc-art-server](pc-art-server/README_PL.md)). The PC handles HTTPS downloads and serves validated PNG files to the PSX using simple local HTTP.
+The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source is also provided under [pc-art-server](pc-art-server/README.md)). The PC handles HTTPS downloads and serves validated PNG files to the PSX using simple local HTTP.
 
 1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the published assets under [v0.8 release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) and open it on your Windows PC.
 2. Enter the **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port** in the Windows application, then click **Start HTTP Server**. The sample addresses below are from a tested DESR-7000 setup; use the addresses of your own network.
@@ -112,7 +112,7 @@ The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source
 
 ## Build and development
 
-The repository includes PS2SDK/CMake build configuration for the Manager, standalone network diagnostics, automated tests and a Windows PyInstaller workflow for the PC application. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README_PL.md) for details.
+The repository includes the PS2SDK/CMake Manager build with integrated LAN artwork sync, automated HTTP/PNG tests and a Windows PyInstaller workflow for the PC application. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for details.
 
 ## Known limitation and contributions
 
