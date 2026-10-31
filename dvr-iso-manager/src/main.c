@@ -64,6 +64,7 @@ static char status[120] = "Starting...";
 static int status_visible; /* only errors/confirmed actions appear in the menu */
 static int art_prompt; /* X downloads ONLY after an explicit TRIANGLE scan. */
 static int art_missing;
+static int art_retry_cached; /* O: show same verified missing scan next TRIANGLE. */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -259,14 +260,6 @@ static void draw(void) {
     }
   }
 
-  if (art_prompt) {
-    /* Row 21 is below the 12-game list, never in the PNG's right side.
-       X here confirms a LAN download; elsewhere X always Quickboots. */
-    scr_setfontcolor(0xFFFFFF);
-    scr_setXY(2, 21);
-    scr_printf("MISSING: %d COVER%s. X: DOWNLOAD LAN HTTP O: NO",
-               art_missing, art_missing == 1 ? "" : "S");
-  }
   if (status_visible) {
     scr_setXY(2, 22);
     scr_printf("%.54s", status); /* keep status left of the cover */
@@ -282,6 +275,34 @@ static void draw(void) {
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
   scr_printf("SELECT: LANG   TRIANGLE: INDEX   SQUARE: TEST   START: EXIT");
+  scr_setfontcolor(0xFFFFFF);
+}
+
+/* Separate confirmation after the completed manual TRIANGLE scan.
+   Never draw the browser's X: LAUNCH footer underneath the question. */
+static void draw_scan_art_question(int missing) {
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 1);
+  scr_printf("PSX DVR ISO MANAGER v0.7.3");
+  scr_setfontcolor(0x787878);
+  scr_setXY(2, 3);
+  scr_printf("-------------------------------------------------------");
+  scr_setfontcolor(0xFFFFFF);
+  scr_setXY(2, 6);
+  scr_printf("GAME LIST / COVER INDEX: SCAN COMPLETE");
+  scr_setXY(2, 10);
+  scr_printf("GAMES: %d", count);
+  scr_setXY(2, 12);
+  scr_printf("MISSING COVERS: %d", missing);
+  scr_setXY(2, 16);
+  scr_printf("DOWNLOAD MISSING COVERS FROM LOCAL HTTP?");
+  scr_setXY(2, 19);
+  scr_printf("X: DOWNLOAD       O: SKIP / RETURN");
+  scr_setfontcolor(0xA0A0A0);
+  scr_setXY(2, 24);
+  scr_printf("Only new PNG files are written to USB ART.");
   scr_setfontcolor(0xFFFFFF);
 }
 
@@ -469,13 +490,18 @@ int main(int argc, char *argv[]) {
       if (art_prompt) {
         if (new_press & PAD_CIRCLE) {
           art_prompt = 0;
+          /* Don't re-read all 40 DVR ISOs just to re-offer the same scan
+             result. Keep the verified scan log; next TRIANGLE rechecks
+             actual USB ART presence and can safely offer X again. */
+          art_retry_cached = art_missing > 0;
           snprintf(status, sizeof(status),
-                   "ART DOWNLOAD CANCELED. X: LAUNCH AS USUAL");
+                   "ART SKIPPED. TRIANGLE: RETRY LAST COVER SCAN");
           status_visible = 1;
           draw();
         } else if (new_press & PAD_CROSS) {
           int saved,identified=0,matched;
           art_prompt = 0;
+          art_retry_cached = 0;
           scr_setbgcolor(0x000000);
           scr_setfontcolor(0xFFFFFF);
           scr_clear();
@@ -509,6 +535,21 @@ int main(int argc, char *argv[]) {
 
       if (new_press & PAD_TRIANGLE) {
         int identified = 0, matched;
+        if (art_retry_cached) {
+          int missing;
+          art_retry_cached = 0;
+          /* Only inspect USB COVER_SCAN.LOG and the corresponding ART
+             paths, not the DVR ISO contents. Missing values remain
+             fresh even if the user added covers manually after O. */
+          missing = desr_lan_art_missing();
+          if (missing > 0) {
+            art_missing = missing;
+            art_prompt = 1;
+            draw_scan_art_question(art_missing);
+            continue;
+          }
+          /* Missing report/error/zero: fall back to a real full scan. */
+        }
         rc = scan_dvr();
         if (rc >= 0) {
           desr_covers_load(games, count, covers);
@@ -518,13 +559,15 @@ int main(int argc, char *argv[]) {
           matched = desr_covers_refresh(games, count, covers, &identified);
           art_prompt = 0;
           art_missing = 0;
+          art_retry_cached = 0;
           if (matched >= 0) {
             art_missing = desr_lan_art_missing();
             if (art_missing > 0) {
               art_prompt = 1;
-              snprintf(status,sizeof(status),
-                       "INDEX: %d IDs / %d COVERS. MISSING: %d",
-                       identified,matched,art_missing);
+              draw_scan_art_question(art_missing);
+              /* Stay on scan result screen, not the game browser.
+                 X is download here, never Quickboot. */
+              continue;
             } else if (art_missing == 0) {
               snprintf(status,sizeof(status),
                        "INDEX: %d IDs / %d COVERS. MISSING: 0",
