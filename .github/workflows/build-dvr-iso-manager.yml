@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.7.3 ART SYNC
+name: Build PSX DVR ISO Manager v0.8
 on:
   workflow_dispatch:
   push:
@@ -46,7 +46,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.7.3-SCAN-SCREEN-SAFE-RETRY-UNTESTED
+          name: PSX-DVR-ISO-Manager-v0.8
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
