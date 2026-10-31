@@ -8,8 +8,8 @@ Aplikacja **PSX DVR ART Server** działa na komputerze Windows jako lokalny serw
 
 1. Pobierz artefakt **PSX-DVR-ART-Server-v0.8-Windows-EXE** z [GitHub Actions](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions).
 2. Rozpakuj ZIP i uruchom **`PSX-DVR-ART-Server-v0.8.exe`**. Na Windows nie trzeba osobno instalować Pythona. Plik nie jest podpisany certyfikatem, więc SmartScreen może wyświetlić ostrzeżenie.
-3. Wpisz **IP komputera**, **IP konsoli** i **port HTTP**. Dla przetestowanej konfiguracji: `192.168.0.122`, `192.168.0.240`, `8000`.
-4. Kliknij **Start serwera HTTP**. Program będzie pokazywał dziennik pobrań. W Windows Firewall zezwól na połączenia **tylko w sieci prywatnej**.
+3. Wpisz **PC IPv4 Address** (adres IPv4 komputera), **Console IPv4 Address** (ręcznie nadany adres konsoli) i **HTTP Port**. Przetestowane przykładowe wartości: `192.168.0.122`, `192.168.0.240`, `8000`.
+4. Kliknij **Start HTTP Server**. Program wyświetli angielski status `Listening` i dziennik pobrań. W Windows Firewall zezwól na połączenia **tylko w sieci prywatnej**.
 5. Na konsoli uruchom Manager v0.8, naciśnij **TRÓJKĄT**. Przy brakujących okładkach pojawi się ekran `X: DOWNLOAD` / `O: SKIP`. Wybierz X.
 
 Konsola potrzebuje konfiguracji USB w `mass0:/DESR_DVR/NET_PROBE.CNF`, np.:
@@ -22,9 +22,15 @@ SERVER_IP=192.168.0.122
 SERVER_PORT=8000
 ```
 
+W Windows uruchom **CMD / PowerShell** i wpisz `ipconfig /all` — z ukośnikiem **/**, nie `ipconfig -all`. Z aktywnej karty sieciowej odczytaj: **Subnet Mask** → `NETMASK`, **Default Gateway** → `GATEWAY`, **IPv4 Address komputera** → `SERVER_IP`. Parametr `IP` to **ręcznie przypisany, wolny adres IPv4 konsoli PSX DESR** w tej samej podsieci; nie kopiuj tutaj adresu komputera. `SERVER_PORT` (zwykle 8000) odpowiada polu **HTTP Port** w programie.
+
 Dostosuj adresy do swojej sieci. Nie otwieraj portu 8000 na routerze — aplikacja jest przeznaczona **wyłącznie do lokalnego LAN**.
 
 ## Skąd pobieramy grafikę?
+
+W angielskim interfejsie znajduje się sekcja **Cover Sources**, opisująca kolejność źródeł:
+
+**Primary — OPL Manager Archive (Archive.org):** główne źródło pionowych okładek pudełkowych PS2. **Fallback — CosmicScale PSBBN Art Database (GitHub):** baza zapasowa, często z kwadratowymi grafikami, wykorzystywana tylko wtedy, gdy OPL nie zwróci poprawnej grafiki PNG. Aplikacja zachowuje proporcje i w razie potrzeby dodaje czarne marginesy.
 
 | Kolejność | Źródło | Grafika |
 | --- | --- | --- |

@@ -35,3 +35,30 @@ jobs:
             dist/PSX-DVR-ART-Server-v0.8.exe
             pc-art-server/README_PL.md
           if-no-files-found: error
+
+  refresh-v08-release:
+    # Publish ONLY after the Windows tests and EXE build succeed on main.
+    # Preserve the existing v0.8 tag and the already-tested Manager ELF.
+    if: github.ref == 'refs/heads/main'
+    needs: windows-exe
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PSX-DVR-ART-Server-v0.8-Windows-EXE
+          path: release-assets
+      - name: Replace only Windows EXE in existing v0.8 GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$(tr -d '\r\n' < VERSION)" = "0.8"
+          gh release view v0.8 >/dev/null
+          EXE="$(find release-assets -type f -name 'PSX-DVR-ART-Server-v0.8.exe' -print -quit)"
+          test -n "$EXE"
+          test -s "$EXE"
+          gh release upload v0.8 "$EXE" --clobber
+          gh release edit v0.8 --notes-file RELEASE_NOTES.md
+          gh release view v0.8 --json assets --jq '.assets[].name'

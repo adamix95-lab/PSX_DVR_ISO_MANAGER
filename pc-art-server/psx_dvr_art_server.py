@@ -301,18 +301,31 @@ def run_gui() -> None:
     events: queue.Queue[str] = queue.Queue()
     root = tk.Tk()
     root.title("PSX DVR ART Server v0.8")
-    root.geometry("730x485")
-    root.minsize(620, 430)
+    root.geometry("760x540")
+    root.minsize(660, 480)
 
     frame = ttk.Frame(root, padding=14)
     frame.pack(fill="both", expand=True)
     ttk.Label(frame, text="PSX DVR ART Server  •  v0.8",
               font=("Segoe UI", 15, "bold")).pack(anchor="w")
+    ttk.Label(frame, text="Cover Sources",
+              font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(5, 3))
     ttk.Label(
         frame,
-        text="Źródło: OPL (pierwsze) → PSBBN Art Database (zapasowe, kwadratowe) → PSX LAN",
-        wraplength=680,
-    ).pack(anchor="w", pady=(3, 12))
+        text="Primary — OPL Manager Archive (Archive.org): PS2 box-cover artwork.",
+        wraplength=720,
+    ).pack(anchor="w")
+    ttk.Label(
+        frame,
+        text="Fallback — CosmicScale PSBBN Art Database (GitHub): square game "
+             "artwork when the primary source has no valid cover.",
+        wraplength=720,
+    ).pack(anchor="w", pady=(2, 2))
+    ttk.Label(
+        frame,
+        text="Delivery: PC downloads over HTTPS; PSX receives PNG over local LAN HTTP.",
+        wraplength=720,
+    ).pack(anchor="w", pady=(2, 12))
 
     form = ttk.Frame(frame)
     form.pack(fill="x")
@@ -320,16 +333,16 @@ def run_gui() -> None:
     console_ip = tk.StringVar(value="192.168.0.240")
     port = tk.StringVar(value="8000")
     for col, (label, variable) in enumerate(
-            (("IP komputera", bind_ip),
-             ("IP konsoli", console_ip), ("Port HTTP", port))):
+            (("PC IPv4 Address", bind_ip),
+             ("Console IPv4 Address", console_ip), ("HTTP Port", port))):
         ttk.Label(form, text=label).grid(row=0, column=col, sticky="w", padx=(0, 12))
         ttk.Entry(form, textvariable=variable, width=22 if col < 2 else 10).grid(
             row=1, column=col, sticky="we", padx=(0, 12))
         form.columnconfigure(col, weight=1)
 
-    ttk.Label(frame, text=f"Cache PNG: {default_cache()}",
+    ttk.Label(frame, text=f"PNG Cache: {default_cache()}",
               wraplength=690).pack(anchor="w", pady=(12, 7))
-    status = tk.StringVar(value="Serwer zatrzymany")
+    status = tk.StringVar(value="Server stopped")
     ttk.Label(frame, textvariable=status,
               font=("Segoe UI", 10, "bold")).pack(anchor="w")
 
@@ -349,12 +362,12 @@ def run_gui() -> None:
                 bind_ip.get().strip(), int(port.get()),
                 console_ip.get().strip(), service)
         except (OSError, ValueError) as exc:
-            messagebox.showerror("Nie można uruchomić serwera", str(exc))
+            messagebox.showerror("Unable to start HTTP server", str(exc))
             return
         current["server"] = web_server
         threading.Thread(target=web_server.serve_forever, daemon=True).start()
-        status.set(f"NASŁUCH: {bind_ip.get()}:{port.get()} | PSX: {console_ip.get()}")
-        events.put("Serwer uruchomiony. Gotowy na żądania konsoli.")
+        status.set(f"Listening: {bind_ip.get()}:{port.get()} | Console: {console_ip.get()}")
+        events.put("HTTP server started. Waiting for console requests.")
         start_btn.configure(state="disabled")
         stop_btn.configure(state="normal")
 
@@ -367,17 +380,17 @@ def run_gui() -> None:
         def finish():
             server.shutdown()
             server.server_close()
-            events.put("Serwer zatrzymany.")
+            events.put("HTTP server stopped.")
         threading.Thread(target=finish, daemon=True).start()
-        status.set("Serwer zatrzymany")
+        status.set("Server stopped")
         start_btn.configure(state="normal")
         stop_btn.configure(state="disabled")
 
-    start_btn = ttk.Button(buttons, text="Start serwera HTTP", command=start)
+    start_btn = ttk.Button(buttons, text="Start HTTP Server", command=start)
     start_btn.pack(side="left", padx=(0, 8))
-    stop_btn = ttk.Button(buttons, text="Stop", command=stop, state="disabled")
+    stop_btn = ttk.Button(buttons, text="Stop Server", command=stop, state="disabled")
     stop_btn.pack(side="left")
-    ttk.Label(buttons, text="Tylko zaufana sieć LAN; bez port forwarding").pack(
+    ttk.Label(buttons, text="Private LAN only — no port forwarding").pack(
         side="right")
 
     def pump():
