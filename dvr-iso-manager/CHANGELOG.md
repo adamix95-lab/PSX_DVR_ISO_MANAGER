@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.3 follow-up — scan-screen X/O and cancel/retry fix (hardware untested)
+- User hardware-tested the first integrated release: 3 missing PNGs fetched
+  and COVERS.IDX restored to 40/40.
+- Show the consent prompt on the original ISO/cover index update screen
+  instead of over the game browser and its X: LAUNCH footer.
+- O returns to browser without modifying the detected missing count;
+  TRIANGLE rescans and offers missing covers again without restarting ELF.
+- Cross-check report count with identified-minus-matched ISO results so a
+  stale/invalid report cannot falsely display MISSING: 0.
+- Host regression covers TRIANGLE -> O -> TRIANGLE -> X, corrupted report,
+  valid deduplicated Game IDs and final 0-missing scan.
+- Keep existing ART, Quickboot, BOOT.CNF, Neutrino, DVR read-only and
+  Windows .exe unchanged.
+
 ## v0.7.3 — integrated LAN ART SYNC and Windows HTTPS art gateway (hardware untested)
 - Reuses the preferred user-tested MONO v0.6 layout, including footer colons.
 - TRIANGLE scans games, reports count of missing Game ID-matched covers and
