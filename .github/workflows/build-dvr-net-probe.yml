@@ -46,3 +46,4 @@ jobs:
             build-dvr-net-probe/DVR_ART_SYNC_TEST.ELF
             dvr-net-probe/NET_PROBE.EXAMPLE.CNF
             dvr-net-probe/README_ART_SYNC_PL.md
+            dvr-net-probe/NET_PROBE.EXAMPLE.CNF
