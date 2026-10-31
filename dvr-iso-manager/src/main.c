@@ -1,8 +1,6 @@
-/* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
-   Uses binaries from the user's working Neutrino DVR PR #228 build.
-   DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.6: MONO Refined visual-only menu polish on the v0.5.3 baseline.
-   DVR scanner, USB index, cover pixels, CNF and Quickboot stay unchanged. */
+/* PSX DVR ISO Manager v0.8 — USB launcher, DVR ISO browser and cover sync.
+ * DVR/ISO data is read-only. Launch configuration and cover cache use USB.
+ */
 
 #include "iso_utils.h"
 #include "cover_runtime.h"
@@ -58,13 +56,13 @@ IRX(dvrfile);
 static char games[DESR_GAME_CAP][DESR_FILENAME_CAP];
 static int count;
 static int selected;
-static int force_english; /* 0 = system (proven), 1 = English (experimental) */
+static int force_english; /* 0 = SYSTEM, 1 = ENGLISH */
 static desr_cover_entry covers[DESR_GAME_CAP];
 static char status[120] = "Starting...";
-static int status_visible; /* only errors/confirmed actions appear in the menu */
-static int art_prompt; /* X downloads ONLY after an explicit TRIANGLE scan. */
+static int status_visible;
+static int art_prompt; /* X downloads only on the scan confirmation screen. */
 static int art_missing;
-static int art_retry_cached; /* O: show same verified missing scan next TRIANGLE. */
+static int art_retry_cached; /* Recheck USB ART after cancelling a scan. */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -172,18 +170,14 @@ static int scan_dvr(void) {
   return n < 0 ? n : count;
 }
 
-/*
- * Minimal MONO UI for PS2SDK debug framebuffer (usable rows 0..27).
- * PS2SDK enables a white BLOCK cursor, glyph 219, by default. This caused
- * the white rectangles in v0.2; scr_setCursor(0) fixes the real cause.
- * Game names are abbreviated only on screen; CNF uses the exact original.
+/* MONO UI: 12 entries per page, with a PNG preview in the right panel.
+ * ISO names are shortened only for display, never for launch paths.
  */
 static void draw(void) {
   int i, first, last, title_len;
 
-  /* PS2SDK scr_printf paints glyph foreground AND background: a short
-     per-row charcoal background gives a highlight without GS re-init,
-     extra textures or changes to the proven PNG renderer. */
+  /* scr_printf paints both foreground and background: highlight the
+     selected row without resetting GS or the cover renderer. */
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
@@ -191,7 +185,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.7.3");
+  scr_printf("v0.8");
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------------------");
@@ -285,7 +279,7 @@ static void draw_scan_art_question(int missing) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setXY(2, 1);
-  scr_printf("PSX DVR ISO MANAGER v0.7.3");
+  scr_printf("PSX DVR ISO MANAGER v0.8");
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("-------------------------------------------------------");
@@ -317,7 +311,7 @@ static int check_usb_file(const char *path) {
 
 static int usb_ready(void) {
   int rc;
-  /* Default SYSTEM always uses unchanged, proven Neutrino PR228. */
+  /* SYSTEM follows the standard Neutrino DVR boot path. */
   if (!force_english) return check_usb_file(USB_NEUTRINO);
 
   rc = check_usb_file(USB_NEUTRINO_LANG);
@@ -434,7 +428,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.7.3\n");
+  scr_printf("PSX DVR ISO MANAGER v0.8\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -442,8 +436,7 @@ static int launch_via_quickboot(void) {
 
   padPortClose(0, 0);
   padEnd();
-  /* OSDMenu BOOT.ELF chainloading worked on real DESR-7000 with v0.1.5.
-     The optional English Neutrino EE core is experimental. */
+  /* Keep the established OSDMenu/Neutrino chainload path unchanged. */
   rc = LoadELFFromFile(USB_LAUNCHER, 0, NULL);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) return -94;
   prev_buttons = 0xffff;
@@ -456,7 +449,7 @@ int main(int argc, char *argv[]) {
   struct padButtonStatus btn;
   (void)argc; (void)argv;
   init_scr();
-  /* Fix PS2SDK white block cursor artifacts without changing text rendering. */
+  /* Disable the default PS2SDK block cursor. */
   scr_setCursor(0);
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
@@ -484,15 +477,11 @@ int main(int argc, char *argv[]) {
       prev_buttons = bits;
       if (new_press & PAD_START) break;
 
-      /* Modal scan result: no accidental Quickboot while X means SYNC.
-         CIRCLE cancels. START exits as before. Input outside this prompt
-         remains identical to tested v0.6 / v0.5.3. */
+      /* X downloads only during the scan confirmation; otherwise Quickboot. */
       if (art_prompt) {
         if (new_press & PAD_CIRCLE) {
           art_prompt = 0;
-          /* Don't re-read all 40 DVR ISOs just to re-offer the same scan
-             result. Keep the verified scan log; next TRIANGLE rechecks
-             actual USB ART presence and can safely offer X again. */
+          /* A cancelled scan can be retried using the USB report. */
           art_retry_cached = art_missing > 0;
           snprintf(status, sizeof(status),
                    "ART SKIPPED. TRIANGLE: RETRY LAST COVER SCAN");
@@ -537,9 +526,7 @@ int main(int argc, char *argv[]) {
         if (art_retry_cached) {
           int missing;
           art_retry_cached = 0;
-          /* Only inspect USB COVER_SCAN.LOG and the corresponding ART
-             paths, not the DVR ISO contents. Missing values remain
-             fresh even if the user added covers manually after O. */
+          /* Refresh the missing-art count from USB without reading all ISOs. */
           missing = desr_lan_art_missing();
           if (missing > 0) {
             art_missing = missing;
@@ -547,7 +534,7 @@ int main(int argc, char *argv[]) {
             draw_scan_art_question(art_missing);
             continue;
           }
-          /* Missing report/error/zero: fall back to a real full scan. */
+          /* Rebuild the report when the cached one is no longer usable. */
         }
         rc = scan_dvr();
         if (rc >= 0) {
@@ -564,8 +551,7 @@ int main(int argc, char *argv[]) {
             if (art_missing > 0) {
               art_prompt = 1;
               draw_scan_art_question(art_missing);
-              /* Stay on scan result screen, not the game browser.
-                 X is download here, never Quickboot. */
+              /* Keep X/O on the scan screen until one is selected. */
               continue;
             } else if (art_missing == 0) {
               snprintf(status,sizeof(status),
