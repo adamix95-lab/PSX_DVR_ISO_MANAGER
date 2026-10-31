@@ -60,8 +60,8 @@ The listing is illustrative; keep all the other working DVR/Neutrino modules and
 The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source is also provided under [pc-art-server](pc-art-server/README_PL.md)). The PC handles HTTPS downloads and serves validated PNG files to the PSX using simple local HTTP.
 
 1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the published assets under [v0.8 release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) and open it on your Windows PC.
-2. Enter the PC IP, console IP and HTTP port, then click **Start serwera HTTP**. The example below uses the LAN settings tested with DESR-7000.
-3. Make sure the USB `NET_PROBE.CNF` matches those addresses:
+2. Enter the **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port** in the Windows application, then click **Start HTTP Server**. The sample addresses below are from a tested DESR-7000 setup; use the addresses of your own network.
+3. Make sure `mass0:/DESR_DVR/NET_PROBE.CNF` on the USB drive matches the settings:
 
    ```ini
    IP=192.168.0.240
@@ -71,10 +71,22 @@ The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source
    SERVER_PORT=8000
    ```
 
+   **How to find your network settings:** Open **Command Prompt** or **PowerShell** on the PC, run `ipconfig /all` (with a **slash**, not `ipconfig -all`), and look at the adapter that connects the PC to the PSX's network.
+
+   | Config setting | Where it comes from |
+   | --- | --- |
+   | `IP` | **Static IPv4 address manually assigned to the PSX DESR.** Pick an unused address on the same subnet as the PC; it is **not** the PC's IPv4 address and will not be listed by `ipconfig /all`. |
+   | `NETMASK` | **Subnet Mask** reported by `ipconfig /all` for that adapter. |
+   | `GATEWAY` | **Default Gateway**, typically your router, from `ipconfig /all`. |
+   | `SERVER_IP` | **IPv4 Address of the Windows PC** running PSX DVR ART Server, from `ipconfig /all`. |
+   | `SERVER_PORT` | **HTTP Port** configured in the Windows app (default `8000`). This value does **not** come from `ipconfig`. |
+
+   **Important:** `IP` and `SERVER_IP` must be different. Avoid a console IP already assigned to another device. If the PC's IPv4 address changes, update `SERVER_IP` and the application's PC IPv4 Address accordingly.
+
 4. In Manager, press **Triangle** and wait for the scan. If covers are missing, select **X: DOWNLOAD** on the scan-result screen. Press **Circle** to skip instead.
 5. The PC retrieves the corresponding `<GAMEID>_COV.png` via HTTPS, caches it, and returns a validated, resized PNG over LAN HTTP. The console writes **only new** images to `mass0:/DESR_DVR/ART` and refreshes the index automatically. Existing covers are not replaced.
 
-The PC searches the **OPL Manager archive on Archive.org first** and uses **CosmicScale PSBBN Art Database on GitHub** as a fallback. PSBBN artwork may be square game art rather than a vertical box cover; it is proportionally fitted with black margins. Not every Game ID will have artwork in both sources. The PC keeps a local cache in `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`.
+**Cover Sources:** **Primary — OPL Manager Archive (Archive.org)** provides PS2 box-cover images, usually vertical. **Fallback — CosmicScale PSBBN Art Database (GitHub)** provides game artwork, often square, and is queried **only if the OPL source fails or has no valid PNG**. Square artwork is fitted into the console's 140×200 RGB format with black margins, without stretching. If neither source has artwork for a Game ID, the PC reports it as missing. The PC keeps a local cache in `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`.
 
 **Security:** Use a trusted private LAN, allow the Windows HTTP server only on that network, and do not forward its port on your router. The console reads from DVR and writes new artwork/index files **only to USB**. Back up `BOOT.CNF`, the existing Manager ELF and your art folder before replacing a working installation.
 
