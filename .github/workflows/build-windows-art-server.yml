@@ -30,7 +30,7 @@ jobs:
           if ((Get-Item dist/PSX-DVR-ART-Server-v0.7.3.exe).Length -lt 100000) { throw "EXE looks too small" }
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ART-Server-v0.7.3-Windows-EXE
+          name: PSX-DVR-ART-Server-v0.7.3-OPL-PSBBN-FALLBACK-Windows-EXE
           path: |
             dist/PSX-DVR-ART-Server-v0.7.3.exe
             pc-art-server/README_PL.md
