@@ -264,8 +264,8 @@ static void draw(void) {
        X here confirms a LAN download; elsewhere X always Quickboots. */
     scr_setfontcolor(0xFFFFFF);
     scr_setXY(2, 21);
-    scr_printf("MISSING: %d COVER%s. X: GET LAN  O: CANCEL", art_missing,
-               art_missing == 1 ? "" : "S");
+    scr_printf("MISSING: %d COVER%s. X: DOWNLOAD LAN HTTP O: NO",
+               art_missing, art_missing == 1 ? "" : "S");
   }
   if (status_visible) {
     scr_setXY(2, 22);
