@@ -60,7 +60,7 @@ To uproszczony przykład. **Nie usuwaj pozostałych modułów Neutrino ani dzia�
 
 Do zestawu dołączamy **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](pc-art-server/README_PL.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
 
-1. Pobierz plik **`PSX-DVR-ART-Server-v0.8.exe`** z artefaktu kompilacji Windows w [GitHub Actions](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions) i uruchom na komputerze.
+1. Pobierz plik **`PSX-DVR-ART-Server-v0.8.exe`** z artefaktu kompilacji Windows w [wydaniu v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) i uruchom na komputerze.
 2. Wprowadź adres komputera, adres konsoli i port. Kliknij **Start serwera HTTP**. Poniżej przykładowa, przetestowana konfiguracja LAN.
 3. Na USB utwórz lub popraw `mass0:/DESR_DVR/NET_PROBE.CNF`:
 
