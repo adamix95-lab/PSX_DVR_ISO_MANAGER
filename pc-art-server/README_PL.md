@@ -1,82 +1,76 @@
-# PSX DVR ART Server v0.7.3 — Windows (EXE)
+# PSX DVR ART Server v0.8 — aplikacja Windows
 
-Prosta aplikacja dla komputera Windows, która na żądanie Sony PSX DESR-7000 pobiera brakującą okładkę z internetu przez HTTPS, normalizuje do PNG 140×200 RGB, zapisuje w lokalnym cache i przekazuje konsoli przez HTTP w zaufanej sieci LAN.
+[Manager — instrukcja po polsku](../README_PL.md) · [English](../README.md)
 
-**Wersja eksperymentalna.** Kod i budowa `.exe` mogą przejść testy automatyczne, ale nie potwierdzają jeszcze dostępności zewnętrznego archiwum ani zachowania zintegrowanego Managera v0.7.3 na konsoli. Zachowaj działającą v0.6/v0.5.3.
+Aplikacja **PSX DVR ART Server** działa na komputerze Windows jako lokalny serwer HTTP. Konsola Sony PSX DESR wysyła żądanie z **Game ID**, a komputer pobiera grafikę z internetu przez HTTPS, dopasowuje ją do obsługiwanego PNG i wysyła do konsoli przez LAN. Program jest napisany w Pythonie i dostępny jako pojedynczy plik **`.exe`**.
 
-## Skąd okładki?
+## Pobieranie i uruchomienie
 
-Źródło: historyczne archiwum OPL Manager `OPLM_ART_2024_09` na Archive.org, wykorzystywane również przez instalator projektu CosmicScale. Przykładowy zdalny adres:
+1. Pobierz artefakt **PSX-DVR-ART-Server-v0.8-Windows-EXE** z [GitHub Actions](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions).
+2. Rozpakuj ZIP i uruchom **`PSX-DVR-ART-Server-v0.8.exe`**. Na Windows nie trzeba osobno instalować Pythona. Plik nie jest podpisany certyfikatem, więc SmartScreen może wyświetlić ostrzeżenie.
+3. Wpisz **IP komputera**, **IP konsoli** i **port HTTP**. Dla przetestowanej konfiguracji: `192.168.0.122`, `192.168.0.240`, `8000`.
+4. Kliknij **Start serwera HTTP**. Program będzie pokazywał dziennik pobrań. W Windows Firewall zezwól na połączenia **tylko w sieci prywatnej**.
+5. Na konsoli uruchom Manager v0.8, naciśnij **TRÓJKĄT**. Przy brakujących okładkach pojawi się ekran `X: DOWNLOAD` / `O: SKIP`. Wybierz X.
 
-```text
-https://archive.org/download/OPLM_ART_2024_09/OPLM_ART_2024_09.zip/PS2/SLES_538.86/SLES_538.86_COV.png
+Konsola potrzebuje konfiguracji USB w `mass0:/DESR_DVR/NET_PROBE.CNF`, np.:
+
+```ini
+IP=192.168.0.240
+NETMASK=255.255.255.0
+GATEWAY=192.168.0.1
+SERVER_IP=192.168.0.122
+SERVER_PORT=8000
 ```
 
-**Dostępność plików zależy od Archive.org, regionu wydania oraz kompletności archiwum. Nie wszystkie ID muszą występować.** Serwer nie pobiera metadanych gier, nie korzysta z niezweryfikowanych domen ani nie szuka losowych plików. Jeśli OPL nie zwróci poprawnej okładki, serwer spróbuje osobnej bazy PSBBN; 404 zostanie zwrócone, gdy **oba** źródła zawiodą.
+Dostosuj adresy do swojej sieci. Nie otwieraj portu 8000 na routerze — aplikacja jest przeznaczona **wyłącznie do lokalnego LAN**.
 
-Działanie konsoli: `GET /SLES_538.86_COV.png` → Windows pobiera po HTTPS (jeżeli nie ma w cache) → PNG 140×200 → HTTP 200 z `Content-Length` → konsola zapisuje nowy plik w `ART`.
+## Skąd pobieramy grafikę?
 
-## Druga baza: PSBBN Art Database od CosmicScale (fallback)
+| Kolejność | Źródło | Grafika |
+| --- | --- | --- |
+| 1 | Cache PC | Już pobrany i zapisany PNG |
+| 2 | OPL Manager, Archive.org | Preferowana pionowa okładka `<ID>_COV.png` |
+| 3 | [CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database) | Zapasowe, zwykle kwadratowe artwork `<ID>.png` |
 
-Po sprawdzeniu źródeł [PSBBN Definitive Project](https://github.com/CosmicScale/PSBBN-Definitive-Project) ustalono, że CosmicScale korzysta **z dwóch różnych typów grafik**:
-- OPL/NHDDL: **to samo archiwum OPL Manager na Archive.org**, które nasz serwer już obsługuje.
-- PSBBN Game Collection: osobna **[PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database)** na GitHubie, indeksowana Game ID. To właśnie ona stanowi nową **rezerwową bazę**.
+Podstawowe źródło OPL pochodzi z archiwum `OPLM_ART_2024_09`, wykorzystywanego również przez skrypty CosmicScale. PSBBN Art Database to **inna baza**, z której aplikacja korzysta tylko po błędzie lub braku poprawnego obrazu z OPL.
 
-Kolejność w aplikacji Windows od tej poprawki:
-1. Sprawdź istniejący cache PC, bez nadpisywania plików.
-2. Spróbuj pobrać **pionową okładkę OPL** z Archive.org (bez zmian w działającym kodzie źródła podstawowego).
-3. Dopiero gdy archiwum OPL nie zwróci poprawnego PNG, spróbuj grafiki PSBBN:
-   `https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/main/art/<GAMEID>.png`
-4. Przy udanym pobraniu PSBBN w logu pojawia się `HTTPS PSBBN FALLBACK` i `SOURCE <GAMEID>: PSBBN`. Obraz jest zwykle **kwadratowy** (PSBBN wymaga grafik 256×256 lub większych), więc aplikacja skaluje go do pionowego **140×200 PNG RGB z czarnymi marginesami, bez rozciągania**.
-5. Przy braku obrazów w obu bazach aplikacja zwraca 404. Nie zapisuje uszkodzonej grafiki w cache. **Nie pobieramy automatycznie z IGN** — to inny mechanizm wyszukiwania, wymagający osobnej weryfikacji.
+Przykładowe źródła dla Game ID `SLES_538.86`:
 
-Nie wszystkie grafiki PSBBN muszą przypominać prawdziwe okładki pudełkowe OPL. Nowe źródło jest rozwiązaniem awaryjnym, a nie zamiennikiem pionowych okładek. Dostępność konkretnego obrazka na GitHubie wymaga jeszcze praktycznego testu w Windows EXE; testy automatyczne symulują odpowiedzi źródeł. Linki i przekierowania PSBBN są ograniczone do oficjalnego, dokładnego adresu repozytorium GitHub przez HTTPS.
+```text
+OPL:   https://archive.org/download/OPLM_ART_2024_09/OPLM_ART_2024_09.zip/PS2/SLES_538.86/SLES_538.86_COV.png
+PSBBN: https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/main/art/SLES_538.86.png
+```
 
-**Dotychczasowy działający Windows EXE nadal wystarcza do pobierania z OPL.** Nowy plik EXE jest potrzebny jedynie do korzystania z dodatkowego źródła PSBBN. Kod konsoli nie wymaga nowych ustawień.
+W dzienniku zobaczysz `HTTPS OPL`, ewentualnie `HTTPS PSBBN FALLBACK`, a następnie `SOURCE ...: OPL` albo `SOURCE ...: PSBBN`. Plik PSBBN może być kwadratowym obrazem gry, a nie okładką pudełka. Takie grafiki są dopasowywane proporcjonalnie z czarnymi marginesami, bez rozciągania.
 
-## Jak uruchomić aplikację .exe
+**Ograniczenie:** na sprzęcie potwierdzono pobranie **40/40 okładek za pomocą nowego EXE**, ale nie ma jeszcze osobnego potwierdzenia, że podczas tego testu wystąpiło użycie źródła PSBBN. Nie wszystkie Game ID muszą występować w obu bazach.
 
-1. Pobierz artefakt **`PSX-DVR-ART-Server-v0.7.3-OPL-PSBBN-FALLBACK-Windows-EXE`** z workflow **Build PSX DVR ART Server v0.7.3 Windows EXE** w GitHub Actions.
-2. Wypakuj ZIP i uruchom **`PSX-DVR-ART-Server-v0.7.3.exe`**. Program nie wymaga ręcznego instalowania Pythona na Windows, ale jest niepodpisanym eksperymentalnym EXE — Windows SmartScreen może pokazać ostrzeżenie.
-3. W aplikacji ustaw IP komputera, np. `192.168.0.122`; IP konsoli `192.168.0.240`; port `8000`, tak jak w poprzednich udanych testach. W razie zmiany adresów, zmień je w programie i w `NET_PROBE.CNF` na USB.
-4. Kliknij **Start serwera HTTP**. Windows może poprosić o zgodę zapory — zezwalaj **tylko dla sieci prywatnej**. Nie przekierowuj portu na routerze, nie wystawiaj serwera na internet. Program odrzuca żądania od IP innych niż wpisana konsola.
-5. W Managerze v0.7.3 naciśnij TRÓJKĄT. Jeśli wykryje brakujące grafiki, zobaczysz liczbę oraz propozycję `X: GET LAN`. Naciśnij X, aby **wyrazić zgodę na pobranie**; O (kółko) oznacza anulowanie. Po powrocie do normalnego menu X ponownie uruchamia grę.
-6. Śledź dziennik w aplikacji Windows. Pierwsze pobranie może potrwać, bo komputer pobiera przez HTTPS. Przy kolejnym ID pobranym wcześniej program wyświetli `CACHE` i odczyta plik lokalnie.
+## Pamięć podręczna i bezpieczeństwo
 
-Cache w katalogu:
-`%LOCALAPPDATA%\\PSX_DVR_ART_SERVER\\cache`
+Znormalizowane obrazy są zapisywane w:
 
-Możesz również ręcznie umieścić tam **poprawne PNG o nazwie `XXXX_123.45_COV.png`**, np. pobrane wcześniej przez OPL Manager. Jest to awaryjna opcja, gdy Archive.org jest niedostępne; nie trzeba jednak tego robić, gdy archiwum działa.
+```text
+%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache
+```
 
-## Bezpieczny test przy obecnych 40/40 okładkach
+Żądania mogą przychodzić tylko od IP konsoli podanego w interfejsie. Program nie przyjmuje dowolnych adresów internetowych, a pobranie jest ograniczone do wskazanych domen HTTPS i poprawnych Game ID. Pliki źródłowe są ograniczone do 4 MiB; wynik PNG ma maksymalnie 256 KiB i rozmiar 140×200 pikseli, 24-bitowy RGB.
 
-Na USB masz już komplet 40 okładek. Dlatego TRÓJKĄT prawidłowo pokaże `MISSING: 0` i nie uruchomi pobierania.
+Aplikacja PC **nie zapisuje plików na konsoli ani na USB**. To Manager odbiera PNG, sprawdza go i zapisuje w `mass0:/DESR_DVR/ART`, nie zastępując istniejących okładek. Po pomyślnym pobraniu Manager sam aktualizuje indeks.
 
-Do testu:
-1. Zachowaj na komputerze kopię działającego ELF Manager v0.6, `COVERS.IDX`, `BOOT.CNF` oraz `ART/SLES_538.86_COV.png`.
-2. Na USB tylko **zmień nazwę** `ART/SLES_538.86_COV.png` na `SLES_538.86_COV.png.SAVED` (niczego nie usuwaj). Zachowaj zapasowy plik.
-3. Uruchom zintegrowany Manager v0.7.3 i naciśnij TRÓJKĄT. Spodziewane `MISSING: 1 COVER` i `X: GET LAN`.
-4. Uruchom już wcześniej aplikację Windows, następnie naciśnij X na konsoli. Serwer spróbuje pobrać `SLES_538.86_COV.png` z archiwum HTTPS. Jeśli pliku w archiwum nie ma, zajrzyj do dziennika i nie zakładaj, że pobranie się powiodło.
-5. Po sukcesie Manager powinien sam odświeżyć `COVERS.IDX` i pokazać okładkę. Uruchom Black przez X **już po zamknięciu okna pobierania**, aby sprawdzić, czy Quickboot nadal działa. Potwierdź zachowanie po restarcie.
-6. Gdy pojawi się błąd, wróć do starego działającego ELF i przywróć `.SAVED` do pierwotnej nazwy na USB.
-
-**Uwaga:** pobranie brakujących grafik nie działa w tle. Wymaga ręcznego zatwierdzenia przyciskiem X i uruchomionej aplikacji na PC. Aktualna implementacja przetwarza maksymalnie 40 brakujących ID na uruchomienie i przerwie próby przy 3 kolejnych błędach sieci/źródła. Nie nadpisuje istniejących okładek PNG/JPG ani plików `.PART`. Gdy zapis USB się nie uda, `.PART` może pozostać do ręcznej oceny.
-
-## Uruchomienie ze źródła (opcjonalne)
-
-Dla programisty, bez pliku .exe:
+## Uruchomienie z Pythona / kompilacja EXE
 
 ```powershell
 py -m pip install -r pc-art-server/requirements.txt
 py pc-art-server/psx_dvr_art_server.py
 ```
 
-Źródło serwera używa Pythona, Pillow, Tkinter i standardowej biblioteki HTTP. Plik .exe buduje GitHub Actions na `windows-latest` z PyInstaller; nie wstrzykuje reklam i nie modyfikuje plików USB ani dysku konsoli.
+Wymagany Python 3.10 lub nowszy oraz Pillow; interfejs wykorzystuje Tkinter. Workflow `.github/workflows/build-windows-art-server.yml` buduje Windows `.exe` przez PyInstaller i uruchamia testy pobierania/cache oraz fallbacku PSBBN.
 
-## Ograniczenia
+## Rozwiązywanie problemów
 
-- Konsola komunikuje się **HTTP tylko wewnątrz LAN**, komputer używa **HTTPS do Archive.org oraz wyłącznie wyznaczonej ścieżki obrazów PSBBN w raw.githubusercontent.com**.
-- Program akceptuje tylko ścisłe nazwy `XXXX_123.45_COV.png`, pobiera maksymalnie 4 MiB danych źródłowych i generuje PNG maksymalnie 256 KiB. Nie wykonuje żądań do dowolnych adresów podanych przez klienta.
-- Cache nie nadpisuje istniejących plików. Prawidłowe pliki pozostają na dysku PC, więc późniejsze pobranie jest szybkie.
-- Prawa do grafik pozostają u ich właścicieli; używaj ich zgodnie z właściwymi licencjami i warunkami źródła.
-- Wersja v0.7.3 ma zostać w **Draft PR** do czasu testów na konsoli i połączenia z rzeczywistym źródłem internetowym.
+- **Brak połączenia z PC:** sprawdź IP, `NET_PROBE.CNF`, zaporę Windows i uruchomiony serwer.
+- **OPL / PSBBN nie znalazły grafiki:** zobacz log `NOT FOUND` w aplikacji; na konsolę zostanie odesłane HTTP 404.
+- **Grafika już istnieje:** Manager celowo jej nie nadpisuje. Cache na PC również nie nadpisuje wcześniejszych obrazów.
+- **Niepełny `.PART` na USB:** Manager pozostawia go do ręcznej weryfikacji zamiast nadpisywać nieznany plik.
+
+Prawa do obrazów należą do odpowiednich właścicieli; korzystaj ze źródeł zgodnie z ich warunkami.
