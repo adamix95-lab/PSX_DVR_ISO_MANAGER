@@ -59,7 +59,7 @@ The listing is illustrative; keep all the other working DVR/Neutrino modules and
 
 The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source is also provided under [pc-art-server](pc-art-server/README_PL.md)). The PC handles HTTPS downloads and serves validated PNG files to the PSX using simple local HTTP.
 
-1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the Windows build artifact under [GitHub Actions](../../actions) and open it on your Windows PC.
+1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the Windows build artifact under [GitHub Actions](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions) and open it on your Windows PC.
 2. Enter the PC IP, console IP and HTTP port, then click **Start serwera HTTP**. The example below uses the LAN settings tested with DESR-7000.
 3. Make sure the USB `NET_PROBE.CNF` matches those addresses:
 
