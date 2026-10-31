@@ -230,6 +230,6 @@ int art_sync_run(const probe_config *cfg) {
   }
   scr_printf("ART SYNC: %d saved of %d attempted\n",saved,attempted);
   if (saved>0)
-    scr_printf("Run TRIANGLE in Manager to rebuild index.\n");
+    scr_printf("New PNG covers saved in USB ART.\n");
   return saved>0 ? saved : -1;
 }
