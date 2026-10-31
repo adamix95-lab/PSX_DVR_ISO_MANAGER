@@ -1,5 +1,13 @@
 # PSX DVR ISO Manager v0.5.3 — czytelniejsze okładki PNG (TEST)
 
+## Dodatkowe źródło okładek i prostszy ekran pobierania
+
+W osobnej aplikacji Windows dodano **PSBBN Art Database** od CosmicScale jako alternatywę, uruchamianą tylko wtedy, gdy podstawowe archiwum okładek OPL na Archive.org zawiedzie. Dla użytkownika konsoli cały protokół HTTP, Game ID, `ART`, `COVERS.IDX` i Quickboot pozostają bez zmian. PSBBN przechowuje kwadratowe grafiki, które są normalizowane do 140×200 z zachowaniem proporcji i czarnymi marginesami; nie są to zawsze pełne okładki OPL. Więcej w [instrukcji Windows](../pc-art-server/README_PL.md).
+
+Na ekranie rozpoczętego pobierania usunięto sam napis `PSX DVR ART SYNC v0.7.3`. Pierwszy widoczny komunikat to teraz `LAN HTTP: downloading missing PNG covers...`, a dalej informacja o odczycie DVR i statusy pobierania. Nie zmienia to mechaniki uruchamiania sieci.
+
+Poprzedni poprawiony Manager przeszedł już na DESR-7000 test anulowania O, ponownego TRÓJKĄTA, pobrania **32 okładek**, automatycznej odbudowy indeksu i uruchomienia gry. **Nowe źródło PSBBN i usunięcie nagłówka nie były jeszcze testowane na sprzęcie.** Zachowaj działający ELF i Windows EXE jako kopie zapasowe.
+
 ## Poprawka eksperymentalna — ekran skanowania i anulowanie O
 
 **Ważne, 31.10.2026:** użytkownik przetestował dwie kompilacje na fizycznym DESR-7000:
