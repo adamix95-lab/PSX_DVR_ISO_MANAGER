@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.7.3 follow-up — scan-screen X/O and cancel/retry fix (hardware untested)
+- User hardware-tested the first integrated release: 3 missing PNGs fetched
+  and COVERS.IDX restored to 40/40.
+- Show the consent prompt on the original ISO/cover index update screen
+  instead of over the game browser and its X: LAUNCH footer.
+- O returns to browser without modifying the detected missing count;
+  TRIANGLE rescans and offers missing covers again without restarting ELF.
+- Cross-check report count with identified-minus-matched ISO results so a
+  stale/invalid report cannot falsely display MISSING: 0.
+- Host regression covers TRIANGLE -> O -> TRIANGLE -> X, corrupted report,
+  valid deduplicated Game IDs and final 0-missing scan.
+- Keep existing ART, Quickboot, BOOT.CNF, Neutrino, DVR read-only and
+  Windows .exe unchanged.
+
+## v0.7.3 — integrated LAN ART SYNC and Windows HTTPS art gateway (hardware untested)
+- Reuses the preferred user-tested MONO v0.6 layout, including footer colons.
+- TRIANGLE scans games, reports count of missing Game ID-matched covers and
+  offers X: DOWNLOAD LAN HTTP / O: cancel. X only means download in that prompt.
+- Loads NETMAN/SMAP and PS2IP lazily, after user consent; never resets IOP
+  mid-session or loads a second DEV9.
+- Up to 40 missing Game ID covers downloaded from PC HTTP, validated and
+  staged into new USB ART files; stop after three consecutive network failures.
+- If any PNGs saved, auto-refresh verified COVERS.IDX using existing scanner;
+  restore normal X Quickboot after prompt.
+- Separate Python/Tk Windows server delivers on-demand HTTPS OPL archive
+  artwork as normalized RGB PNG, with local cache and EXE GitHub Actions.
+- Existing ART/BOOT.CNF/Neutrino and DVR ISO read-only handling preserved.
+- Experimental: neither the integrated ELF nor live archive fetch is yet
+  validated on physical DESR-7000.
+
+
 ## 0.5.3 — conservative ISO9660 executable-ID fallback (hardware untested)
 - After 34/40 covers found, six missing titles diagnosed as `NO_ID`.
 - Manual rescans now prefer SYSTEM.CNF/BOOT2 then fall back to the *only*

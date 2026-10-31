@@ -1,12 +1,14 @@
 /* DESR DVR ISO Manager - stage 1. USB launcher + read-only DVR scanner.
    Uses binaries from the user's working Neutrino DVR PR #228 build.
    DOES NOT MODIFY DVR, APA, partitions, or game ISO files.
-   v0.5.1: improve only the OPL cover preview to 88x128 true pixels.
-   DVR scanner, USB index, CNF and Quickboot remain unchanged. */
+   v0.6: MONO Refined visual-only menu polish on the v0.5.3 baseline.
+   DVR scanner, USB index, cover pixels, CNF and Quickboot stay unchanged. */
 
 #include "iso_utils.h"
 #include "cover_runtime.h"
 #include "cover_preview.h"
+#include "lan_art_sync.h"
+#include "art_prompt_state.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -61,6 +63,7 @@ static int force_english; /* 0 = system (proven), 1 = English (experimental) */
 static desr_cover_entry covers[DESR_GAME_CAP];
 static char status[120] = "Starting...";
 static int status_visible; /* only errors/confirmed actions appear in the menu */
+static desr_art_prompt_state art_ui; /* X downloads only on the scan screen. */
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -177,21 +180,26 @@ static int scan_dvr(void) {
 static void draw(void) {
   int i, first, last, title_len;
 
-  scr_clear();
+  /* PS2SDK scr_printf paints glyph foreground AND background: a short
+     per-row charcoal background gives a highlight without GS re-init,
+     extra textures or changes to the proven PNG renderer. */
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
+  scr_clear();
 
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.5.3");
+  scr_printf("v0.7.3");
+  scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
-  scr_printf("--------------------------------------------------------------");
+  scr_printf("--------------------------------------------------------------------------");
+  scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 5);
   scr_printf("%d GAME%s", count, count == 1 ? "" : "S");
   if (count > DESR_PAGE_SIZE) {
     scr_setXY(24, 5);
-    scr_printf("PAGE %d/%d", selected / DESR_PAGE_SIZE + 1,
+    scr_printf("PAGE %02d/%02d", selected / DESR_PAGE_SIZE + 1,
                (count + DESR_PAGE_SIZE - 1) / DESR_PAGE_SIZE);
   }
   scr_setXY(43, 5);
@@ -210,15 +218,31 @@ static void draw(void) {
       /* Drop .iso/.ISO extension in display only; not in launch path. */
       title_len = (int)strlen(games[i]) - 4; /* validated by scanner */
       if (title_len > 49) title_len = 49;
+      /* 52 fixed columns: 3 for pointer/spacing + up to 49 for title.
+         Even the longest ISO name remains LEFT of the cover at x=434.
+         Gray is applied only to the selected line; nonselected rows are
+         subtly dimmed to preserve the original MONO appearance. */
+      scr_setbgcolor(i == selected ? 0x242424 : 0x000000);
+      scr_setfontcolor(i == selected ? 0xFFFFFF : 0xC8C8C8);
       scr_setXY(4, 9 + i - first);
-      scr_printf("%c  %.*s", i == selected ? '>' : ' ',
-                 title_len, games[i]);
+      if (i == selected)
+        scr_printf(">  %-49.*s", title_len, games[i]);
+      else
+        scr_printf("   %.*s", title_len, games[i]);
+      /* Only the selected row needs padding: reduces repeated tiny DMA
+         transfers when navigating 12-game pages on the DESR. */
+      scr_setbgcolor(0x000000);
+      scr_setfontcolor(0xFFFFFF);
     }
   }
 
   /* PNG cover preview: compact color tiles drawn without reinitializing
      the video system. Missing or unsupported art keeps the text fallback. */
   if (count) {
+    scr_setfontcolor(0xA8A8A8);
+    scr_setXY(61, 6);
+    scr_printf("GAME ID");
+    scr_setfontcolor(0xFFFFFF);
     if (covers[selected].present) {
       scr_setXY(61, 7);
       scr_printf("%s", covers[selected].game_id);
@@ -237,12 +261,63 @@ static void draw(void) {
 
   if (status_visible) {
     scr_setXY(2, 22);
-    scr_printf("%.73s", status);
+    scr_printf("%.54s", status); /* keep status left of the cover */
   }
+  /* Footer divider stops BEFORE the cover (x=434), which occupies
+     y=64..191. Avoid overwriting bottom pixels of the PNG. */
+  scr_setfontcolor(0x707070);
+  scr_setXY(2, 23);
+  scr_printf("-------------------------------------------------------");
+  scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
-  scr_printf("UP/DOWN Game   LEFT/RIGHT Page   X Launch");
+  scr_printf("UP/DOWN: GAME   LEFT/RIGHT: PAGE   X: LAUNCH");
+  scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
-  scr_printf("SELECT Language   TRIANGLE Index   SQUARE Test   START Exit");
+  scr_printf("SELECT: LANG   TRIANGLE: INDEX   SQUARE: TEST   START: EXIT");
+  scr_setfontcolor(0xFFFFFF);
+}
+
+/* Scan results remain on the same page as the "Updating..." message.
+   No game browser, cover preview or X: LAUNCH footer is drawn under
+   the confirmation. X can therefore only mean DOWNLOAD here. */
+static void draw_scan_progress(void) {
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 1);
+  scr_printf("PSX DVR ISO MANAGER v0.7.3");
+  scr_setfontcolor(0x787878);
+  scr_setXY(2, 3);
+  scr_printf("-------------------------------------------------------");
+  scr_setfontcolor(0xFFFFFF);
+  scr_setXY(2, 6);
+  scr_printf("UPDATING GAME LIST AND COVER INDEX...");
+  scr_setXY(2, 9);
+  scr_printf("READING ISO GAME IDs FROM DVR (READ-ONLY)");
+  scr_setXY(2, 11);
+  scr_printf("CHECKING USB ART / COVERS.IDX");
+}
+static void draw_scan_art_question(int identified, int matched,
+                                    int missing) {
+  /* Deliberately stay on the scan/progress screen after TRIANGLE. */
+  draw_scan_progress();
+  scr_setXY(2, 9);
+  scr_printf("SCAN COMPLETE - DVR IS READ-ONLY            ");
+  scr_setXY(2, 11);
+  scr_printf("GAMES: %d   GAME IDs: %d                            ",
+             count, identified);
+  scr_setXY(2, 13);
+  scr_printf("COVERS FOUND: %d   MISSING: %d", matched, missing);
+  scr_setfontcolor(0xFFFFFF);
+  scr_setXY(2, 16);
+  scr_printf("DOWNLOAD %d MISSING COVER%s FROM LOCAL HTTP?",
+             missing, missing == 1 ? "" : "S");
+  scr_setXY(2, 19);
+  scr_printf("X: DOWNLOAD     O: SKIP / RETURN");
+  scr_setfontcolor(0xA0A0A0);
+  scr_setXY(2, 24);
+  scr_printf("Only NEW PNGs are written to USB ART.");
+  scr_setfontcolor(0xFFFFFF);
 }
 
 /* Native PS2SDK fileXio requires FIO_O_* flags, not POSIX O_* flags. */
@@ -373,7 +448,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.5.3\n");
+  scr_printf("PSX DVR ISO MANAGER v0.7.3\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -415,6 +490,7 @@ int main(int argc, char *argv[]) {
     return 2;
   }
   prev_buttons = 0;
+  desr_art_prompt_reset(&art_ui);
   draw();
   while (1) {
     if (padRead(0, 0, &btn) > 0) {
@@ -422,22 +498,88 @@ int main(int argc, char *argv[]) {
       new_press = bits & ~prev_buttons;
       prev_buttons = bits;
       if (new_press & PAD_START) break;
+
+      /* X is DOWNLOAD only while the dedicated scan screen is active.
+         Cancel via O returns to the usual menu; next TRIANGLE can always
+         rescan and offer the same missing covers again (no app restart). */
+      if (art_ui.active) {
+        if (new_press & PAD_CIRCLE) {
+          desr_art_prompt_cancel(&art_ui);
+          snprintf(status, sizeof(status),
+                   "ART SKIPPED. TRIANGLE: SCAN / RETRY ANYTIME");
+          status_visible = 1;
+          draw();
+        } else if (new_press & PAD_CROSS) {
+          int saved,identified=0,matched;
+          desr_art_prompt_cancel(&art_ui);
+          scr_setbgcolor(0x000000);
+          scr_setfontcolor(0xFFFFFF);
+          scr_clear();
+          scr_setXY(2, 1);
+          scr_printf("PSX DVR ART SYNC v0.7.3\n");
+          scr_printf("LAN HTTP: downloading missing PNG covers...\n");
+          scr_printf("DVR/ISO remain READ-ONLY.\n");
+          saved = desr_lan_art_download();
+          if (saved > 0) {
+            /* Use the existing proven USB index refresh; if DVR read fails,
+               old COVERS.IDX is preserved. Never touch Quickboot/BOOT.CNF. */
+            matched = desr_covers_refresh(games, count, covers, &identified);
+            if (matched >= 0)
+              snprintf(status,sizeof(status),
+                       "ART SYNC: %d saved. INDEX: %d/%d",
+                       saved,matched,count);
+            else
+              snprintf(status,sizeof(status),
+                       "ART: %d saved; index failed. Press TRIANGLE.",
+                       saved);
+          } else {
+            snprintf(status,sizeof(status),
+                     "ART SYNC: no new PNG. TRIANGLE: RETRY");
+          }
+          status_visible = 1;
+          draw();
+        }
+        /* A modal button event must NEVER fall through to X Quickboot. */
+        continue;
+      }
+
       if (new_press & PAD_TRIANGLE) {
-        int identified = 0, matched;
+        int identified=0, matched=-1, report_missing=-1, result;
+        desr_art_prompt_reset(&art_ui);
         rc = scan_dvr();
         if (rc >= 0) {
           desr_covers_load(games, count, covers);
-          scr_clear();
-          scr_setXY(2, 5);
-          scr_printf("Reading ISO Game IDs; updating USB index...");
+          draw_scan_progress();
           matched = desr_covers_refresh(games, count, covers, &identified);
           if (matched >= 0)
-            snprintf(status, sizeof(status), "INDEX: %d IDs / %d covers (USB)", identified, matched);
-          else
-            snprintf(status, sizeof(status), "Index update failed; previous USB index preserved.");
+            report_missing = desr_lan_art_missing();
+          result = desr_art_prompt_after_scan(
+              &art_ui, identified, matched, report_missing);
+          if (result > 0) {
+            /* Stay on scan/update screen for X/O, not the browser. */
+            draw_scan_art_question(identified, matched, result);
+          } else {
+            if (result == 0) {
+              snprintf(status,sizeof(status),
+                       "INDEX: %d IDs / %d COVERS. MISSING: 0",
+                       identified,matched);
+            } else if (matched < 0) {
+              snprintf(status,sizeof(status),
+                       "Index update failed; previous USB index preserved.");
+            } else {
+              snprintf(status,sizeof(status),
+                       "MISSING: %d. Invalid USB scan log; retry TRIANGLE.",
+                       art_ui.missing);
+            }
+            status_visible = 1;
+            draw();
+          }
+        } else {
           status_visible = 1;
+          draw();
         }
-        draw();
+        /* Consumes simultaneous TRIANGLE+X: cannot accidentally launch. */
+        continue;
       }
       if (new_press & PAD_SELECT) {
         force_english = !force_english;

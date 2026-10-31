@@ -1,5 +1,32 @@
 # PSX DVR ISO Manager v0.5.3 — czytelniejsze okładki PNG (TEST)
 
+## Poprawka v0.7.3 — ekran skanowania i ponowne pytanie po O (31.10.2026)
+
+Na DESR-7000 użytkownik potwierdził pobieranie **3/3** brakujących PNG i automatyczne **40/40**. Zgłoszone uwagi:
+1. Pytanie **„X: DOWNLOAD / O: SKIP”** powinno pozostać na ekranie **„UPDATING GAME LIST AND COVER INDEX...”**, nie nakładać się na zwykłą listę gier.
+2. Po anulowaniu przyciskiem **O** kolejny skan **TRÓJKĄTEM** ma ponownie wykryć braki i wyświetlić pytanie bez restartowania programu.
+
+Poprawka pokazuje odrębny ekran wyniku skanu z liczbą rozpoznanych gier, znalezionych i brakujących okładek oraz przyciskami `X: DOWNLOAD` / `O: SKIP / RETURN`. O nie zmienia ani plików, ani informacji o tym, ile okładek brakuje; ponowny TRÓJKĄT zawsze wykonuje skan i może ponownie zaproponować pobieranie. Wynik skanowania jest dodatkowo porównywany z `COVER_SCAN.LOG`: błędy raportu są sygnalizowane jawnie zamiast fałszywego `MISSING: 0`.
+
+**Do ponownego testu** pobierz artefakt `PSX-DVR-ISO-Manager-v0.7.3-SCAN-PROMPT-CANCEL-FIX-UNTESTED`. Podmień **wyłącznie** `DVR_ISO_MANAGER.ELF`; aplikacja Windows `.exe` v0.7.3 i `NET_PROBE.CNF` pozostają bez zmian.
+
+**Test sprzętowy:** zrób kopię v0.7.3 oraz ART, przygotuj jeden brak (np. Black przez zmianę nazwy `.png` na `.png.SAVED`), wciśnij TRÓJKĄT, zobacz osobny ekran `MISSING: 1`, wciśnij O, ponownie TRÓJKĄT — pytanie powinno wrócić. Dopiero teraz X pobiera, po czym Manager odbudowuje `COVERS.IDX`. Sprawdź Quickboot X poza pytaniem. Nie scalamy tej korekty z `main` przed testem.
+
+## v0.7.3 — ART SYNC w Managerze + serwer Windows .exe (Draft, bez testu na konsoli)
+
+Po ręcznym skanie **TRÓJKĄTEM** program aktualizuje zwykły `COVERS.IDX` i `COVER_SCAN.LOG`, a następnie wylicza **tylko braki z rozpoznanym Game ID** (`NO_ART` / `NO_ART_EXE`). Na ekranie pojawia się liczba brakujących okładek oraz pytanie `X: DOWNLOAD LAN HTTP`. Naciśnięcie **X** w tym oknie włącza Ethernet (NETMAN/SMAP bez drugiego DEV9) i pobiera okładki przez lokalny HTTP. **O (kółko)** anuluje. Gdy okna nie ma, **X nadal uruchamia grę** przez BOOT.ELF / Neutrino.
+
+Po udanym pobraniu PNG do `mass0:/DESR_DVR/ART/<GAMEID>_COV.png` Manager automatycznie ponownie uruchamia sprawdzony skaner Game ID i aktualizuje `COVERS.IDX`; nie trzeba naciskać TRÓJKĄTA drugi raz. Błąd sieci nie powinien blokować normalnego korzystania z aplikacji.
+
+**Odrębna aplikacja PC:** [PSX DVR ART Server v0.7.3 (Python + Windows EXE)](../pc-art-server/README_PL.md). Konsola pyta np. `GET /SLES_538.86_COV.png`, a serwer PC próbuje pobrać grafikę po HTTPS z archiwum OPL Manager, przeskalowuje do 140×200 RGB PNG, zapisuje do cache i odsyła konsoli. Źródło zewnętrzne nie jest gwarantowane i nie wszystkie ID muszą być dostępne.
+
+**Uwaga:** Testy automatyczne/kompilacja nie oznaczają potwierdzenia na fizycznym DESR-7000. Najpierw zrób kopię działającego ELF v0.6, `BOOT.CNF`, `COVERS.IDX` i wybranej okładki. Przy dotychczasowych 40/40 program pokaże 0 braków. W kontrolowanym teście zmień nazwę `ART/SLES_538.86_COV.png` na `.png.SAVED`, naciśnij TRÓJKĄT, potwierdź X przy `MISSING 1`, sprawdź wygląd Black, ponowny start Managera i uruchomienie gry X. Przy błędach wróć do starego ELF i kopii danych.
+
+Ochrona: maksymalnie 40 prób na uruchomienie, przerwanie po 3 kolejnych błędach pobierania, limit 256 KiB na PNG, CRC, USB staging `.PART` i odczyt zwrotny. Istniejące `.png`, `.jpg`, `.PART` i dane DVR nie są nadpisywane. Stos sieciowy ładuje się **dopiero po zgodzie X**, nigdy przy starcie.
+
+**PR Draft; niczego nie scalać z `main` bez testu sprzętowego.**
+
+
 **Nowy renderer v0.5.1 jest NIEPRZETESTOWANY na DESR-7000.** Przed testem zachowaj działający ELF v0.5. Nie scalać do `main`.
 
 ## v0.5.3 — awaryjne rozpoznawanie Game ID (test, 30.10.2026)

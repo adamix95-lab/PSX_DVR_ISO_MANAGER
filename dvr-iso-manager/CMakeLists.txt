@@ -2,9 +2,13 @@ cmake_minimum_required(VERSION 3.13)
 include($ENV{PS2SDK}/ps2dev.cmake)
 project(desr_dvr_iso_manager C)
 
-set(SOURCES src/main.c src/iso_utils.c src/cover_index.c src/cover_runtime.c src/cover_preview.c src/cover_color.c src/cover_report.c)
+set(SOURCES
+  src/main.c src/iso_utils.c src/cover_index.c src/cover_runtime.c
+  src/cover_preview.c src/cover_color.c src/cover_report.c src/art_prompt_state.c src/lan_art_sync.c
+  ../dvr-net-probe/src/probe_config.c ../dvr-net-probe/src/probe_png.c
+  ../dvr-net-probe/src/art_sync.c ../dvr-net-probe/src/art_sync_runtime.c)
 # Drivers from PS2SDK, plus DVR drivers from the user's confirmed PR #228 build.
-set(PS2SDK_IRX iomanX fileXio sio2man mcman mcserv freepad bdm bdmfs_fatfs usbd_mini usbmass_bd_mini)
+set(PS2SDK_IRX iomanX fileXio sio2man mcman mcserv freepad bdm bdmfs_fatfs usbd_mini usbmass_bd_mini netman smap)
 set(DVR_IRX dev9_ns dvrdrv dvrfile)
 
 foreach(name ${PS2SDK_IRX})
@@ -25,6 +29,6 @@ foreach(name ${DVR_IRX})
 endforeach()
 
 add_executable(DVR_ISO_MANAGER.ELF ${SOURCES})
-target_include_directories(DVR_ISO_MANAGER.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
-target_link_libraries(DVR_ISO_MANAGER.ELF pad patches fileXio cdvd elf-loader libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+target_include_directories(DVR_ISO_MANAGER.ELF PRIVATE include ../dvr-net-probe/include "$ENV{PS2SDK}/ports/include")
+target_link_libraries(DVR_ISO_MANAGER.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
 target_compile_options(DVR_ISO_MANAGER.ELF PRIVATE -Os -Wall -Wextra)

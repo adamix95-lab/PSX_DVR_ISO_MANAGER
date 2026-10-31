@@ -7,7 +7,7 @@
    COVERS.IDX contains ONLY matches; missing IDs are in COVER_SCAN.LOG. */
 #define ART_SYNC_REPORT_MAX 24576U
 #define ART_SYNC_GAMES_MAX 128
-#define ART_SYNC_BATCH_MAX 3
+#define ART_SYNC_BATCH_MAX 40
 #define ART_SYNC_ID_CAP 12
 #define ART_SYNC_ISO_CAP 128
 
