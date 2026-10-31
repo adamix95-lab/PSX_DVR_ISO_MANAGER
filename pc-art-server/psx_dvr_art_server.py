@@ -33,6 +33,13 @@ OPL_SOURCE = (
     "https://archive.org/download/OPLM_ART_2024_09/"
     "OPLM_ART_2024_09.zip/PS2/{id}/{id}_COV.png"
 )
+# CosmicScale's *separate* PSBBN Game Collection art database. Unlike
+# OPL covers, these are square images indexed by the same PS2 Game ID.
+# Use only when the preferred OPL archive fails, and normalize to RGB PNG.
+PSBBN_SOURCE = (
+    "https://raw.githubusercontent.com/CosmicScale/"
+    "psbbn-art-database/main/art/{id}.png"
+)
 
 
 def trusted_archive_url(url: str) -> bool:
@@ -74,6 +81,66 @@ def download_from_archive(game_id: str) -> bytes:
         raw = response.read(MAX_REMOTE_BYTES + 1)
     if len(raw) > MAX_REMOTE_BYTES:
         raise ValueError("Remote artwork exceeds 4 MiB")
+    return raw
+
+
+def trusted_psbbn_url(url: str, game_id: str) -> bool:
+    """Allow only the verified CosmicScale artwork path for this Game ID."""
+    if not GAME_PATH.fullmatch(f"/{game_id}_COV.png"):
+        return False
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return False
+    return (
+        parts.scheme == "https"
+        and (parts.hostname or "").lower() == "raw.githubusercontent.com"
+        and parts.username is None
+        and parts.password is None
+        and parts.port in (None, 443)
+        and not parts.query
+        and not parts.fragment
+        and parts.path
+        == f"/CosmicScale/psbbn-art-database/main/art/{game_id}.png"
+    )
+
+
+class PsbbnRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow PSBBN HTTP redirects outside the exact HTTPS art path."""
+
+    def __init__(self, game_id: str):
+        self.game_id = game_id
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not trusted_psbbn_url(newurl, self.game_id):
+            raise urllib.error.URLError("Rejected untrusted PSBBN redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def download_from_psbbn(game_id: str) -> bytes:
+    """Second source used by CosmicScale: square PSBBN artwork by Game ID."""
+    url = PSBBN_SOURCE.format(id=game_id)
+    if not trusted_psbbn_url(url, game_id):
+        raise ValueError("Untrusted PSBBN artwork URL")
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "PSX-DVR-ART-Server/0.7.3",
+            "Accept": "image/png",
+        },
+    )
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPSHandler(context=ssl.create_default_context()),
+        PsbbnRedirects(game_id),
+    )
+    with opener.open(request, timeout=15) as response:
+        if not trusted_psbbn_url(response.geturl(), game_id):
+            raise ValueError("Untrusted PSBBN redirect destination")
+        if response.status != 200:
+            raise ValueError(f"PSBBN HTTP {response.status}")
+        raw = response.read(MAX_REMOTE_BYTES + 1)
+    if len(raw) > MAX_REMOTE_BYTES:
+        raise ValueError("PSBBN artwork exceeds 4 MiB")
     return raw
 
 
@@ -120,10 +187,12 @@ class CoverService:
         cache_dir: Path,
         log: Callable[[str], None] = print,
         fetch: Callable[[str], bytes] = download_from_archive,
+        fallback_fetch: Callable[[str], bytes] = download_from_psbbn,
     ):
         self.cache_dir = Path(cache_dir)
         self.log = log
         self.fetch = fetch
+        self.fallback_fetch = fallback_fetch
         self._lock = threading.Lock()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -145,16 +214,33 @@ class CoverService:
                 self.log(f"CACHE INVALID: {game_id}")
                 return None  # Never overwrite existing cache files.
 
-            self.log(f"HTTPS  {game_id} — querying OPL archive...")
+            # First source stays exactly the hardware-proven OPL backup.
+            # Only a failed/missing/invalid OPL PNG triggers the distinct
+            # CosmicScale PSBBN Game Collection art source (square artwork).
+            self.log(f"HTTPS OPL  {game_id} — querying archive...")
             try:
                 raw = self.fetch(game_id)
                 data = normalize_png(raw)
-                # Exclusive creation: never replace a cached image.
+                source = "OPL"
+            except (OSError, ValueError, urllib.error.URLError) as primary_error:
+                self.log(f"OPL UNAVAILABLE  {game_id}: {primary_error}")
+                self.log(f"HTTPS PSBBN FALLBACK  {game_id} — square artwork...")
+                try:
+                    raw = self.fallback_fetch(game_id)
+                    data = normalize_png(raw)
+                    source = "PSBBN"
+                except (OSError, ValueError, urllib.error.URLError) as fallback_error:
+                    self.log(f"NOT FOUND  {game_id}: PSBBN fallback: {fallback_error}")
+                    return None
+
+            try:
+                # Exclusive creation: never overwrite an existing cached PNG.
                 with destination.open("xb") as file:
                     file.write(data)
-            except (OSError, ValueError, urllib.error.URLError) as exc:
-                self.log(f"NOT FOUND / ERROR  {game_id}: {exc}")
+            except OSError as exc:
+                self.log(f"CACHE SAVE FAILED  {game_id}: {exc}")
                 return None
+            self.log(f"SOURCE  {game_id}: {source}")
             self.log(f"READY  {game_id} ({len(data)} bytes)")
             return data
 
@@ -231,7 +317,7 @@ def run_gui() -> None:
               font=("Segoe UI", 15, "bold")).pack(anchor="w")
     ttk.Label(
         frame,
-        text="PSX requests an ID → PC downloads via HTTPS → PSX receives PNG via LAN HTTP",
+        text="Źródło: OPL (pierwsze) → PSBBN Art Database (zapasowe, kwadratowe) → PSX LAN",
         wraplength=680,
     ).pack(anchor="w", pady=(3, 12))
 
