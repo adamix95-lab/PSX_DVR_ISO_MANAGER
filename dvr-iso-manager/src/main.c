@@ -304,7 +304,8 @@ static void draw_scan_art_question(int identified, int matched,
   scr_setXY(2, 9);
   scr_printf("SCAN COMPLETE - DVR IS READ-ONLY            ");
   scr_setXY(2, 11);
-  scr_printf("GAMES: %d   GAME IDs: %d", count, identified);
+  scr_printf("GAMES: %d   GAME IDs: %d                            ",
+             count, identified);
   scr_setXY(2, 13);
   scr_printf("COVERS FOUND: %d   MISSING: %d", matched, missing);
   scr_setfontcolor(0xFFFFFF);
