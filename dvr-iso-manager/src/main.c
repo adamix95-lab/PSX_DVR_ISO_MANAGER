@@ -7,6 +7,7 @@
 #include "iso_utils.h"
 #include "cover_runtime.h"
 #include "cover_preview.h"
+#include "lan_art_sync.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -61,6 +62,8 @@ static int force_english; /* 0 = system (proven), 1 = English (experimental) */
 static desr_cover_entry covers[DESR_GAME_CAP];
 static char status[120] = "Starting...";
 static int status_visible; /* only errors/confirmed actions appear in the menu */
+static int art_prompt; /* X downloads ONLY after an explicit TRIANGLE scan. */
+static int art_missing;
 static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
@@ -187,7 +190,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.6");
+  scr_printf("v0.7.3");
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------------------");
@@ -256,6 +259,13 @@ static void draw(void) {
     }
   }
 
+  if (art_prompt) {
+    /* Row 21 is below the 12-game list, never in the PNG's right side.
+       X here confirms a LAN download; elsewhere X always Quickboots. */
+    scr_setfontcolor(0xFFFFFF);
+    scr_setXY(2, 21);
+    scr_printf("MISSING %d COVERS. X: DOWNLOAD (LAN)  O: CANCEL", art_missing);
+  }
   if (status_visible) {
     scr_setXY(2, 22);
     scr_printf("%.54s", status); /* keep status left of the cover */
@@ -402,7 +412,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.6\n");
+  scr_printf("PSX DVR ISO MANAGER v0.7.3\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -451,6 +461,51 @@ int main(int argc, char *argv[]) {
       new_press = bits & ~prev_buttons;
       prev_buttons = bits;
       if (new_press & PAD_START) break;
+
+      /* Modal scan result: no accidental Quickboot while X means SYNC.
+         CIRCLE cancels. START exits as before. Input outside this prompt
+         remains identical to tested v0.6 / v0.5.3. */
+      if (art_prompt) {
+        if (new_press & PAD_CIRCLE) {
+          art_prompt = 0;
+          snprintf(status, sizeof(status),
+                   "ART DOWNLOAD CANCELED. X: LAUNCH AS USUAL");
+          status_visible = 1;
+          draw();
+        } else if (new_press & PAD_CROSS) {
+          int saved,identified=0,matched;
+          art_prompt = 0;
+          scr_setbgcolor(0x000000);
+          scr_setfontcolor(0xFFFFFF);
+          scr_clear();
+          scr_setXY(2, 1);
+          scr_printf("PSX DVR ART SYNC v0.7.3\n");
+          scr_printf("LAN HTTP: downloading missing PNG covers...\n");
+          scr_printf("DVR/ISO remain READ-ONLY.\n");
+          saved = desr_lan_art_download();
+          if (saved > 0) {
+            /* Rebuild exactly the same validated USB index as TRIANGLE.
+               If a DVR read fails, previous COVERS.IDX is preserved. */
+            matched = desr_covers_refresh(games, count, covers, &identified);
+            if (matched >= 0)
+              snprintf(status,sizeof(status),
+                       "ART SYNC: %d saved. INDEX: %d/%d",
+                       saved,matched,count);
+            else
+              snprintf(status,sizeof(status),
+                       "ART: %d saved; index failed. Press TRIANGLE.",
+                       saved);
+          } else {
+            snprintf(status,sizeof(status),
+                     "ART SYNC: no new PNG. Check PC server / USB.");
+          }
+          status_visible = 1;
+          draw();
+        }
+        /* Consume the whole key event even if another pad button is held. */
+        continue;
+      }
+
       if (new_press & PAD_TRIANGLE) {
         int identified = 0, matched;
         rc = scan_dvr();
@@ -460,10 +515,28 @@ int main(int argc, char *argv[]) {
           scr_setXY(2, 5);
           scr_printf("Reading ISO Game IDs; updating USB index...");
           matched = desr_covers_refresh(games, count, covers, &identified);
-          if (matched >= 0)
-            snprintf(status, sizeof(status), "INDEX: %d IDs / %d covers (USB)", identified, matched);
-          else
-            snprintf(status, sizeof(status), "Index update failed; previous USB index preserved.");
+          art_prompt = 0;
+          art_missing = 0;
+          if (matched >= 0) {
+            art_missing = desr_lan_art_missing();
+            if (art_missing > 0) {
+              art_prompt = 1;
+              snprintf(status,sizeof(status),
+                       "INDEX: %d IDs / %d COVERS. MISSING: %d",
+                       identified,matched,art_missing);
+            } else if (art_missing == 0) {
+              snprintf(status,sizeof(status),
+                       "INDEX: %d IDs / %d COVERS. MISSING: 0",
+                       identified,matched);
+            } else {
+              snprintf(status,sizeof(status),
+                       "INDEX OK (%d); cannot read COVER_SCAN.LOG.",
+                       matched);
+            }
+          } else {
+            snprintf(status,sizeof(status),
+                     "Index update failed; previous USB index preserved.");
+          }
           status_visible = 1;
         }
         draw();
