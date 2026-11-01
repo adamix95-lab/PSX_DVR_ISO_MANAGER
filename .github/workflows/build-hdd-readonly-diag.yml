@@ -24,11 +24,22 @@ jobs:
           cmake -S hdd-diagnostics -B build-hdd-diag
           cmake --build build-hdd-diag -j2
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
           name: PSX-DVR-HDD-DIAG-A-READONLY
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload follow-up HELLO + staged HDD diagnostic B
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-B-STAGED
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
