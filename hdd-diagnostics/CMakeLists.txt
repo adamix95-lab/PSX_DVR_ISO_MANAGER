@@ -40,3 +40,25 @@ target_link_libraries(PSX_DVR_HDD_DIAG_C.ELF
   patches fileXio libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_C.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# HDD DIAG D: rebuild the PS2 APA/PFS stack in the same order as RepairBox
+# after the successful hardware test C. No DVR or filesystem-write modules.
+set(APA_DIAG_EMBEDDED)
+foreach(module iomanX fileXio ps2dev9 ps2atad ps2hdd ps2fs)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_apa_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND APA_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_D.ELF
+  src/apa_pfs_diag.c
+  ${APA_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_D.ELF
+  patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_D.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
