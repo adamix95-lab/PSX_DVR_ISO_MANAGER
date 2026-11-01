@@ -4,11 +4,11 @@
 
 **PSX DVR ISO Manager** lists and launches PS2 ISO games from the DVR partition of a Sony PSX DESR console. Version **0.8** adds a 12-game paged menu, cover previews and on-demand cover downloads via a companion Windows PC application.
 
-**Hardware status:** tested on a Sony PSX DESR-7000 with 40 ISO games. A full 40/40 artwork download, automatic index refresh and launch of **REZ in English** were confirmed. Individual games and external artwork sources may still behave differently.
+**Hardware status:** tested on a Sony PSX DESR-7000 with **40 ISO games**. A full 40/40 artwork download, automatic index refresh and launch of **REZ in English** were confirmed. **The 128-game capacity is a limit defined in the source code (`DESR_GAME_CAP = 128`), not a hardware-tested result. Libraries larger than 40 games, including games 41–128, have not yet been verified on the console.** Individual games and external artwork sources may still behave differently.
 
 ## Features
 
-- Browse up to 128 ISO filenames from the **read-only** `dvr_pfs0:/ISO` directory; 12 titles per page.
+- **Code-defined limit:** browse up to 128 ISO filenames from the **read-only** `dvr_pfs0:/ISO` directory (`DESR_GAME_CAP = 128`), 12 titles per page. **Only 40 ISO games have been tested on real hardware so far.**
 - Display Game IDs and USB-hosted PNG covers, using OPL-style names such as `SLES_538.86_COV.png`.
 - Manually rescan the ISO library with **Triangle**, generate/update `COVERS.IDX` and `COVER_SCAN.LOG`, and count missing covers.
 - After a scan, optionally press **X** to download missing artwork from a PC on your local network; press **Circle (O)** to skip. Successfully downloaded covers are automatically reindexed.
