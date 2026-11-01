@@ -46,5 +46,35 @@ class ReadOnlyContract(unittest.TestCase):
         self.assertIn('"dvr_pfs0:/ISO"', self.code)
 
 
+
+class TwoStageFollowupContract(unittest.TestCase):
+    """Prevent accidental write/reset operations in the new diagnostics."""
+
+    def test_hello_has_no_storage_or_rpc_dependencies(self):
+        hello = (SOURCE.parent / "hello.c").read_text(encoding="utf-8")
+        for forbidden in ("fileXio", "SifIopReset", "SifInitRpc", "SifExecModuleBuffer", "FIO_O_"):
+            self.assertNotIn(forbidden, hello)
+        self.assertIn("init_scr()", hello)
+        self.assertIn("scr_printf", hello)
+
+    def test_staged_diagnostic_remains_read_only(self):
+        text = (SOURCE.parent / "step_diag.c").read_text(encoding="utf-8")
+        stripped = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
+        stripped = re.sub(r"//[^\\n]*", "", stripped)
+        self.assertIn('"hdd0:PP.TESTDVR"', stripped)
+        self.assertIn('"pfs1:"', stripped)
+        self.assertIn("FIO_MT_RDONLY", stripped)
+        self.assertEqual(len(re.findall(r"\\bfileXioMount\\s*\\(", stripped)), 1)
+        self.assertIn("BEFORE", text)
+        forbidden = (
+            "fileXioWrite", "fileXioFormat", "fileXioRemove", "fileXioRename",
+            "fileXioMkdir", "fileXioRmdir", "fileXioChstat", "SifIopReset",
+            "SifExecModuleBuffer", "fileXioDevctl", "HDIOC_WRITESECTOR",
+            "FIO_O_WRONLY", "FIO_O_RDWR", "FIO_O_TRUNC", "FIO_O_CREAT",
+        )
+        for token in forbidden:
+            with self.subTest(token=token):
+                self.assertNotRegex(stripped, r"\\b" + re.escape(token) + r"\\b")
+
 if __name__ == "__main__":
     unittest.main()
