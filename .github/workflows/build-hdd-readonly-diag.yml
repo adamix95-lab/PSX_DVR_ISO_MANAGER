@@ -1,0 +1,34 @@
+name: Build v1.0 HDD read-only diagnostics (PP.TESTDVR)
+on:
+  push:
+    branches:
+      - feature/v1.0-hdd-readonly-diagnostics
+    paths:
+      - 'hdd-diagnostics/**'
+      - '.github/workflows/build-hdd-readonly-diag.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake, C compiler and Python
+        run: apk add --no-cache cmake build-base python3
+      - name: Verify test-partition-only read-only contract
+        run: python3 -m unittest discover -s hdd-diagnostics/tests -p 'test_*.py' -v
+      - name: Compile separate HDD diagnostic ELF
+        run: |
+          cmake -S hdd-diagnostics -B build-hdd-diag
+          cmake --build build-hdd-diag -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+      - name: Upload standalone READ-ONLY diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-A-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
