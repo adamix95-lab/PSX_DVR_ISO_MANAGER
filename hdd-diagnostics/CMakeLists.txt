@@ -62,3 +62,36 @@ target_link_libraries(PSX_DVR_HDD_DIAG_D.ELF
   patches fileXio libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_D.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG E — physical D passed: keep PS2 APA PFS1 mounted READ ONLY while
+# initializing the PSX DVR driver stack. Build a separate, opt-in test ELF.
+# PS2SDK provides the PS2 HDD IRX; DVR IRX are the same files as v0.8.
+set(COEXIST_DIAG_EMBEDDED)
+foreach(module iomanX fileXio ps2dev9 ps2atad ps2hdd ps2fs)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_coexist_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND COEXIST_DIAG_EMBEDDED "${source}")
+endforeach()
+foreach(module dvrdrv dvrfile)
+  set(irx "${CMAKE_CURRENT_SOURCE_DIR}/../dvr-iso-manager/modules/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_coexist_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND COEXIST_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_E.ELF
+  src/apa_dvr_coexist_diag.c
+  ${COEXIST_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_E.ELF
+  patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_E.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
