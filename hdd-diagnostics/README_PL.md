@@ -2,6 +2,39 @@
 
 **To nie jest Manager v1.0 ani instalator XMB.** To osobny, niewielki plik ELF do pierwszego, bezpiecznego testu odczytu partycji APA/PFS **`PP.TESTDVR`** i istniejącego `dvr_pfs0:/ISO` na Sony PSX DESR-7000.
 
+## Wynik DIAG D na DESR-7000: APA/PFS działa — PASS
+
+Zdjęcie z rzeczywistej konsoli potwierdza:
+
+```text
+D11 hdd0: DOPEN=2 / DCLOSE=2
+D12 pfs1 DOPEN=-19                  (jeszcze niezamontowane)
+D13 MOUNT=0                         (PP.TESTDVR / FIO_MT_RDONLY)
+D14 PFS1 ROOT DOPEN=3 / DCLOSE=3
+D15 BOOT.CNF OPEN=-2                (plik nie istnieje na pustej partycji)
+D16 UMOUNT=0
+PS2 APA/PFS RO CHECK COMPLETE
+```
+
+**Wniosek:** `hdd0:` oraz montowanie `hdd0:PP.TESTDVR` na `pfs1:` w trybie tylko do odczytu działają na DESR-7000. `-19` przed montowaniem nie jest niepowodzeniem, a `-2` dla `BOOT.CNF` to prawidłowa informacja o braku pliku. Ten test **nie uruchamiał jeszcze modułów DVR**.
+
+### Następny test: DIAG E — równoczesny PS2 APA/PFS i PSX DVR
+
+Pobierz z GitHub Actions na tej gałęzi artefakt **`PSX-DVR-HDD-DIAG-E-APA-DVR-READONLY`**, rozpakuj i skopiuj **`PSX_DVR_HDD_DIAG_E.ELF`** na USB.
+
+1. Uruchom ELF przez **wLaunchELF R3Z**, tak jak DIAG D. Nie trzeba kopiować żadnego pliku na `PP.TESTDVR`.
+2. Program wykorzysta sprawdzoną sekwencję resetu IOP i sterowniki `iomanX`, `fileXio`, `ps2dev9`, `ps2atad`, `ps2hdd`, `ps2fs`.
+3. Następnie wyświetli odczytowe sprawdzenie `hdd0:` (**E11**), kontrolę zajętości `pfs1:` (**E12**), montowanie `PP.TESTDVR` tylko do odczytu (**E13**) i odczyt katalogu `pfs1:/` (**E14**).
+4. **E15–E18** uruchomią procedury `sceCdInit`, `sceCdNoticeGameStart`, `dvrdrv`, `dvrfile` (kolejność inspirowana RepairBox). Program nie ładuje jednocześnie drugiej wersji DEV9.
+5. **E19–E22** sprawdzą odczytowo `dvr_hdd0:`, `dvr_pfs0:/`, **`dvr_pfs0:/ISO`** oraz ponownie `pfs1:/` po inicjalizacji DVR.
+6. Program odmontuje wyłącznie własne `pfs1:` (**E24**), a na ekranie pozostawi wyniki obu systemów plików.
+
+**Jeśli program się zawiesi**, zrób zdjęcie ostatniego `E... BEFORE`; są przerwy przed operacjami. Jeśli zakończy się, zrób zdjęcie ekranu z wartościami `DVR HDD`, `PFS`, `ISO` i `PS2 MOUNT`.
+
+**Bezpieczeństwo:** E nie otwiera plików do zapisu i nie tworzy, nie formatuje ani nie naprawia żadnej partycji. Jedyny mount to **`hdd0:PP.TESTDVR` → `pfs1:`, `FIO_MT_RDONLY`**. Katalog gier DVR jest tylko odczytywany. Program zmienia działające sterowniki IOP w pamięci, więc po teście **zrestartuj konsolę**. Sama inicjalizacja dyskowych sterowników zawsze niesie pewne ryzyko na nietypowym sprzęcie; przed testami nowych wersji warto mieć kopię danych.
+
+Po pozytywnym E przejdziemy do diagnostyki plików `BOOT.ELF`, `BOOT.CNF` i Neutrino na `PP.TESTDVR` i samego błędu OSDMenu Launchera. Na razie **nie wykonujemy żadnego uruchamiania gry ani instalacji kanału XMB**.
+
 ## Wynik DIAG C na prawdziwym DESR-7000: SUKCES
 
 Zdjęcie z konsoli potwierdza:
