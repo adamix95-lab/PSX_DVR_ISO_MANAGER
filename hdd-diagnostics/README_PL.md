@@ -2,6 +2,31 @@
 
 **To nie jest Manager v1.0 ani instalator XMB.** To osobny, niewielki plik ELF do pierwszego, bezpiecznego testu odczytu partycji APA/PFS **`PP.TESTDVR`** i istniejącego `dvr_pfs0:/ISO` na Sony PSX DESR-7000.
 
+## Wynik testu DESR-7000 (DIAG B): blokada fileXioInit
+
+Na rzeczywistej konsoli DESR-7000 diagnostyka B zatrzymała się w tym miejscu:
+
+```text
+STEP 1 SifInitRpc: BEFORE
+STEP 1: DONE
+STEP 2 fileXioInit: BEFORE
+```
+
+Nie pojawił się komunikat `STEP 2: RESULT=...`. To wskazuje na zablokowanie inicjalizacji klienta `fileXio`, **zanim** uruchomiono jakikolwiek test `hdd0:`, DVR lub `PP.TESTDVR`.
+
+### Następny test: PSX_DVR_HDD_DIAG_C.ELF
+
+Pobierz nowy artefakt **`PSX-DVR-HDD-DIAG-C-FILEXIO`** z GitHub Actions na tej gałęzi. Zawiera `PSX_DVR_HDD_DIAG_C.ELF` i niniejszą instrukcję.
+
+1. Uruchom `PSX_DVR_HDD_DIAG_C.ELF` z USB przez **wLaunchELF R3Z**.
+2. Ta wersja **resetuje wyłącznie procesor IOP i jego moduły w RAM** (tak jak działający Manager v0.8), inicjalizuje RPC i ładuje wbudowane `iomanX.irx` oraz `fileXio.irx` przed `fileXioInit()`. To celowa różnica względem poprzednich testów, które zakładały zachowany stos IOP po wLE.
+3. Oczekiwane etapy: `STEP C1 IOP RESET`, `STEP C2 IOP SYNC`, `STEP C3 RPC+PATCHES`, `STEP C4 iomanX`, `STEP C5 fileXio`, `STEP C6 fileXioInit`.
+4. Zrób zdjęcie, na którym widać ostatni etap oraz kody `id`, `result` i `fileXioInit`. Szczególnie ważne, czy `STEP C6 fileXioInit=...` w ogóle się pojawi.
+
+**C nie montuje żadnej partycji, nie odczytuje i nie zapisuje na HDD, nie uruchamia gier i nie zmienia XMB.** Nie próbuje jeszcze sprawdzać `PP.TESTDVR` ani `dvr_pfs0:/ISO`. Reset IOP zmienia jedynie uruchomione sterowniki w pamięci — po teście uruchom ponownie konsolę lub wLE, żeby przywrócić normalny stan IOP. Nie jest to test bez resetowania IOP jak A i B.
+
+Jeśli C poprawnie wykona `fileXioInit`, będziemy mogli zbudować kolejny test wspólnej inicjalizacji PS2 HDD oraz DVR i dopiero potem wrócić do montowania `PP.TESTDVR` oraz błędu OSDMenu `-19`.
+
 ## Gdy diagnostyka A nie pokazuje wartości
 
 Zbudowano dwa dodatkowe, niezależne pliki ELF, żeby **odróżnić problem z wyświetlaniem od zablokowania wywołań IOP/HDD**. Są w artefakcie GitHub Actions **`PSX-DVR-HDD-DIAG-B-STAGED`**.
