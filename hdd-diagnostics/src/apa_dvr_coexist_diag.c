@@ -108,7 +108,7 @@ int main(void)
 {
     int result = -999;
     int check;
-    int notice_arg = -999;
+    u32 notice_arg = 0;
 
     init_scr();
     scr_setCursor(0);
@@ -194,7 +194,7 @@ int main(void)
 
     before("E16 CdNoticeGameStart");
     notice_result = sceCdNoticeGameStart(0, &notice_arg);
-    scr_printf("E16 notice=%d arg=%d\n", notice_result, notice_arg);
+    scr_printf("E16 notice=%d arg=%u\n", notice_result, notice_arg);
     /* A negative result means CDVD negotiation failed. */
     if (notice_result < 0) {
         result = notice_result;
