@@ -25,7 +25,7 @@
 #define PS2_PARTITION "hdd0:PP.TESTDVR"
 #define DIAG_MOUNT "pfs1:"
 #define DVR_ISO "dvr_pfs0:/ISO"
-#define MAX_DIR_PREVIEW 3
+#define MAX_DIR_PREVIEW 2
 
 static int inspect_directory(const char *label, const char *path)
 {
@@ -48,9 +48,11 @@ static int inspect_directory(const char *label, const char *path)
         ++found;
         scr_printf("  %d: %.27s\n", found, item.name);
     }
-    scr_printf("  entries-preview=%d end=%d\n", found, last);
+    if (last < 0)
+        scr_printf("  DREAD error=%d\n", last);
     last = fileXioDclose(fd);
-    scr_printf("  DCLOSE=%d\n", last);
+    if (last < 0)
+        scr_printf("  DCLOSE error=%d\n", last);
     return last < 0 ? last : 0;
 }
 
