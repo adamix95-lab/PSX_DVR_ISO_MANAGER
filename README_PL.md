@@ -4,11 +4,11 @@
 
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. Wersja **0.8** zawiera stronicowaną listę gier, podgląd okładek PNG oraz automatyczne uzupełnianie brakujących grafik przez aplikację na komputerze Windows.
 
-**Test na sprzęcie:** Sony PSX DESR-7000, 40 gier na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**.
+**Test na sprzęcie:** Sony PSX DESR-7000, **40 gier ISO** na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**. **Limit 128 gier wynika z kodu źródłowego (`DESR_GAME_CAP = 128`), a nie z testów sprzętowych. Biblioteka większa niż 40 gier, w tym pozycje 41–128, nie została jeszcze zweryfikowana na konsoli.**
 
 ## Możliwości programu
 
-- Przeglądanie do **128 plików ISO** z katalogu `dvr_pfs0:/ISO` w trybie tylko do odczytu — po 12 tytułów na stronie, bez zawijania nawigacji między pierwszą a ostatnią stroną.
+- **Limit określony w kodzie:** przeglądanie do **128 plików ISO** (`DESR_GAME_CAP = 128`) z katalogu `dvr_pfs0:/ISO` w trybie tylko do odczytu — po 12 tytułów na stronie, bez zawijania nawigacji między pierwszą a ostatnią stroną. **Na prawdziwym sprzęcie przetestowano dotąd tylko 40 gier ISO.**
 - Wykrywanie **Game ID** (np. `SLES_538.86`) na podstawie danych wewnątrz obrazu ISO i wyszukiwanie okładek w `mass0:/DESR_DVR/ART`.
 - Podgląd kolorowych okładek PNG w prawym panelu i zapis indeksu `COVERS.IDX` na USB.
 - Ręczne skanowanie TRÓJKĄTEM, raport brakujących grafik `COVER_SCAN.LOG` i pytanie o pobranie ich z lokalnego serwera HTTP.
