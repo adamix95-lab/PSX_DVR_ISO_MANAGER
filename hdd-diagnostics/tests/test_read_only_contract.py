@@ -59,12 +59,12 @@ class TwoStageFollowupContract(unittest.TestCase):
 
     def test_staged_diagnostic_remains_read_only(self):
         text = (SOURCE.parent / "step_diag.c").read_text(encoding="utf-8")
-        stripped = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
-        stripped = re.sub(r"//[^\\n]*", "", stripped)
+        stripped = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+        stripped = re.sub(r"//[^\n]*", "", stripped)
         self.assertIn('"hdd0:PP.TESTDVR"', stripped)
         self.assertIn('"pfs1:"', stripped)
         self.assertIn("FIO_MT_RDONLY", stripped)
-        self.assertEqual(len(re.findall(r"\\bfileXioMount\\s*\\(", stripped)), 1)
+        self.assertEqual(len(re.findall(r"\bfileXioMount\s*\(", stripped)), 1)
         self.assertIn("BEFORE", text)
         forbidden = (
             "fileXioWrite", "fileXioFormat", "fileXioRemove", "fileXioRename",
@@ -74,7 +74,7 @@ class TwoStageFollowupContract(unittest.TestCase):
         )
         for token in forbidden:
             with self.subTest(token=token):
-                self.assertNotRegex(stripped, r"\\b" + re.escape(token) + r"\\b")
+                self.assertNotRegex(stripped, r"\b" + re.escape(token) + r"\b")
 
 if __name__ == "__main__":
     unittest.main()
