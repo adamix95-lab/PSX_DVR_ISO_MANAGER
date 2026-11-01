@@ -2,6 +2,39 @@
 
 **To nie jest Manager v1.0 ani instalator XMB.** To osobny, niewielki plik ELF do pierwszego, bezpiecznego testu odczytu partycji APA/PFS **`PP.TESTDVR`** i istniejącego `dvr_pfs0:/ISO` na Sony PSX DESR-7000.
 
+## Wynik DIAG C na prawdziwym DESR-7000: SUKCES
+
+Zdjęcie z konsoli potwierdza:
+
+```text
+STEP C1 IOP RESET: SENT
+STEP C2 IOP SYNC: DONE
+STEP C3 RPC+PATCHES: DONE
+STEP C4 iomanX: id=25 result=0
+STEP C5 fileXio: id=26 result=0
+STEP C6 fileXioInit=0
+STOP C: result=0
+```
+
+Wniosek: uruchomienie nowego, własnego stosu IOP (reset, `iomanX`, `fileXio`) rozwiązuje zawieszenie testów A/B podczas `fileXioInit`. **Ten test nie sprawdzał jeszcze HDD, PFS ani DVR.**
+
+### Następny krok: DIAG D — APA/PFS w trybie tylko do odczytu
+
+Pobierz nowy artefakt GitHub Actions **`PSX-DVR-HDD-DIAG-D-APA-PFS-READONLY`**, rozpakuj i skopiuj **`PSX_DVR_HDD_DIAG_D.ELF`** na USB.
+
+1. Upewnij się, że samodzielnie utworzyłeś na obszarze PS2/APA partycję `PP.TESTDVR` za pomocą wLaunchELF R3Z. **Nie trzeba na nią jeszcze kopiować żadnych plików**. Przed jakimikolwiek dalszymi zmianami APA należy mieć kopię zapasową danych.
+2. Uruchom diagnostyczny ELF D przez **wLaunchELF R3Z**. Po resecie IOP program ładuje moduły `iomanX`, `fileXio`, `ps2dev9`, `ps2atad`, `ps2hdd`, `ps2fs` (parametry z RepairBox), a następnie wywołuje `fileXioInit()`.
+3. Na kolejnym ekranie zobaczysz **`DRIVERS LOADED / IOP RPC READY`** oraz etapy:
+   - **D11** — odczyt katalogu partycji PS2 `hdd0:`;
+   - **D12** — sprawdzenie, czy `pfs1:` jest już zamontowane;
+   - **D13** — montowanie **wyłącznie `hdd0:PP.TESTDVR`** do `pfs1:` z **`FIO_MT_RDONLY`**;
+   - **D14** — odczyt głównego katalogu `pfs1:/`;
+   - **D15** — próba odczytowego otwarcia `BOOT.CNF` (na pustej partycji brak pliku jest normalny);
+   - **D16** — odmontowanie `pfs1:`, ale tylko jeśli program sam je zamontował.
+4. Zrób zdjęcie ekranu. Jeśli nastąpi zawieszenie, **ostatni napis `BEFORE` określi etap**. Jeżeli wynik montowania będzie ujemny, przekaż dokładną wartość (np. `D13 MOUNT=-19`).
+
+**Bezpieczeństwo:** DIAG D nie ma funkcji zapisu, tworzenia ani formatowania partycji; nie uruchamia gry, OSDMenu, Neutrino ani instalatora XMB. Resetuje tylko IOP (pamięć RAM), dlatego po teście najlepiej zrestartować konsolę. **D celowo nie ładuje jeszcze sterowników DVR i nie dotyka `dvr_pfs0:/ISO`**. Jeżeli montowanie PS2 APA/PFS zadziała, następny niezależny etap zbada jednoczesne korzystanie z partycji DVR i PS2. Nie zmieniamy wydania v0.8.
+
 ## Wynik testu DESR-7000 (DIAG B): blokada fileXioInit
 
 Na rzeczywistej konsoli DESR-7000 diagnostyka B zatrzymała się w tym miejscu:
