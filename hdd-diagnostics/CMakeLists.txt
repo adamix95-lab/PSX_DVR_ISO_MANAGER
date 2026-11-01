@@ -17,3 +17,26 @@ target_compile_options(PSX_DVR_HDD_HELLO.ELF PRIVATE -Os -Wall -Wextra -Werror)
 add_executable(PSX_DVR_HDD_DIAG_B.ELF src/step_diag.c)
 target_link_libraries(PSX_DVR_HDD_DIAG_B.ELF fileXio libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_B.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# Physical DESR-7000 DIAG B froze before fileXioInit returned. DIAG C follows
+# v0.8's self-contained IOP initialization order; it intentionally does NOT
+# access HDD or attempt a PFS mount. Embed only the two required IRX modules.
+set(FILEXIO_DIAG_EMBEDDED)
+foreach(module iomanX fileXio)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND FILEXIO_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_C.ELF
+  src/filexio_reset_diag.c
+  ${FILEXIO_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_C.ELF
+  patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_C.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
