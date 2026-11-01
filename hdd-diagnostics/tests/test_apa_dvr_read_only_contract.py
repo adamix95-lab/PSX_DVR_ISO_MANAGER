@@ -62,13 +62,11 @@ class DualHDDCoexistenceContract(unittest.TestCase):
             "fileXioMkdir", "fileXioRmdir", "fileXioChstat", "fileXioDevctl",
             "HDIOC_WRITESECTOR", "FIO_O_WRONLY", "FIO_O_RDWR", "FIO_O_CREAT",
             "FIO_O_TRUNC", "FIO_MT_RDWR", "dev9_ns", "LoadELFFromFile",
-            "PSX_XMB", "mass0:", "open(", "fopen(", "sceCdWrite",
+            "PSX_XMB", "mass0:", "sceCdWrite",
         ):
             with self.subTest(token=token):
-                if token in ("open(", "fopen("):
-                    self.assertNotIn(token, self.code)
-                else:
-                    self.assertNotRegex(self.code, r"\b" + re.escape(token) + r"\b")
+                self.assertNotRegex(self.code, r"\b" + re.escape(token) + r"\b")
+        self.assertNotRegex(self.code, r"\b(?:open|fopen)\s*\(")
 
     def test_original_dvr_modules_embedded(self):
         self.assertIn("PSX_DVR_HDD_DIAG_E.ELF", self.build)
