@@ -26,6 +26,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_C.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -41,5 +42,13 @@ jobs:
           path: |
             build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
             build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload IOP reset / fileXio isolation diagnostic C
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-C-FILEXIO
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_C.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
