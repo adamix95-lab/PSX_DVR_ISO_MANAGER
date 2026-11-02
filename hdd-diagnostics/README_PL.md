@@ -1,3 +1,11 @@
+## DIAG N — pełny PASS na fizycznym DESR-7000 (2.11.2026)
+
+Użytkownik przesłał dwa zdjęcia. Launcher: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET N BYTES=1747216`. Właściwy ELF z `PP.TESTDVR`: `RESULT=0 STAGE=32`, `ARG=1 OSDMOD=0`, `HDD=3 MOUNT=0 PFS=3`, `CNF=74 ELF=197396 NEUT=75140`, `STDIO=0 ERRNO=0 BOOT=1`, `QB ELF=75140 ARGS=2 BSD=1 DVD=1`.
+
+Potwierdzono symulację wybranej części Quickboot: normalizację do `pfs0:/BOOT.CNF`, standardowe `fopen()`, `fgets` oraz przygotowanie/odczyt `neutrino.elf` bez jego wykonania. To **nie jest** potwierdzenie działania oryginalnego łańcucha `handleQuickboot → launchPath → handlePFS → LoadELFFromFile` ani uruchomienia gry. W upstream OSDMenu po odczycie BOOT.CNF mechanizm `handlePFS` montuje partycję, tworzy ścieżkę `:pfs:`, wywołuje loader i może wykonywać przejście DEV9. Proponowany następny DIAG O: diagnostyka tych dalszych etapów bez uruchomienia Neutrino. Zachowujemy brak zmian w `main`, v0.8, systemowych partycjach Sony; PR Draft. START pozostaje zwykłym wyjściem, bez osobnego testowania.
+
+---
+
 # DIAG N — szczegółowy test Quickboot OSDMenu (bez uruchamiania gry)
 
 **Stan wejściowy:** fizyczny Sony PSX DESR-7000 potwierdził `DIAG M / LAUNCH: CHECK=0` oraz `DIAG M / RESULTS: RESULT=0, ARG=1, OSDMOD=0, MOUNT=0`. Test M wykazał możliwość uruchomienia ELF z HDD i inicjalizacji podobnego do OSDMenu stosu modułów APA/PFS, jednak wcześniejszy rzeczywisty `BOOT.ELF` w DIAG J wrócił do XMB po X. Powód pozostaje nieznany.
