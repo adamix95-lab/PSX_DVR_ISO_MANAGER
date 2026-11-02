@@ -1,3 +1,33 @@
+# DIAG N — szczegółowy test Quickboot OSDMenu (bez uruchamiania gry)
+
+**Stan wejściowy:** fizyczny Sony PSX DESR-7000 potwierdził `DIAG M / LAUNCH: CHECK=0` oraz `DIAG M / RESULTS: RESULT=0, ARG=1, OSDMOD=0, MOUNT=0`. Test M wykazał możliwość uruchomienia ELF z HDD i inicjalizacji podobnego do OSDMenu stosu modułów APA/PFS, jednak wcześniejszy rzeczywisty `BOOT.ELF` w DIAG J wrócił do XMB po X. Powód pozostaje nieznany.
+
+## Co konkretnie testujemy
+
+N odtwarza **wycinek logiki** upstream `pcm720/OSDMenu` `launcher/src/handler_quickboot.c` oraz `launcher/src/common.c` bez wywołania `launchPath`, `LoadELFFromFile` do Neutrino, ani wykonania OSDMenu z programu docelowego. Na podstawie przekazanego argumentu `hdd0:PP.TESTDVR/BOOT.CNF` program:
+
+1. Inicjalizuje sprawdzony w DIAG M zestaw modułów `iomanX/fileXio/sio2man/mcman/mcserv/ps2dev9/bdm/bdmfs_fatfs/ata_bd/ps2hdd-osd/ps2fs/secrsif` i dodatkowy `freepad`. **Nie ładuje docelowo modułów DVR**, nie uruchamia gier.
+2. Montuje jedynie własną partycję `hdd0:PP.TESTDVR` jako `pfs0:` z `FIO_MT_RDONLY`, sprawdza odczyt `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf` przez `fileXio`.
+3. Sprawdza rozbicie ścieżki startowej na partycję `hdd0:PP.TESTDVR` oraz ścieżkę wewnętrzną `/BOOT.CNF`, normalizując ją do **`pfs0:/BOOT.CNF`** jak upstream.
+4. Otwiera `BOOT.CNF` przez zwykłe **`fopen(..., "r")`**, inaczej niż wcześniejsze DIAG I/M, które używały `fileXioOpen`. To może ujawnić rozbieżność między stdio a fileXio na DESR-7000.
+5. Czyta wiersze przez `fgets`, rozpoznaje klucze `boot=`, `path=`, `arg=` na zasadzie upstream Quickboot; buduje docelową ścieżkę `hdd0:PP.TESTDVR/neutrino.elf`, następnie sprawdza przez `fileXio`, że wskazany ELF można otworzyć (read-only, nagłówek ELF).
+6. Na ekranie `PSX DVR HDD DIAG N / RESULTS` wyświetla `RESULT`, `STAGE`, `ARG`, `OSDMOD`, `HDD/MOUNT/PFS`, `STDIO/ERRNO/BOOT`, `QB ELF/ARGS/BSD/DVD`. Zamknie wszystkie otwarte pliki i odmontuje wyłącznie własne `pfs0:`. START kończy program jak we wcześniejszych diagnostykach (nie testujemy osobno START).
+
+**Granice:** To kontrolowana symulacja etapów Quickboot z podanym plikiem, **nie uruchomienie oryginalnego `BOOT.ELF` ani pełnej implementacji `handleQuickboot()` i `handlePFS()`**. Może wykryć problem w normalizacji, fopen lub odczycie CNF. Nawet `RESULT=0` nie dowiedzie poprawności całego OSDMenu ani Neutrino. ISO wskazane w `arg=-dvd` jest w N tylko parsowane; nie próbujemy go otwierać z docelowego stosu OSDMenu, który nie ma inicjalizacji DVR.
+
+## Kopiowanie i test na konsoli
+
+1. Przed eksperymentami na HDD zachowaj kopię ważnych danych. Nie używaj HDD Manager/Format/Inject i nie dotykaj partycji systemowych Sony.
+2. Po **zielonym GitHub Actions** pobierz artefakt `PSX-DVR-HDD-DIAG-N-QUICKBOOT-READONLY` z dwoma plikami ELF.
+3. Skopiuj do katalogu głównego **wyłącznie** `PSX_DVR_HDD_DIAG_N.ELF` na własną `PP.TESTDVR`. Nie nadpisuj istniejących `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, F, L ani M.
+4. Uruchom **`PSX_DVR_HDD_DIAG_N_LAUNCH.ELF` przez UDPFS** w wLaunchELF R3Z; nie kopiuj launchera na HDD.
+5. Na pierwszym ekranie oczekujemy `CHECK=0` i dodatniego `TARGET N BYTES`. Zrób zdjęcie, a następnie naciśnij **X**, aby uruchomić wyłącznie test N z HDD. Jeśli `CHECK` ujemny, X jest wyłączony — prześlij zdjęcie.
+6. Zrób zdjęcie drugiego ekranu `PSX DVR HDD DIAG N / RESULTS`. Oczekujemy `RESULT=0`, `ARG=1`, `OSDMOD=0`, `MOUNT=0`, `STDIO=0`, `BOOT=1`, `QB ELF>0`, `BSD=1`, `DVD=1`. Gdy `RESULT` ujemny, `STAGE` oraz `STDIO/ERRNO` pokażą źródło problemu. Jeśli zawiesi się na `N... BEFORE`, sfotografuj ostatni etap.
+
+N nie zawiera operacji zapisu, tworzenia/formatowania partycji ani wykonania gry; montowanie odbywa się tylko do odczytu. Nie da się jednak wykluczyć wewnętrznych zapisów sterowników IOP. Możliwe zablokowanie synchronicznego RPC (wtedy START może nie pomóc). `main`, Manager v0.8, wcześniejsze testy i XMB zostają bez zmian. PR #26 pozostaje Draft i nie jest scalany.
+
+---
+
 ## DIAG M — fizyczny PASS na DESR-7000 (2 listopada 2026)
 
 Dwa zdjęcia użytkownika potwierdzają: `PSX DVR HDD DIAG M / LAUNCH` => `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET M BYTES=1676004`. Docelowy ELF z `PP.TESTDVR` wykonał `PSX DVR HDD DIAG M / RESULTS`: `RESULT=0 STAGE=27`, `ARG=1 OSDMOD=0`, `HDD=3 MOUNT=0 PFS=3`, `CNF=74 ELF=197396 NEUT=75140`.
