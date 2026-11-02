@@ -30,6 +30,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_D.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_E.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_G.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -77,5 +78,13 @@ jobs:
           name: PSX-DVR-HDD-DIAG-F-PAD-EXIT
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload combined RO HDD + DVR + START DIAG G
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-G-RO-PAD-EXIT
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_G.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
