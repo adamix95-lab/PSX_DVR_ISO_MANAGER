@@ -6,6 +6,12 @@ on:
     paths:
       - 'hdd-diagnostics/**'
       - '.github/workflows/build-hdd-readonly-diag.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'hdd-diagnostics/**'
+      - '.github/workflows/build-hdd-readonly-diag.yml'
   workflow_dispatch:
 permissions:
   contents: read
