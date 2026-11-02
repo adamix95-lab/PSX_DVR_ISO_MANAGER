@@ -1,3 +1,11 @@
+## Wynik DIAG I na DESR-7000 — PASS (2 listopada 2026)
+
+Zdjęcie od użytkownika potwierdza: `RESULT=0 MOUNT=0`, `CNF bytes=74`, `ELF bytes=197396`, `NEUTRINO bytes=75140`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE=3`, `DVR ISO=3 PS2 PFS=3`. Ekran wyświetlał ścieżkę referencyjną `hdd0:PP.TESTDVR/BOOT.ELF` i napis `NOT LAUNCHED. RO ONLY.`
+
+Potwierdzono konfigurację SYSTEM odczytaną z PP.TESTDVR i nieujemny wynik sprawdzania ISO na DVR. Wykrywanie USB dotyczy zawartości `BOOT.CNF`; **nie wyklucza** ukrytych zależności launchera/Neutrino od USB. Nie uruchomiono jeszcze programu z HDD ani nie utworzono wpisu w XMB. Następny etap musi mieć osobne, świadome wyzwolenie startu programu, nie uruchamiać go automatycznie po włączeniu diagnostyki. `main`, wydanie v0.8 i starsze binaria diagnostyczne pozostają bez zmian.
+
+---
+
 # DIAG I — weryfikacja ścieżki startu OSDMenu z HDD, bez uruchamiania
 
 **Wynik poprzedni:** DIAG H: fizyczny DESR-7000, RESULT=0 MOUNT=0, CNF=74 B, OSDMenu BOOT.ELF=197396 B, neutrino.elf=75140 B, DVR ISO=3, PS2 PFS=3. Użytkownik potwierdził START → XMB w H. Nie powtarzamy osobnych testów START.
