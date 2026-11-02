@@ -41,6 +41,8 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_J.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_L.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -129,5 +131,14 @@ jobs:
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
             build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload target + launcher for post-HDD-boot DIAG L
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-L-POSTBOOT-IOP
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_L.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
