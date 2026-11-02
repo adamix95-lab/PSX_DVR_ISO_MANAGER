@@ -193,3 +193,35 @@ target_link_libraries(PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_L_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG M: explicit OSDMenu APA module order, including ps2hdd-osd and secrsif.
+# M launcher reuses G/L's known-good IOP init and stays external via UDPFS.
+set(M_OSD_EMBEDDED)
+foreach(module iomanX fileXio sio2man mcman mcserv freepad ps2dev9 bdm bdmfs_fatfs ata_bd ps2fs secrsif)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(generated "${CMAKE_CURRENT_BINARY_DIR}/${module}_m_osd_irx.c")
+  add_custom_command(OUTPUT "${generated}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${generated}" "${module}_irx"
+    DEPENDS "${irx}" VERBATIM)
+  list(APPEND M_OSD_EMBEDDED "${generated}")
+endforeach()
+set(m_osd_hdd_irx "$ENV{PS2SDK}/iop/irx/ps2hdd-osd.irx")
+set(m_osd_hdd_gen "${CMAKE_CURRENT_BINARY_DIR}/ps2hdd_osd_m_osd_irx.c")
+add_custom_command(OUTPUT "${m_osd_hdd_gen}"
+  COMMAND "$ENV{PS2SDK}/bin/bin2c" "${m_osd_hdd_irx}" "${m_osd_hdd_gen}" "ps2hdd_osd_irx"
+  DEPENDS "${m_osd_hdd_irx}" VERBATIM)
+list(APPEND M_OSD_EMBEDDED "${m_osd_hdd_gen}")
+
+add_executable(PSX_DVR_HDD_DIAG_M.ELF
+  src/osdmenu_module_probe.c
+  ${M_OSD_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_M.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_M.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
+  src/osdmenu_module_probe_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
