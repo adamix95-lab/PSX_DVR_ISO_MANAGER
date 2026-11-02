@@ -1,3 +1,14 @@
+## DIAG G — test łączony (jeszcze nieprzetestowany na konsoli)
+
+Po potwierdzeniu przez użytkownika DIAG F (START → XMB) przygotowano osobny ELF PSX_DVR_HDD_DIAG_G.ELF. DIAG E i F pozostają niezmienione; v0.8 i main bez zmian.
+
+**Pozostaw PP.TESTDVR pustą.** DIAG G montuje hdd0:PP.TESTDVR wyłącznie read-only jako pfs1:, sprawdza pliki BOOT.CNF, BOOT.ELF oraz neutrino.elf tylko do odczytu (na pustej partycji -2 jest oczekiwane), następnie uruchamia sterowniki DVR i sprawdza katalog dvr_pfs0:/ISO oraz ponownie pfs1:/. Odpina tylko własny mount przed ekranem wyników i czeka na START, aby wrócić do XMB/OSD.
+
+**Test:** pobierz artefakt PSX-DVR-HDD-DIAG-G-RO-PAD-EXIT z GitHub Actions, skopiuj PSX_DVR_HDD_DIAG_G.ELF na USB, uruchom przez wLE R3Z i zrób zdjęcie wyników. Naciśnij START i potwierdź powrót do XMB. Jeśli program zastygnie, sfotografuj ostatni G... BEFORE. Blokujące wywołanie RPC może uniemożliwić reakcję na START.
+
+**Brak zapisu, formatowania, tworzenia partycji lub uruchamiania gier. Nie kopiuj jeszcze niczego na PP.TESTDVR.** CI sprawdza kompilację, ale dopiero rzeczywisty DESR-7000 potwierdzi działanie.
+
+---
 # PSX DVR ISO Manager v1.0 — diagnostyka HDD, etap A
 
 **To nie jest Manager v1.0 ani instalator XMB.** To osobny, niewielki plik ELF do pierwszego, bezpiecznego testu odczytu partycji APA/PFS **`PP.TESTDVR`** i istniejącego `dvr_pfs0:/ISO` na Sony PSX DESR-7000.
