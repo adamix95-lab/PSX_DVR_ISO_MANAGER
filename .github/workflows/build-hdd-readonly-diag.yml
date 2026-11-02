@@ -40,6 +40,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_H.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_J.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -119,5 +120,14 @@ jobs:
           name: PSX-DVR-HDD-DIAG-J-X-ARMED-OSDMENU-LAUNCH
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_J.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload raw HDD ELF chainload diagnostic K and known-good target F
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-K-RAW-ELF-TEST
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
