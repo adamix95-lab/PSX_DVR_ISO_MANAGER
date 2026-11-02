@@ -1,3 +1,33 @@
+# DIAG J — pierwszy świadomy start OSDMenu z PP.TESTDVR (test sprzętowy)
+
+**Ważne: TO NIE JEST TEST TYLKO DO ODCZYTU W CAŁYM ŁAŃCUCHU.** Sam DIAG J tylko czyta HDD i DVR; po naciśnięciu **X** przekazuje sterowanie obcemu programowi OSDMenu/Neutrino, który może uruchomić grę i zachowywać się niezależnie. Nie wiemy jeszcze, czy OSDMenu i Neutrino potrafią niezawodnie ponownie zainicjalizować sterowniki APA/DVR na DESR-7000. Wymagane zdjęcia wyników. Przy zawieszeniu uruchom ponownie konsolę i wróć do znanego działającego Managera v0.8 na USB.
+
+## Założenia i pliki na HDD
+
+DIAG I został fizycznie potwierdzony na DESR-7000: `RESULT=0 MOUNT=0`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE=3`, `DVR ISO=3 PS2 PFS=3`. Na `PP.TESTDVR` znajdują się już trzy wcześniej przetestowane pliki: `BOOT.ELF` (OSDMenu Launcher), `BOOT.CNF` i `neutrino.elf`. **Nie kopiuj teraz żadnych innych plików i nie zmieniaj BOOT.CNF.** Tylko samodzielnie utworzona partycja PP.TESTDVR; nie dotykaj partycji systemowych, danych DVR ani wpisów XMB. Zalecana wcześniejsza kopia ważnych danych.
+
+## Konstrukcja DIAG J
+
+- Jest to **osobny** program uruchamiany z USB przez wLaunchELF R3Z, oparty na sekwencji IOP, APA, DVR i padu potwierdzonej w DIAG I.
+- Najpierw samodzielnie montuje `hdd0:PP.TESTDVR` → `pfs1:` z `FIO_MT_RDONLY`, czyta `BOOT.CNF`, weryfikuje nagłówki obu plików ELF i sprawdza konfigurację SYSTEM, `-bsd=dvr` i rzeczywisty plik ISO.
+- Przy błędzie wyświetla `CHECK` ujemne i wyłącza X. Zawsze można zakończyć przez **START**. Nie powtarzamy odrębnego testu samego START.
+- Tylko przy `CHECK=0`: wyświetla **X: LAUNCH HDD OSDMENU/GAME** oraz **START: CANCEL TO XMB/OSD**. Wciśnięcie X z nowego naciśnięcia (nie trzymanego podczas startu) powoduje przekazanie sterowania.
+- DIAG J ładuje plik `pfs1:/BOOT.ELF`, gdy jego własny punkt montowania jest jeszcze aktywny, przez `LoadELFFromFile(…, 1, …)`. Do `argv[1]` OSDMenu przekazuje **jawnie** `hdd0:PP.TESTDVR/BOOT.CNF`, co wywołuje upstreamowy config handler. Nie polegamy na `argv[0]=pfs1:/BOOT.ELF` do automatycznego Quickboot; nazwa wewnętrzna `pfs1:` nie jest trwała.
+- Zwykłe START wykonuje własne `fileXioUmount("pfs1:")`, zamyka pad i `return 0`. Przy X otwarte pliki są już zamknięte, ale **nie odmontowujemy** `pfs1:` przed wczytaniem `BOOT.ELF` przez loader. Loader czyta ELF przed resetem IOP, który unieważnia stare montowanie.
+- Jeśli loader nie przekaże sterowania i zwróci błąd, DIAG J wyświetli `J CHAINLOAD RETURNED=<kod>` i nie będzie ponownie wywoływał IOP RPC (stan po próbie może być nieokreślony). Zrób zdjęcie i zrestartuj konsolę.
+
+## Uruchomienie
+
+1. Pobierz artefakt `PSX-DVR-HDD-DIAG-J-X-ARMED-OSDMENU-LAUNCH` **wyłącznie z zielonego GitHub Actions**. Rozpakuj `PSX_DVR_HDD_DIAG_J.ELF` na USB.
+2. Przez wLaunchELF R3Z uruchom DIAG J z USB, z padem podłączonym do portu 1.
+3. Zobacz wyniki preflight na ekranie `PSX DVR HDD DIAG J / RESULTS`. Jeśli `CHECK` nie jest zerem, **nie próbuj uruchamiać OSDMenu**. Prześlij zdjęcie i naciśnij START.
+4. Gdy `CHECK=0`, zrób zdjęcie ekranu, a potem **naciśnij X tylko jeżeli chcesz uruchomić OSDMenu/Neutrino i ewentualnie grę wskazaną przez BOOT.CNF**. Test może uruchomić grę bez dalszego pytania.
+5. Opisz dokładnie, co się wydarzyło po X (ekran OSDMenu, Neutrino, gra, czarny ekran, komunikat błędu). W razie zawieszenia zapisz ostatni ekran/etap. Żadna zmiana w XMB ani `main` nie jest wykonywana przez DIAG J.
+
+**Zastrzeżenie:** fakt udanej kompilacji i DIAG I nie potwierdza jeszcze uruchomienia z HDD. OSDMenu samo może resetować IOP i ładować inne moduły. Użytkownik nie musi ponownie udowadniać, że START wraca do XMB w zwykłych diagnostykach. Stabilna wersja v0.8 i wszystkie poprzednie diagnostyki pozostają nietknięte.
+
+---
+
 ## Wynik DIAG I na DESR-7000 — PASS (2 listopada 2026)
 
 Zdjęcie od użytkownika potwierdza: `RESULT=0 MOUNT=0`, `CNF bytes=74`, `ELF bytes=197396`, `NEUTRINO bytes=75140`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE=3`, `DVR ISO=3 PS2 PFS=3`. Ekran wyświetlał ścieżkę referencyjną `hdd0:PP.TESTDVR/BOOT.ELF` i napis `NOT LAUNCHED. RO ONLY.`
