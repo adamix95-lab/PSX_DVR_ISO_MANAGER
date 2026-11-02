@@ -1,3 +1,11 @@
+## DIAG K — fizyczny DESR-7000: URUCHOMIENIE ELF Z PP.TESTDVR POTWIERDZONE
+
+**2 listopada 2026:** użytkownik zgłasza, że po uruchomieniu DIAG K **DIAG F wystartował bezpośrednio z HDD**. To potwierdza poprawne załadowanie i wykonanie niezależnego pliku ELF z naszej własnej partycji PS2 APA/PFS `PP.TESTDVR`. W tym eksperymencie UDPFS/USB służyło do wystartowania DIAG K, natomiast DIAG F było odczytywane z HDD.
+
+**Nie oznacza** jeszcze działania uruchamiania OSDMenu/Neutrino ani startu Managera z XMB bez USB. DIAG J wcześniej wrócił do XMB po X; po sukcesie K podejrzenie pada na obsługę argumentów, inicjalizację APA/PFS, DVR lub awaryjne wyjście OSDMenu — nie wskazuje to na ogólny brak możliwości wykonywania ELF z HDD. Następny test powinien izolować te komponenty. Osobnych testów START nie powtarzamy.
+
+---
+
 # DIAG J — wynik fizyczny i następny DIAG K (Sony PSX DESR-7000)
 
 **Wynik J, 2 listopada 2026:** użytkownik uruchomił DIAG J przez wLE R3Z/UDPFS. Zdjęcie: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`. Po **naciśnięciu X konsola wróciła do XMB**, nie odnotowano startu gry. **J preflight PASS; sukces uruchomienia OSDMenu/Neutrino z HDD NIEPOTWIERDZONY**. W kodzie OSDMenu (`launcher/src/common.c`) funkcja błędu po około 10 sekundach wywołuje `ExecOSD`, co *mogłoby* wyjaśnić powrót; to tylko hipoteza, nie ustalenie przyczyny.
