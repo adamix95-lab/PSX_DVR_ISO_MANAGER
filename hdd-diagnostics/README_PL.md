@@ -28,7 +28,7 @@ To ścieżki interfejsu plików wLE. W kodzie DIAG H docelowa partycja będzie m
 Uwaga: `RESULT=0` potwierdza jedynie dostępność, wielkość i nagłówek odczytanych plików; to nie jest weryfikacja pełnych sum kontrolnych ani uruchomienia z HDD/XMB. DIAG H **nie ma wywołań zapisujących** ani funkcji startu gier. Jeśli synchronizacja RPC zawiśnie, START może nie zadziałać. `main`, v0.8 i DIAG E/F/G pozostają bez zmian.
 
 ---
-## DIAG G — test łączony (jeszcze nieprzetestowany na konsoli)
+## DIAG G — test łączony (PASS na konsoli DESR-7000)
 
 Po potwierdzeniu przez użytkownika DIAG F (START → XMB) przygotowano osobny ELF PSX_DVR_HDD_DIAG_G.ELF. DIAG E i F pozostają niezmienione; v0.8 i main bez zmian.
 
@@ -36,7 +36,7 @@ Po potwierdzeniu przez użytkownika DIAG F (START → XMB) przygotowano osobny E
 
 **Test:** pobierz artefakt PSX-DVR-HDD-DIAG-G-RO-PAD-EXIT z GitHub Actions, skopiuj PSX_DVR_HDD_DIAG_G.ELF na USB, uruchom przez wLE R3Z i zrób zdjęcie wyników. Naciśnij START i potwierdź powrót do XMB. Jeśli program zastygnie, sfotografuj ostatni G... BEFORE. Blokujące wywołanie RPC może uniemożliwić reakcję na START.
 
-**Brak zapisu, formatowania, tworzenia partycji lub uruchamiania gier. Nie kopiuj jeszcze niczego na PP.TESTDVR.** CI sprawdza kompilację, ale dopiero rzeczywisty DESR-7000 potwierdzi działanie.
+**DIAG G PASS na DESR-7000 (2.11.2026).** Zrzut z testu: RESULT=0, MOUNT=0, trzy pliki=-2, DVR ISO=3, PS2 PFS=3, START wrócił do XMB. Przed DIAG H na PP.TESTDVR można skopiować wyłącznie trzy pliki wymienione w najnowszej instrukcji wyżej. DIAG G nie uruchamiał gier.
 
 ---
 # PSX DVR ISO Manager v1.0 — diagnostyka HDD, etap A
