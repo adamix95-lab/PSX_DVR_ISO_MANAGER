@@ -55,6 +55,7 @@ int main(void)
     int rv;
     int bits;
     int prev_buttons = 0;
+    int pad_sampled = 0;
     int new_press;
     struct padButtonStatus btn;
 
@@ -128,6 +129,10 @@ int main(void)
             bits = 0xffff ^ btn.btns;
             new_press = bits & ~prev_buttons;
             prev_buttons = bits;
+            if (!pad_sampled) {
+                pad_sampled = 1;
+                new_press = 0; /* Ignore held START when entering screen. */
+            }
             if (new_press & PAD_START)
                 break;
         }
