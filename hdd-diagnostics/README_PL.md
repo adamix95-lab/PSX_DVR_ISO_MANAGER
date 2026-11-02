@@ -1,3 +1,11 @@
+## DIAG O — fizyczny PASS na DESR-7000 (2.11.2026)
+
+Dwa zdjęcia użytkownika potwierdzają zakończoną diagnostykę DIAG O. Launcher: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET O BYTES=1755660`. Target z HDD: `RESULT=0 STAGE=38`, `ARG=1 OSDMOD=0`, `HDD=2 MOUNT=0 PFS=3`, `QB=75140 STDIO=0 BOOT=1`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1`. Poprawna ścieżka loadera: `hdd0:PP.TESTDVR:pfs:/neutrino.elf`.
+
+**Potwierdzono:** odmontowanie własnego `pfs0:`, ponowne montowanie `PP.TESTDVR` tylko do odczytu, POSIX `open()` na `neutrino.elf`, ponowne odmontowanie i konstrukcję ścieżki `:pfs:`. **Nie potwierdzono:** ponownego resetu IOP w prawdziwym `handlePFS`, operacji `PDIOC_CLOSEALL` i `fileXioSync`, uruchomienia Neutrino/gry ani startu z XMB bez nośnika. DIAG J nadal wracał do XMB. Nic nie zmieniamy w stabilnym v0.8, `main` i partycjach Sony.
+
+---
+
 # DIAG O — test handlePFS: odmontowanie, ponowny odczyt ELF i budowanie ścieżki :pfs:
 
 **Wynik wcześniejszy:** DIAG N pełny PASS na fizycznym Sony PSX DESR-7000: `RESULT=0 STAGE=32`, `ARG=1 OSDMOD=0`, `STDIO=0 ERRNO=0 BOOT=1`, `QB ELF=75140 ARGS=2 BSD=1 DVD=1`. Udało się otworzyć `BOOT.CNF` przez `fopen()` po starcie z HDD. Oryginalny OSDMenu w DIAG J nadal wcześniej wracał do XMB; przyczyna nieustalona. DIAG O **nie był jeszcze uruchomiony na sprzęcie**.
