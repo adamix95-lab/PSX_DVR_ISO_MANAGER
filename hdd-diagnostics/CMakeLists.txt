@@ -166,3 +166,12 @@ target_link_libraries(PSX_DVR_HDD_DIAG_J.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_J.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG K: raw HDD ELF execution control; no OSDMenu / Neutrino.
+add_executable(PSX_DVR_HDD_DIAG_K.ELF
+  src/apa_dvr_raw_elf_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_K.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_K.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
