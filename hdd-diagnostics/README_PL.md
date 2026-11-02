@@ -1,3 +1,25 @@
+# DIAG J — wynik fizyczny i następny DIAG K (Sony PSX DESR-7000)
+
+**Wynik J, 2 listopada 2026:** użytkownik uruchomił DIAG J przez wLE R3Z/UDPFS. Zdjęcie: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`. Po **naciśnięciu X konsola wróciła do XMB**, nie odnotowano startu gry. **J preflight PASS; sukces uruchomienia OSDMenu/Neutrino z HDD NIEPOTWIERDZONY**. W kodzie OSDMenu (`launcher/src/common.c`) funkcja błędu po około 10 sekundach wywołuje `ExecOSD`, co *mogłoby* wyjaśnić powrót; to tylko hipoteza, nie ustalenie przyczyny.
+
+## DIAG K — bezpieczniejsze rozdzielenie problemu
+
+DIAG K spróbuje uruchomić **sprawdzony samodzielny DIAG F z partycji `PP.TESTDVR`**, zamiast OSDMenu lub Neutrino. K i F nie uruchamiają gier i nie zapisują na HDD. Dzięki temu odróżnimy awarię odczytu/przekazania sterowania ELF z HDD od ewentualnego błędu OSDMenu w ponownej inicjalizacji APA/PFS lub odczycie CNF.
+
+**Jednorazowa ręczna kopia pliku tylko na własną PP.TESTDVR:**
+
+1. Wykonaj kopię ważnych danych HDD przed kolejnymi eksperymentami. Nie formatuj żadnej partycji.
+2. Z zielonego builda GitHub Actions pobierz artefakt `PSX-DVR-HDD-DIAG-K-RAW-ELF-TEST`. ZIP zawiera **dwa pliki ELF: K i F**.
+3. Przez wLE R3Z skopiuj **tylko `PSX_DVR_HDD_DIAG_F.ELF` do katalogu głównego `PP.TESTDVR`** (do tej samej partycji, na której leżą już BOOT.CNF, BOOT.ELF, neutrino.elf). Nie nadpisuj tamtych trzech plików. W przyszłej diagnostyce ścieżka to `pfs1:/PSX_DVR_HDD_DIAG_F.ELF`; w wLE wybierz własną partycję `hdd0:/PP.TESTDVR/`. Nie kopiuj niczego do partycji systemowych Sony ani do DVR.
+4. **`PSX_DVR_HDD_DIAG_K.ELF` uruchom przez UDPFS** (albo USB) z wLE R3Z; nie kopiuj K na HDD.
+5. Na ekranie wyników K oczekuj `CHECK=0`, `MOUNT=0`, `TARGET F BYTES` większe od 0, a także prawidłowych kodów istniejących plików i katalogów DVR/PFS. Jeśli `CHECK` jest ujemny, X nie działa; zrób zdjęcie i wróć przez START.
+6. Przy `CHECK=0` zrób zdjęcie, potem naciśnij **X**. Jedynym celem uruchamiania jest teraz znany test `PSX_DVR_HDD_DIAG_F.ELF`. **Prawidłowy wynik to ekran** `PSX DVR HDD DIAG F / EXIT TEST` z instrukcją START. Nie traktuj tego jako ponownego testowania samego START — potrzebny jest dowód, że ekran DIAG F uruchomił się Z HDD.
+7. Jeśli nie zobaczysz DIAG F, sfotografuj ostatni ekran. Jeśli `K CHAINLOAD RETURNED=<kod>`, zapisz dokładną wartość. Po uruchomieniu docelowego ELF/IOP może być konieczny restart.
+
+**Ważne:** Samo skompilowanie K nie oznacza, że działa na fizycznym DESR-7000. START w K służy do rezygnacji bez uruchomienia. K używa własnego montowania `PP.TESTDVR` tylko do odczytu i uruchamia dopiero po świadomym X. Podobnie jak w J, loader może zresetować IOP i wtedy przycisk START w K nie odzyska sterowania. Nie zmieniamy `main`, wydania v0.8 ani kodu działających testów A–J.
+
+---
+
 # DIAG J — pierwszy świadomy start OSDMenu z PP.TESTDVR (test sprzętowy)
 
 **Ważne: TO NIE JEST TEST TYLKO DO ODCZYTU W CAŁYM ŁAŃCUCHU.** Sam DIAG J tylko czyta HDD i DVR; po naciśnięciu **X** przekazuje sterowanie obcemu programowi OSDMenu/Neutrino, który może uruchomić grę i zachowywać się niezależnie. Nie wiemy jeszcze, czy OSDMenu i Neutrino potrafią niezawodnie ponownie zainicjalizować sterowniki APA/DVR na DESR-7000. Wymagane zdjęcia wyników. Przy zawieszeniu uruchom ponownie konsolę i wróć do znanego działającego Managera v0.8 na USB.
