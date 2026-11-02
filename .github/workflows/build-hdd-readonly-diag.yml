@@ -32,6 +32,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_G.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_H.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -95,5 +96,13 @@ jobs:
           name: PSX-DVR-HDD-DIAG-H-STAGED-FILES-READONLY
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_H.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload OSDMenu HDD path audit DIAG I
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-I-BOOT-PATH-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
