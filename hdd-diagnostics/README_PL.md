@@ -1,3 +1,37 @@
+# DIAG I — weryfikacja ścieżki startu OSDMenu z HDD, bez uruchamiania
+
+**Wynik poprzedni:** DIAG H: fizyczny DESR-7000, RESULT=0 MOUNT=0, CNF=74 B, OSDMenu BOOT.ELF=197396 B, neutrino.elf=75140 B, DVR ISO=3, PS2 PFS=3. Użytkownik potwierdził START → XMB w H. Nie powtarzamy osobnych testów START.
+
+**Na tym etapie niczego więcej NIE kopiuj ani NIE nadpisuj na PP.TESTDVR.** Pozostaw trzy już sprawdzone pliki `BOOT.ELF`, `BOOT.CNF` i `neutrino.elf` tak, jak po DIAG H.
+
+## Dlaczego I nie uruchamia jeszcze BOOT.ELF
+
+Kod OSDMenu (pcm720/OSDMenu, `launcher/src/handler_quickboot.c` i `launcher/src/common.c`) rozpoznaje ścieżkę APA rozpoczynającą się od `hdd` i sam resetuje IOP, ładuje swój sterownik APA, montuje PFS oraz konwertuje ścieżkę do wewnętrznego punktu montowania. Kandydat do wywołania przez loader:
+
+```text
+hdd0:PP.TESTDVR/BOOT.ELF
+```
+
+Alternatywny format wspierany przez upstream: `hdd0:PP.TESTDVR:pfs:/BOOT.ELF`. Natomiast `pfs1:/BOOT.ELF` jest **tymczasowym punktem montowania testów D–I**, a nie kanoniczną ścieżką startową OSDMenu.
+
+Launcher w trybie Quickboot wyprowadza nazwę `BOOT.CNF` z `argv[0]`. Po przekazaniu sterowania może sam zresetować IOP, więc równoczesny dostęp do obu systemów plików **w naszym DIAG H nie gwarantuje** uruchomienia launchera i Neutrino. Ponadto `BOOT.CNF` skopiowany z v0.8 może być skonfigurowany na tryb SYSTEM albo ENGLISH i inny obraz ISO.
+
+## Co dokładnie robi DIAG I
+
+- Montuje tylko `hdd0:PP.TESTDVR` jako własne `pfs1:` z flagą `FIO_MT_RDONLY`; sprawdza rozmiary ELF i ich nagłówki jak H.
+- Otwiera `BOOT.CNF` **tylko do odczytu**, wymaga pliku tekstowego o rozmiarze poniżej 512 bajtów (bez BOM i bajtów sterujących).
+- Odczytuje wiersze `boot=neutrino.elf`, `arg=-bsd=dvr` i `arg=-dvd=dvr_pfs0:/ISO/...`. Wykrywa odwołania do USB, `ata0:` i konfigurację ENGLISH (brak jeszcze skopiowanego `neutrino_lang.elf` i innych zależności).
+- Po uruchomieniu sterowników DVR sprawdza istnienie dokładnego obrazu ISO wskazanego w `arg=-dvd` przez otwarcie i zamknięcie **tylko do odczytu**.
+- Zamknie otwarte uchwyty, odmontuje własne `pfs1:` i wyświetli `RESULT`, `CNF SYS/BSD/DVD/USB`, `ISO FILE` oraz referencyjną ścieżkę `hdd0:PP.TESTDVR/BOOT.ELF`. Potem START jak w H.
+
+`RESULT=0` oznacza spójny **SYSTEM** `BOOT.CNF`, otwieralny wskazany obraz ISO i zgodne pliki startowe. `RESULT=-136` oznacza, że któryś warunek nie jest spełniony (np. konfiguracja ENGLISH lub brak odwołania do dostępnego ISO), a nie awarię partycji. Gdy wystąpi inne ujemne `RESULT`, wyślij jego kod i zdjęcie.
+
+**Instrukcja testu:** po zielonym buildzie w Actions pobierz artefakt `PSX-DVR-HDD-DIAG-I-BOOT-PATH-READONLY`, skopiuj `PSX_DVR_HDD_DIAG_I.ELF` na USB i uruchom przez wLE-R3Z. Zrób zdjęcie ekranu wyników. Przycisk START służy tylko do wyjścia; nie robimy już osobnego testu jego działania.
+
+**Bezpieczeństwo:** brak zapisu HDD/DVR, brak formatowania, instalacji XMB, wykonywania OSDMenu lub Neutrino. Żaden plik z HDD nie zostanie uruchomiony przez I. Ciągła blokada w IOP RPC może uniemożliwić użycie START. Przed nowymi eksperymentami wykonaj kopię ważnych danych. CI potwierdzi jedynie kompilację i testy źródłowe, nie zachowanie na realnej konsoli.
+
+---
+
 # DIAG H — odczyt 3 plików OSDMenu / Neutrino z PP.TESTDVR
 
 **Stan:** DIAG G i DIAG H zostały przetestowane na fizycznym Sony PSX DESR-7000 (2 listopada 2026). H: RESULT=0, MOUNT=0, CNF bytes=74, ELF bytes=197396, NEUTRINO bytes=75140, DVR ISO=3, PS2 PFS=3. Użytkownik potwierdził powrót do XMB przyciskiem START również w H. Nadal nie testowano uruchamiania OSDMenu/Neutrino z HDD. Odrębnych powtarzanych testów START nie wymagamy; przyszłe diagnostyki zachowują obsługę START do XMB.
