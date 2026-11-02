@@ -241,3 +241,19 @@ add_executable(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
 target_link_libraries(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# DIAG O: handlePFS read-only cycle & :pfs: loader path, no target execution.
+# Reuses physically validated M/N module stack. Prior binaries unmodified.
+add_executable(PSX_DVR_HDD_DIAG_O.ELF
+  src/osdmenu_handlepfs_probe.c
+  ${M_OSD_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_O.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_O.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+  src/osdmenu_handlepfs_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
