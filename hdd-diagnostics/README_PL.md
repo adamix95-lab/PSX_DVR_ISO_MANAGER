@@ -1,3 +1,29 @@
+# DIAG M — diagnostyka modułów APA/OSDMenu po uruchomieniu ELF z HDD
+
+Stan wejściowy: fizyczny DESR-7000 przeszedł **DIAG L / LAUNCH** i **DIAG L / POST-BOOT** (`RESULT=0 MOUNT=0`). Wcześniej DIAG J przechodził kontrolę `CHECK=0`, ale przy X wracał do XMB zamiast uruchomić grę. DIAG M jest **nowym, nieprzetestowanym sprzętowo** testem, nie naprawą OSDMenu.
+
+## Dlaczego test M jest inny?
+
+W kodzie źródłowym `pcm720/OSDMenu`, `launcher/src/init.c`, kolejność modułów dla `Device_APA` to m.in. `iomanX`, `fileXio`, `sio2man`, `mcman`, `mcserv`, `ps2dev9`, `bdm`, `bdmfs_fatfs`, `ata_bd`, `ps2hdd-osd`, `ps2fs`, `secrsif`. Upstream dodaje około 1 s przerwy po `ata_bd` i używa parametrów `-o 4 -n 20` dla `ps2hdd-osd`, `-o 10 -n 40` dla `ps2fs`. DIAG M powtarza tę kolejność, lecz dodatkowo uruchamia `freepad` po podstawowych modułach dla możliwości START. Nie ładuje DVR IRX w docelowym programie — najpierw izolujemy zgodność stosu OSDMenu z DESR-7000.
+
+UWAGA: **nasz kod nie zapisuje na dysk i montuje wyłącznie testową partycję `PP.TESTDVR` w trybie `FIO_MT_RDONLY`, ale nie możemy zagwarantować, że wszystkie zewnętrzne sterowniki IOP są całkowicie pozbawione własnych operacji zapisu**. Wykonaj kopię ważnych danych przed testem. Nie korzystaj z partycji systemowych Sony. Nie używaj tego ELF do instalacji XMB lub formatowania.
+
+## Pakiet: dwa pliki ELF
+
+1. Po **zielonym CI** pobierz artefakt `PSX-DVR-HDD-DIAG-M-OSDMENU-MODULE-PROBE`.
+2. Skopiuj wyłącznie **`PSX_DVR_HDD_DIAG_M.ELF`** do katalogu głównego własnej partycji `PP.TESTDVR` przez wLE-R3Z. Nie ruszaj pozostałych plików `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, F i L. W DIAG M jest to `pfs1:/PSX_DVR_HDD_DIAG_M.ELF` w momencie startu.
+3. **`PSX_DVR_HDD_DIAG_M_LAUNCH.ELF` uruchom przez UDPFS** (lub USB), a nie z HDD. Na ekranie launchera `CHECK=0` i dodatnie `TARGET M BYTES` potwierdzają gotowość. Zrób zdjęcie.
+4. Naciśnij X dopiero przy `CHECK=0`. Program docelowy powinien pokazać `M0 ENTRY FROM HDD`, `argc`, `argv0` i `argv1`, a następnie osobno inicjalizować moduły z komunikatami `M<nr> ... BEFORE`. Docelowo wyświetli `PSX DVR HDD DIAG M / RESULTS`.
+5. Zrób zdjęcie wyników. `RESULT=0`, `ARG=1`, `OSDMOD=0`, `MOUNT=0`, oraz dodatnie rozmiary CNF/ELF/NEUT oznaczają, że ta konkretna część stosu OSDMenu działa po uruchomieniu z HDD. Jeśli program się zawiesi, sfotografuj **ostatni numer M... BEFORE**, a przy błędzie podaj `RESULT`, `STAGE`, `OSDMOD`, `MOUNT`. X w launcherze nie uruchamia OSDMenu ani gry.
+
+**Różnica montowania:** launcher M, podobnie jak K/L, montuje testowo `pfs1:` wyłącznie do odczytu. Docelowy M uruchamia się po resetach IOP i używa `pfs0:`, podobnie jak OSDMenu. Samodzielnie sprawdza kolizję, nie odmontowuje cudzych mountów. Przekazujemy przez loader argument `hdd0:PP.TESTDVR/BOOT.CNF`, którego poprawność diagnoza sprawdza w `argv1` bez wykonywania pliku. Wariant M nie uruchamia Neutrino ani nie wykonuje gry. Nie ładuje modułów DVR w docelowym teście, więc nie wyklucza późniejszych problemów po przejściu do Neutrino.
+
+START nadal umożliwia normalne wyjście do XMB, ale nie wymagamy już odrębnego testowania tej funkcji. Po zablokowaniu wywołania RPC/IOP możliwy jest restart konsoli.
+
+**Niezmienione:** `main`, wydanie v0.8, starsze diagnostyki, systemowe partycje Sony, pliki gier i wpisy w XMB. Draft PR #26 nie jest scalany.
+
+---
+
 ## DIAG L — fizyczny PASS na DESR-7000 (2 listopada 2026)
 
 Użytkownik przesłał dwa zdjęcia. `PSX DVR HDD DIAG L / LAUNCH`: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET L BYTES=1769984`. Po X uruchomił się `PSX DVR HDD DIAG L / POST-BOOT`: `RESULT=0 MOUNT=0`, `CNF bytes=74 ELF bytes=197396 NEUTRINO bytes=75140`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE=3`, `DVR ISO=3 PS2 PFS=3`, komunikat `TARGET EXECUTED. NO GAME LAUNCH.`
