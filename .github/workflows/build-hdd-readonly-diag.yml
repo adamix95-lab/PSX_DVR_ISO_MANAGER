@@ -49,6 +49,8 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_O.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -175,5 +177,15 @@ jobs:
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_O.ELF
             build-hdd-diag/PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload second IOP reset DIAG P target + launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-P-SECOND-IOP-RESET-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
