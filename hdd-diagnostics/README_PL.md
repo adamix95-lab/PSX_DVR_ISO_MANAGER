@@ -1,6 +1,6 @@
 # DIAG H — odczyt 3 plików OSDMenu / Neutrino z PP.TESTDVR
 
-**Stan:** DIAG G potwierdzony na fizycznym Sony PSX DESR-7000 (2 listopada 2026): RESULT=0, MOUNT=0, BOOT.CNF/ELF/NEUTRINO=-2 na pustej partycji, DVR ISO=3, PS2 PFS=3. START wrócił do XMB. DIAG H wymaga osobnego testu na sprzęcie.
+**Stan:** DIAG G i DIAG H zostały przetestowane na fizycznym Sony PSX DESR-7000 (2 listopada 2026). H: RESULT=0, MOUNT=0, CNF bytes=74, ELF bytes=197396, NEUTRINO bytes=75140, DVR ISO=3, PS2 PFS=3. Użytkownik potwierdził powrót do XMB przyciskiem START również w H. Nadal nie testowano uruchamiania OSDMenu/Neutrino z HDD. Odrębnych powtarzanych testów START nie wymagamy; przyszłe diagnostyki zachowują obsługę START do XMB.
 
 **Najpierw sprawdź, czy nowy GitHub Actions build jest zielony.** Nie pobieraj ELF z nieudanego builda. Zrób kopię danych przed ręcznym zapisem na dysk. Cały eksperyment dotyczy wyłącznie wcześniej utworzonej przez Ciebie partycji PP.TESTDVR.
 
