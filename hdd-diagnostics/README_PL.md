@@ -2,6 +2,39 @@
 
 **To nie jest Manager v1.0 ani instalator XMB.** To osobny, niewielki plik ELF do pierwszego, bezpiecznego testu odczytu partycji APA/PFS **`PP.TESTDVR`** i istniejącego `dvr_pfs0:/ISO` na Sony PSX DESR-7000.
 
+## Wynik DIAG E na DESR-7000: oba systemy plików dostępne jednocześnie — PASS
+
+Użytkownik potwierdził zdjęciem z prawdziwej konsoli:
+
+```text
+PSX DVR DIAG E / BOTH FILESYSTEMS
+E13 MOUNT=0; E16 NOTICE=1
+E17/E18 DVR MODULES STARTED
+E19 DVR HDD DOPEN=3
+E20 DVR PFS DOPEN=3
+E21 DVR ISO DOPEN=3
+E22 PS2 PFS1 DOPEN=3
+E24 UMOUNT=0
+E FINAL: result=0
+PS2 MOUNT=0 AFTER=3
+DVR HDD=3 PFS=3 ISO=3
+```
+
+**Wniosek:** `hdd0:PP.TESTDVR` (PS2 APA/PFS) oraz `dvr_pfs0:/ISO` (DVR) były równocześnie dostępne do odczytu w jednej sesji IOP. Nie jest to jeszcze test uruchomienia OSDMenu/Neutrino z HDD ani startu przez XMB.
+
+### Następny test: DIAG F — przycisk START i wyjście do XMB/OSD
+
+Użytkownik potwierdził, że Manager v0.8 po naciśnięciu START wraca do menu XMB/OSD. Aby nie zwiększać ryzyka i nie mieszać wyników IOP z przyciskami, zbudowaliśmy **oddzielny minimalny test `PSX_DVR_HDD_DIAG_F.ELF`**, który:
+
+- wykonuje znaną inicjalizację IOP, `iomanX` i `fileXio` (jak w DIAG C);
+- ładuje moduły kontrolera `sio2man`, `mcman`, `mcserv`, `freepad`, jak Manager v0.8;
+- pokazuje komunikat **`PRESS START: EXIT TO XMB/OSD`**, a po świeżym naciśnięciu START zamyka pad i kończy działanie przez `return 0`;
+- **nie otwiera, nie czyta, nie montuje ani nie zapisuje żadnego HDD/USB**; nie uruchamia DVR, OSDMenu ani gier.
+
+**Przebieg:** Pobierz artefakt **`PSX-DVR-HDD-DIAG-F-PAD-EXIT`** z GitHub Actions, skopiuj ELF na USB, uruchom przez wLE R3Z, a po pojawieniu się komunikatu START naciśnij START. Potwierdź, czy konsola wróciła do XMB/OSD. Jeżeli zatrzyma się na `F... BEFORE`, zrób zdjęcie etapu. Jeśli pokazuje błąd uruchomienia kontrolera, powrót może nie być dostępny i nie należy zakładać, że test przeszedł.
+
+**Ważne:** powrót do XMB działa na sprzęcie w Managerze v0.8, ale zachowanie osobnego ELF DIAG F wymaga dopiero sprawdzenia. Tak samo nie możemy zagwarantować działania przycisku, gdy program utknie wewnątrz blokującego RPC. **DIAG E pozostaje bez zmian.** Nie zmieniono `main`, oficjalnego wydania v0.8 ani zawartości partycji.
+
 ## Wynik DIAG D na DESR-7000: APA/PFS działa — PASS
 
 Zdjęcie z rzeczywistej konsoli potwierdza:
