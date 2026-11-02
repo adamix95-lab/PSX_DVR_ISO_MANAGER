@@ -168,7 +168,6 @@ int main(void)
     LOAD(mcman, "G12 mcman");
     LOAD(mcserv, "G13 mcserv");
     LOAD(freepad, "G14 freepad");
-#undef LOAD
     before("G15 padInit");
     rv = padInit(0);
     scr_printf("G15 padInit=%d\n", rv);
