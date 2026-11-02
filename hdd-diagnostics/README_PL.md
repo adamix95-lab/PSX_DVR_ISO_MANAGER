@@ -1,3 +1,34 @@
+# DIAG O — test handlePFS: odmontowanie, ponowny odczyt ELF i budowanie ścieżki :pfs:
+
+**Wynik wcześniejszy:** DIAG N pełny PASS na fizycznym Sony PSX DESR-7000: `RESULT=0 STAGE=32`, `ARG=1 OSDMOD=0`, `STDIO=0 ERRNO=0 BOOT=1`, `QB ELF=75140 ARGS=2 BSD=1 DVD=1`. Udało się otworzyć `BOOT.CNF` przez `fopen()` po starcie z HDD. Oryginalny OSDMenu w DIAG J nadal wcześniej wracał do XMB; przyczyna nieustalona. DIAG O **nie był jeszcze uruchomiony na sprzęcie**.
+
+## Co bada O?
+
+W upstreamowym `pcm720/OSDMenu` (`launcher/src/handler_quickboot.c`, `launcher/src/handler_pfs.c`, `launcher/src/common.c`) po odczycie BOOT.CNF funkcja Quickboot odmontowuje swoje `pfs0:`, buduje `hdd0:PP.TESTDVR/neutrino.elf`, wywołuje `launchPath()`, a obsługa `handlePFS()` ponownie inicjalizuje sterowniki APA/PFS, montuje HDD, sprawdza plik przez POSIX `open()`, odmontowuje i buduje ścieżkę `hdd0:PP.TESTDVR:pfs:/neutrino.elf`, która następnie trafia do loadera.
+
+**DIAG O testuje tylko bezpieczny wycinek tego łańcucha, bez uruchomienia Neutrino ani gry:**
+
+1. Z UDPFS przez wLE-R3Z uruchomiany jest osobny `PSX_DVR_HDD_DIAG_O_LAUNCH.ELF` z kontrolą `CHECK=0`; przy świadomym X ładuje **tylko** `PSX_DVR_HDD_DIAG_O.ELF` z naszej `PP.TESTDVR` i przekazuje `hdd0:PP.TESTDVR/BOOT.CNF` jako argument.
+2. Docelowy O sam ponownie resetuje IOP, ładuje zestaw modułów OSDMenu przetestowany już przez M/N, montuje wyłącznie `PP.TESTDVR` w trybie `FIO_MT_RDONLY` jako `pfs0:` i odczytuje CNF/ELF.
+3. Powtarza sprawdzony w N fragment Quickboot (normalizacja i `fopen/fgets`). Przy poprawnej konfiguracji wykonuje **etap O32**: odmontowuje wyłącznie własne `pfs0:`.
+4. Symuluje dalsze `handlePFS`: **O33** waliduje `hdd0:PP.TESTDVR/neutrino.elf`, **O34** sprawdza, czy `pfs0:` jest wolne, **O35** ponownie montuje `PP.TESTDVR` tylko do odczytu, **O36** sprawdza plik przez POSIX `open(..., O_RDONLY)`, **O37** odmontowuje własne `pfs0:`, **O38** buduje ścieżkę `hdd0:PP.TESTDVR:pfs:/neutrino.elf`.
+5. Wyświetla wyniki `RESULT`, `STAGE`, `ARG`, `OSDMOD`, `UM1`, `REMOUNT`, `TRYFD`, `UM2`, `PATH` i ewentualną ścieżkę `LOADER`. **NIE uruchamia ładowarki docelowego Neutrino**, nie wywołuje `LoadELFFromFile` z docelowego ELF O.
+
+**Rozmyślne ograniczenia testu:** O nie wykonuje ponownego resetu IOP między Quickboot i handlePFS (upstream `handlePFS` robi to poprzez `initModules`). Nie używa też upstreamowych `fileXioDevctl(PDIOC_CLOSEALL)` ani `fileXioSync`, by nie ryzykować dodatkowych operacji dyskowych. Testuje sam cykl `unmount → remount RO → POSIX open → unmount → path`, a nie pełny runtime OSDMenu. Nawet `RESULT=0` nie oznacza, że cały oryginalny OSDMenu lub Neutrino będzie działać.
+
+## Instrukcja
+
+1. Zachowaj kopię ważnych danych. Nie używaj HDD Manager/Format/Inject Header, nie dotykaj partycji Sony ani obszaru DVR.
+2. Z zielonego CI pobierz artefakt `PSX-DVR-HDD-DIAG-O-HANDLEPFS-READONLY`. Znajdziesz w nim **dwa ELF**.
+3. Skopiuj do katalogu głównego **`PP.TESTDVR` tylko `PSX_DVR_HDD_DIAG_O.ELF`** przez wLE-R3Z. Pozostałe pliki `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, F–N pozostają bez zmian.
+4. **`PSX_DVR_HDD_DIAG_O_LAUNCH.ELF` uruchom z UDPFS**, nie z HDD. Na pierwszym ekranie spodziewane `CHECK=0 MOUNT=0` i dodatnie `TARGET O BYTES`; zrób zdjęcie.
+5. Dopiero przy `CHECK=0` naciśnij X, aby uruchomić docelowy O z HDD. Zrób zdjęcie końcowego `PSX DVR HDD DIAG O / RESULTS`. Oczekujemy `RESULT=0`, `STAGE=38`, `ARG=1`, `OSDMOD=0`, `UM1=0`, `REMOUNT=0`, `TRYFD>=0`, `UM2=0`, `PATH=1`.
+6. Gdy test zatrzyma się na `O... BEFORE` lub pojawi się błąd, prześlij ostatni ekran z kodem. START jest zwykłym powrotem do XMB, nie musisz osobno testować jego działania.
+
+Program diagnostyczny wykonuje wyłącznie otwarcia i montowania tylko do odczytu, a obcy kod sterowników IOP może wykonywać inne wewnętrzne operacje. W przypadku zablokowania RPC może być potrzebny restart. `main`, v0.8, poprzednie diagnostyki i systemowe partycje Sony pozostają nienaruszone; PR #26 wciąż Draft.
+
+---
+
 ## DIAG N — pełny PASS na fizycznym DESR-7000 (2.11.2026)
 
 Użytkownik przesłał dwa zdjęcia. Launcher: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET N BYTES=1747216`. Właściwy ELF z `PP.TESTDVR`: `RESULT=0 STAGE=32`, `ARG=1 OSDMOD=0`, `HDD=3 MOUNT=0 PFS=3`, `CNF=74 ELF=197396 NEUT=75140`, `STDIO=0 ERRNO=0 BOOT=1`, `QB ELF=75140 ARGS=2 BSD=1 DVD=1`.
