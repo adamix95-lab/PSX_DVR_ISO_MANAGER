@@ -1,3 +1,33 @@
+# DIAG H — odczyt 3 plików OSDMenu / Neutrino z PP.TESTDVR
+
+**Stan:** DIAG G potwierdzony na fizycznym Sony PSX DESR-7000 (2 listopada 2026): RESULT=0, MOUNT=0, BOOT.CNF/ELF/NEUTRINO=-2 na pustej partycji, DVR ISO=3, PS2 PFS=3. START wrócił do XMB. DIAG H wymaga osobnego testu na sprzęcie.
+
+**Najpierw sprawdź, czy nowy GitHub Actions build jest zielony.** Nie pobieraj ELF z nieudanego builda. Zrób kopię danych przed ręcznym zapisem na dysk. Cały eksperyment dotyczy wyłącznie wcześniej utworzonej przez Ciebie partycji PP.TESTDVR.
+
+## Co skopiować ręcznie w wLaunchELF R3Z (tylko 3 pliki)
+
+Ze sprawdzonej paczki USB v0.8 (masz już folder mass0:/DESR_DVR/), skopiuj dokładnie:
+
+1. `mass0:/DESR_DVR/BOOT.ELF` → `hdd0:/PP.TESTDVR/BOOT.ELF` (OSDMenu Launcher)
+2. `mass0:/DESR_DVR/BOOT.CNF` → `hdd0:/PP.TESTDVR/BOOT.CNF` (zachowaj zawartość; **może nadal wskazywać USB**, DIAG H nie uruchamia konfiguracji)
+3. `mass0:/DESR_DVR/neutrino.elf` → `hdd0:/PP.TESTDVR/neutrino.elf`
+
+To ścieżki interfejsu plików wLE. W kodzie DIAG H docelowa partycja będzie montowana jako `pfs1:`, a pliki znajdą się odpowiednio w `pfs1:/BOOT.ELF`, `pfs1:/BOOT.CNF`, `pfs1:/neutrino.elf`. Sprawdź, że kopiujesz do **PP.TESTDVR**, nie do katalogu DVR, partycji systemowej ani USB. Nie korzystaj z HDD Manager/Inject Header/Format. Jeśli kopiowanie w wLE zgłasza błąd, przerwij etap i podaj dokładny komunikat.
+
+**Na razie nie kopiuj** pozostałych modułów, konfiguracji, ISO ani okładek. Nie zastępuj plików z działającej instalacji USB. Na tym etapie **nie uruchamiaj** HDD `BOOT.ELF` ani Neutrino — do prawdziwego startu potrzebna będzie dalsza diagnostyka ścieżek i zależności.
+
+## Test DIAG H (tylko odczyt)
+
+1. Pobierz z GitHub Actions artefakt `PSX-DVR-HDD-DIAG-H-STAGED-FILES-READONLY`, rozpakuj `PSX_DVR_HDD_DIAG_H.ELF` na USB.
+2. Uruchom DIAG H przez wLE R3Z **z USB**. Program sam montuje jedynie `hdd0:PP.TESTDVR` → `pfs1:` z `FIO_MT_RDONLY`. Sprawdza otwarcie, rozmiar i pierwsze bajty trzech plików. Dla `BOOT.ELF` i `neutrino.elf` oczekuje nagłówka `0x7F ELF`.
+3. Następnie DIAG H sprawdza jednocześnie `dvr_pfs0:/ISO` i PS2 `pfs1:/`, zamyka pliki, odmontowuje własne `pfs1:`, i wyświetla wynik oraz START: EXIT TO XMB/OSD.
+4. Zrób zdjęcie finalnego ekranu wyników i naciśnij START. Potwierdź powrót do XMB. Przy zawieszeniu sfotografuj ostatni napis `H... BEFORE`; przy błędzie skopiuj jego wartość.
+
+**Oczekiwany wynik:** `RESULT=0`, `MOUNT=0`, dodatnie rozmiary (`CNF bytes`, `ELF bytes`, `NEUTRINO bytes`), `DVR ISO>=0` i `PS2 PFS>=0`. `-2` teraz oznacza brak pliku, więc nie jest już oczekiwanym wynikiem.
+
+Uwaga: `RESULT=0` potwierdza jedynie dostępność, wielkość i nagłówek odczytanych plików; to nie jest weryfikacja pełnych sum kontrolnych ani uruchomienia z HDD/XMB. DIAG H **nie ma wywołań zapisujących** ani funkcji startu gier. Jeśli synchronizacja RPC zawiśnie, START może nie zadziałać. `main`, v0.8 i DIAG E/F/G pozostają bez zmian.
+
+---
 ## DIAG G — test łączony (jeszcze nieprzetestowany na konsoli)
 
 Po potwierdzeniu przez użytkownika DIAG F (START → XMB) przygotowano osobny ELF PSX_DVR_HDD_DIAG_G.ELF. DIAG E i F pozostają niezmienione; v0.8 i main bez zmian.
