@@ -257,3 +257,19 @@ add_executable(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
 target_link_libraries(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_O_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# DIAG P: OSDMenu-like second IOP reset after Quickboot and before handlePFS.
+# Shares verified M/N/O embedded modules; read-only PP.TESTDVR probe only.
+add_executable(PSX_DVR_HDD_DIAG_P.ELF
+  src/osdmenu_second_reset_probe.c
+  ${M_OSD_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_P.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_P.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+  src/osdmenu_second_reset_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
