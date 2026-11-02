@@ -1,3 +1,11 @@
+## DIAG L — fizyczny PASS na DESR-7000 (2 listopada 2026)
+
+Użytkownik przesłał dwa zdjęcia. `PSX DVR HDD DIAG L / LAUNCH`: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET L BYTES=1769984`. Po X uruchomił się `PSX DVR HDD DIAG L / POST-BOOT`: `RESULT=0 MOUNT=0`, `CNF bytes=74 ELF bytes=197396 NEUTRINO bytes=75140`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE=3`, `DVR ISO=3 PS2 PFS=3`, komunikat `TARGET EXECUTED. NO GAME LAUNCH.`
+
+**Potwierdzone:** niezależny ELF uruchomiony z `PP.TESTDVR` potrafi od nowa zresetować IOP, załadować nasz sprawdzony stos APA/PFS i DVR, odczytać `BOOT.CNF`, dwa ELF i wybrany obraz ISO na DVR. **Niepotwierdzone:** zgodność innego stosu sterowników upstream OSDMenu (`ata_bd/ps2hdd_osd/secrsif`), prawidłowe przetworzenie parametrów `argv` oraz start Neutrino lub gry. Bez zmian na `main`, w v0.8 i w partycjach systemowych Sony. Oddzielne testy START uznajemy za zakończone.
+
+---
+
 # DIAG L — IOP / APA / DVR po uruchomieniu ELF bezpośrednio z HDD
 
 **Stan potwierdzony na DESR-7000:** DIAG K uruchomił samodzielny DIAG F z `PP.TESTDVR`. DIAG J przechodził kontrolę plików (`CHECK=0`), lecz po X konsola wracała do XMB zamiast uruchomić Neutrino. DIAG L jest odrębnym eksperymentem; **nie został jeszcze przetestowany na fizycznej konsoli**.
