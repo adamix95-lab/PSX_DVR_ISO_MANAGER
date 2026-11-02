@@ -156,3 +156,13 @@ target_link_libraries(PSX_DVR_HDD_DIAG_I.ELF
   pad patches fileXio cdvd libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_I.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG J — first manual, explicit X-triggered HDD OSDMenu chainload experiment.
+# Same G/H/I read-only driver stack; no changes to previous diagnostic sources.
+add_executable(PSX_DVR_HDD_DIAG_J.ELF
+  src/apa_dvr_hdd_launch_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_J.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_J.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
