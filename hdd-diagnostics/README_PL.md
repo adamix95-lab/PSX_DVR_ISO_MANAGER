@@ -1,3 +1,28 @@
+# DIAG L — IOP / APA / DVR po uruchomieniu ELF bezpośrednio z HDD
+
+**Stan potwierdzony na DESR-7000:** DIAG K uruchomił samodzielny DIAG F z `PP.TESTDVR`. DIAG J przechodził kontrolę plików (`CHECK=0`), lecz po X konsola wracała do XMB zamiast uruchomić Neutrino. DIAG L jest odrębnym eksperymentem; **nie został jeszcze przetestowany na fizycznej konsoli**.
+
+## Dwa ELF — zwróć uwagę, który gdzie skopiować
+
+1. Po zielonym buildzie pobierz artefakt **`PSX-DVR-HDD-DIAG-L-POSTBOOT-IOP`**, który zawiera dwa ELF (oraz instrukcję).
+2. Zrób kopię ważnych danych. Przez wLE R3Z skopiuj wyłącznie **`PSX_DVR_HDD_DIAG_L.ELF`** do katalogu głównego istniejącej własnej partycji **`hdd0:/PP.TESTDVR/`**. Zostaw nietknięte `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, DIAG F, ISO i partycje systemowe. Nie formatuj niczego. W diagnostyce jest to `pfs1:/PSX_DVR_HDD_DIAG_L.ELF`.
+3. **`PSX_DVR_HDD_DIAG_L_LAUNCH.ELF` uruchom przez UDPFS** z wLE R3Z (może być też USB), ale **nie kopiuj go na HDD**.
+4. Na ekranie launchera zobaczysz `PSX DVR HDD DIAG L / LAUNCH`, `CHECK=...`, `MOUNT=...`, `TARGET L BYTES=...`. Jeśli `CHECK` jest ujemny, **X jest zablokowany**. Zrób zdjęcie i naciśnij START. Przy `CHECK=0` zrób zdjęcie i naciśnij X, aby uruchomić z HDD **tylko test L**, bez OSDMenu, Neutrino i bez gry.
+
+## Co zobaczysz po X
+
+Docelowy ELF L powinien pokazać natychmiast `PSX DVR HDD DIAG L / HDD TARGET` i `L0 ENTRY: ELF EXECUTING`, z informacją o `argv[0]`. To potwierdzi **samodzielne wykonanie drugiego ELF** po załadowaniu go z HDD.
+
+Następnie target L (jako już działający program) wykonuje od nowa IOP reset, synchronizację, patchowanie RPC, ładowanie **sprawdzonego** zestawu `iomanX/fileXio/ps2dev9/ps2atad/ps2hdd/ps2fs`, montuje **tylko** `PP.TESTDVR` jako `pfs1:` w trybie `FIO_MT_RDONLY`, sprawdza nagłówki plików OSDMenu i Neutrino, odczytuje **wyłącznie** `BOOT.CNF`, inicjalizuje DVR i sprawdza wskazane ISO na `dvr_pfs0:/ISO`. Na koniec odmontowuje tylko własne `pfs1:` i wyświetla `PSX DVR HDD DIAG L / POST-BOOT` oraz `RESULT=...`, `MOUNT=...`, `ISO FILE=...`. Zrzut końcowego ekranu jest najważniejszy.
+
+- `RESULT=0 MOUNT=0`, `CNF SYS=1 BSD=1 DVD=1 USB=0`, `ISO FILE>=0`, `DVR ISO>=0`, `PS2 PFS>=0` oznaczają sukces diagnostyki **po** wykonaniu z HDD.
+- Jeśli zawiesi się na `L... BEFORE`, zrób zdjęcie ostatniego etapu. Na przykład `L1 IOP RESET BEFORE` wskazuje problem podczas resetu po chainload.
+- `START` pozostaje zwykłym wyjściem do XMB **bez odrębnego testowania przycisku**. Gdy target lub IOP RPC zawiśnie, może być potrzebny restart.
+
+**Granice wnioskowania:** L używa naszego wcześniej sprawdzonego stosu PS2SDK, a nie dokładnie `ata_bd`, `ps2hdd_osd` i `secrsif` występujących w upstreamowym OSDMenu. Sukces L potwierdzi restart sterowników po wykonaniu ELF z HDD, ale **nie rozstrzygnie jeszcze**, czy konkretne sterowniki OSDMenu działają na DESR. L nie próbuje uruchamiać OSDMenu ani Neutrino, nie zapisuje na HDD i nie instaluje XMB. `main`, Manager v0.8, poprzednie diagnostyki i istniejący Draft PR pozostają nienaruszone.
+
+---
+
 ## DIAG K — fizyczny DESR-7000: URUCHOMIENIE ELF Z PP.TESTDVR POTWIERDZONE
 
 **2 listopada 2026:** użytkownik zgłasza, że po uruchomieniu DIAG K **DIAG F wystartował bezpośrednio z HDD**. To potwierdza poprawne załadowanie i wykonanie niezależnego pliku ELF z naszej własnej partycji PS2 APA/PFS `PP.TESTDVR`. W tym eksperymencie UDPFS/USB służyło do wystartowania DIAG K, natomiast DIAG F było odczytywane z HDD.
