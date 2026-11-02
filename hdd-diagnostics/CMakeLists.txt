@@ -225,3 +225,19 @@ add_executable(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
 target_link_libraries(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_M_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# DIAG N: read-only OSDMenu Quickboot fopen / CNF parse, after HDD ELF load.
+# Reuses hardware-proven DIAG M IOP modules. Previous binaries untouched.
+add_executable(PSX_DVR_HDD_DIAG_N.ELF
+  src/osdmenu_quickboot_probe.c
+  ${M_OSD_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_N.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_N.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
+  src/osdmenu_quickboot_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_N_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
