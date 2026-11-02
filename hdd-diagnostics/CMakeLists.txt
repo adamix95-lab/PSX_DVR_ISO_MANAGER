@@ -95,3 +95,25 @@ target_link_libraries(PSX_DVR_HDD_DIAG_E.ELF
   patches fileXio cdvd libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_E.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG F: isolated controller START -> normal ELF exit (OSD/XMB candidate).
+# This test purposely has NO PS2 HDD, DVR or PFS access whatsoever.
+set(EXIT_DIAG_EMBEDDED)
+foreach(module iomanX fileXio sio2man mcman mcserv freepad)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_exit_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND EXIT_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_F.ELF
+  src/pad_exit_diag.c
+  ${EXIT_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_F.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_F.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
