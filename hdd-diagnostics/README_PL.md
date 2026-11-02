@@ -1,3 +1,33 @@
+# DIAG P — drugi reset IOP po Quickboot, bez uruchamiania Neutrino
+
+**Dotychczas potwierdzone na fizycznym DESR-7000:** DIAG O po wystartowaniu z PP.TESTDVR zakończył się `RESULT=0 STAGE=38`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1` i wyświetlił `hdd0:PP.TESTDVR:pfs:/neutrino.elf`. W DIAG O nie było jednak drugiego resetu IOP wykonywanego przez oryginalny OSDMenu w `handlePFS`. DIAG P pozostaje nowym eksperymentem — **jeszcze nie sprawdzonym sprzętowo**.
+
+## Co robi DIAG P
+
+`PSX_DVR_HDD_DIAG_P_LAUNCH.ELF` uruchamiany przez UDPFS wykorzystuje potwierdzony wcześniej stos sterowników DVR/APA, czyta tylko `PP.TESTDVR`, sprawdza trzy pliki startowe, docelowy P oraz wskazany ISO. Dopiero po `CHECK=0` i nowym naciśnięciu **X** uruchamia **wyłącznie** `PSX_DVR_HDD_DIAG_P.ELF` z `pfs1:`, przekazując argument `hdd0:PP.TESTDVR/BOOT.CNF`. START pozostaje zwykłym anulowaniem; nie testujemy go osobno.
+
+Program docelowy P (startujący naprawdę z HDD):
+1. Uruchamia sprawdzony w M/N/O zestaw sterowników OSDMenu-like, montuje wyłącznie `hdd0:PP.TESTDVR` jako `pfs0:` **tylko do odczytu** i czyta `BOOT.CNF` przez `fopen()` oraz Neutrino z `fileXioOpen`.
+2. Kończy Quickboot na **P32** odmontowaniem własnego `pfs0:`. Dopiero gdy odmontowanie się uda, przechodzi do obsługi `handlePFS`.
+3. **P40:** zamyka stary kontroler, wykonuje drugi `SifIopReset`; **P41:** `SifIopSync`; **P42:** inicjalizacja RPC/patches; **P43–P57:** powtórne załadowanie `iomanX`, `fileXio`, `sio2man`, `mcman`, `mcserv`, diagnostycznego `freepad`, `ps2dev9`, `bdm`, `bdmfs_fatfs`, `ata_bd`, `ps2hdd-osd`, `ps2fs`, `secrsif` oraz ponowna inicjalizacja pada.
+4. **P58–P60:** nowe `fileXioInit`, dostęp `hdd0:` i kontrola, czy `pfs0:` jest wolne.
+5. **P61:** nowe montowanie `PP.TESTDVR` RO; **P62:** POSIX `open(..., O_RDONLY)` dla `neutrino.elf`; **P63:** odmontowanie własnego `pfs0:`; **P64:** budowa ścieżki `hdd0:PP.TESTDVR:pfs:/neutrino.elf` do przyszłego loadera. **Nie wykonuje jej.**
+
+Na ekranie wyników spodziewamy się `RESULT=0 STAGE=64`, `ARG=1 OSDMOD=0`, `RESET2=1 MOD2=1 PAD2=1`, `UM1=0 REMOUNT=0 TRYFD>=0 UM2=0 PATH=1`. Jeśli wynik jest ujemny, prześlij `RESULT` i `STAGE`. Jeśli nastąpi zawieszenie, sfotografuj ostatni komunikat `P... BEFORE`.
+
+## Bezpieczna instrukcja testu
+
+1. Miej aktualną kopię ważnych danych — nie wszystkie wewnętrzne operacje obcych sterowników IOP są audytowane.
+2. Pobierz **dwa ELF z zielonego artefaktu GitHub Actions** `PSX-DVR-HDD-DIAG-P-SECOND-IOP-RESET-READONLY`.
+3. Skopiuj **tylko `PSX_DVR_HDD_DIAG_P.ELF`** na własną, już utworzoną `hdd0:/PP.TESTDVR/` w wLE-R3Z. Niczego innego na tej partycji nie nadpisuj. Nie dotykaj partycji Sony `__*`, DVR ISO, XMB ani wydania v0.8.
+4. **`PSX_DVR_HDD_DIAG_P_LAUNCH.ELF` uruchom z UDPFS** (lub USB), a nie z HDD. Pierwszy ekran powinien pokazać `CHECK=0 MOUNT=0` i dodatnie `TARGET P BYTES`; zrób zdjęcie.
+5. Naciśnij X dopiero przy `CHECK=0`. Drugi ekran to `PSX DVR HDD DIAG P / RESULTS`; zrób zdjęcie.
+6. Po zakończeniu START wraca do XMB. Jeśli po drugim resecie IOP program się zatrzyma, START może nie działać; sfotografuj ostatni etap i zrestartuj konsolę.
+
+**Granice testu:** DIAG P nie uruchamia Neutrino, OSDMenu ani gry, nie wywołuje loadera docelowego ELF i nie wykonuje `PDIOC_CLOSEALL` lub `fileXioSync` z oryginalnego `deinitPFS`. Używa modułów zbudowanych w naszym środowisku PS2SDK, niekoniecznie bitowo identycznych z oryginalnym BOOT.ELF. Test ma izolować drugi reset sterowników; nawet PASS nie jest jeszcze pełnym uruchomieniem Managera bez USB. Żadnych nowych wpisów w XMB ani zmian w stabilnym v0.8, `main` i wcześniejszych diagnostykach. Draft PR #26 pozostaje niescalony.
+
+---
+
 ## DIAG O — fizyczny PASS na DESR-7000 (2.11.2026)
 
 Dwa zdjęcia użytkownika potwierdzają zakończoną diagnostykę DIAG O. Launcher: `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET O BYTES=1755660`. Target z HDD: `RESULT=0 STAGE=38`, `ARG=1 OSDMOD=0`, `HDD=2 MOUNT=0 PFS=3`, `QB=75140 STDIO=0 BOOT=1`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1`. Poprawna ścieżka loadera: `hdd0:PP.TESTDVR:pfs:/neutrino.elf`.
