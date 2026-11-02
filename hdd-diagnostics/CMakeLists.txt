@@ -175,3 +175,21 @@ target_link_libraries(PSX_DVR_HDD_DIAG_K.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_K.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG L: two isolated ELFs. Launcher runs via UDPFS, target executes from HDD.
+# Target reinitializes the known-good IOP / APA / DVR stack AFTER chainload.
+add_executable(PSX_DVR_HDD_DIAG_L.ELF
+  src/apa_dvr_postboot_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_L.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_L.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
+  src/apa_dvr_postboot_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_L_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
