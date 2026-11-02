@@ -137,3 +137,13 @@ target_link_libraries(PSX_DVR_HDD_DIAG_G.ELF
   pad patches fileXio cdvd libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_G.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG H — same proven G driver stack; only reads manually staged boot files.
+# Keep E/F/G binaries and sources unchanged.
+add_executable(PSX_DVR_HDD_DIAG_H.ELF
+  src/apa_dvr_staged_files_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_H.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_H.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
