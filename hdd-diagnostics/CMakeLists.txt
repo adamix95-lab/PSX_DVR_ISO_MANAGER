@@ -1,0 +1,149 @@
+cmake_minimum_required(VERSION 3.13)
+include($ENV{PS2SDK}/ps2dev.cmake)
+project(psx_dvr_hdd_diagnostic C)
+
+# Stage A attaches to wLaunchELF R3Z's already initialized IOP stack.
+# No IRX is embedded or loaded, no HDD operations can write data.
+add_executable(PSX_DVR_HDD_DIAG_A.ELF src/main.c)
+target_link_libraries(PSX_DVR_HDD_DIAG_A.ELF fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_A.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# Independent diagnostic binaries. HELLO tests only rendering; DIAG B
+# prints stage markers before each blocking RPC call. Neither writes to HDD.
+add_executable(PSX_DVR_HDD_HELLO.ELF src/hello.c)
+target_link_libraries(PSX_DVR_HDD_HELLO.ELF libdebug.a)
+target_compile_options(PSX_DVR_HDD_HELLO.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_B.ELF src/step_diag.c)
+target_link_libraries(PSX_DVR_HDD_DIAG_B.ELF fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_B.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# Physical DESR-7000 DIAG B froze before fileXioInit returned. DIAG C follows
+# v0.8's self-contained IOP initialization order; it intentionally does NOT
+# access HDD or attempt a PFS mount. Embed only the two required IRX modules.
+set(FILEXIO_DIAG_EMBEDDED)
+foreach(module iomanX fileXio)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND FILEXIO_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_C.ELF
+  src/filexio_reset_diag.c
+  ${FILEXIO_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_C.ELF
+  patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_C.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+# HDD DIAG D: rebuild the PS2 APA/PFS stack in the same order as RepairBox
+# after the successful hardware test C. No DVR or filesystem-write modules.
+set(APA_DIAG_EMBEDDED)
+foreach(module iomanX fileXio ps2dev9 ps2atad ps2hdd ps2fs)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_apa_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND APA_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_D.ELF
+  src/apa_pfs_diag.c
+  ${APA_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_D.ELF
+  patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_D.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+# DIAG E — physical D passed: keep PS2 APA PFS1 mounted READ ONLY while
+# initializing the PSX DVR driver stack. Build a separate, opt-in test ELF.
+# PS2SDK provides the PS2 HDD IRX; DVR IRX are the same files as v0.8.
+set(COEXIST_DIAG_EMBEDDED)
+foreach(module iomanX fileXio ps2dev9 ps2atad ps2hdd ps2fs)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_coexist_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND COEXIST_DIAG_EMBEDDED "${source}")
+endforeach()
+foreach(module dvrdrv dvrfile)
+  set(irx "${CMAKE_CURRENT_SOURCE_DIR}/../dvr-iso-manager/modules/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_coexist_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND COEXIST_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_E.ELF
+  src/apa_dvr_coexist_diag.c
+  ${COEXIST_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_E.ELF
+  patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_E.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+# DIAG F: isolated controller START -> normal ELF exit (OSD/XMB candidate).
+# This test purposely has NO PS2 HDD, DVR or PFS access whatsoever.
+set(EXIT_DIAG_EMBEDDED)
+foreach(module iomanX fileXio sio2man mcman mcserv freepad)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_exit_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND EXIT_DIAG_EMBEDDED "${source}")
+endforeach()
+
+add_executable(PSX_DVR_HDD_DIAG_F.ELF
+  src/pad_exit_diag.c
+  ${EXIT_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_F.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_F.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+# DIAG G — reuse proven APA/DVR IRX and add F's gamepad stack.
+set(G_DIAG_EMBEDDED ${COEXIST_DIAG_EMBEDDED})
+foreach(module sio2man mcman mcserv freepad)
+  set(irx "$ENV{PS2SDK}/iop/irx/${module}.irx")
+  set(source "${CMAKE_CURRENT_BINARY_DIR}/${module}_g_diag_irx.c")
+  add_custom_command(
+    OUTPUT "${source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${irx}" "${source}" "${module}_irx"
+    DEPENDS "${irx}"
+    VERBATIM)
+  list(APPEND G_DIAG_EMBEDDED "${source}")
+endforeach()
+add_executable(PSX_DVR_HDD_DIAG_G.ELF
+  src/apa_dvr_pad_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_G.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_G.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+# DIAG H — same proven G driver stack; only reads manually staged boot files.
+# Keep E/F/G binaries and sources unchanged.
+add_executable(PSX_DVR_HDD_DIAG_H.ELF
+  src/apa_dvr_staged_files_diag.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_H.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_H.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
