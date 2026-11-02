@@ -1,3 +1,11 @@
+## DIAG M — fizyczny PASS na DESR-7000 (2 listopada 2026)
+
+Dwa zdjęcia użytkownika potwierdzają: `PSX DVR HDD DIAG M / LAUNCH` => `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET M BYTES=1676004`. Docelowy ELF z `PP.TESTDVR` wykonał `PSX DVR HDD DIAG M / RESULTS`: `RESULT=0 STAGE=27`, `ARG=1 OSDMOD=0`, `HDD=3 MOUNT=0 PFS=3`, `CNF=74 ELF=197396 NEUT=75140`.
+
+Wynik potwierdza działanie stosu podobnego do OSDMenu (m.in. `ata_bd`, `bdm`, `bdmfs_fatfs`, `ps2hdd-osd`, `ps2fs`, `secrsif`) po uruchomieniu z HDD, przekazanie argumentu `hdd0:PP.TESTDVR/BOOT.CNF`, odczyt plików i odmontowanie własnego `pfs0:`. **Nie potwierdza** przejścia przez prawdziwy kod `handleQuickboot`, `launchPath` ani uruchomienia Neutrino/grania na DVR. DIAG J wcześniej wracał do XMB. Nie wykonano żadnych zmian w `main` i wydaniu v0.8; PR pozostaje Draft. Oddzielnych testów START nie powtarzamy.
+
+---
+
 # DIAG M — diagnostyka modułów APA/OSDMenu po uruchomieniu ELF z HDD
 
 Stan wejściowy: fizyczny DESR-7000 przeszedł **DIAG L / LAUNCH** i **DIAG L / POST-BOOT** (`RESULT=0 MOUNT=0`). Wcześniej DIAG J przechodził kontrolę `CHECK=0`, ale przy X wracał do XMB zamiast uruchomić grę. DIAG M jest **nowym, nieprzetestowanym sprzętowo** testem, nie naprawą OSDMenu.
