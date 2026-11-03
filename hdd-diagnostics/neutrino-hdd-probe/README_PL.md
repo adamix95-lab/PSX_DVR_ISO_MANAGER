@@ -1,3 +1,27 @@
+## DIAG V2 — identyczny Neutrino V, ale *bez* ps2-packer (3.11.2026)
+
+Na fizycznym DESR-7000 użytkownik otrzymał `CHECK=0` przy uruchomieniu `PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF` i po X wrócił do XMB, bez zgłoszonego zdjęcia ekranu `V ...`. Nie znamy dokładnego czasu trwania ani tego, czy V zdążyło wejść w `main()`; nie można utożsamiać tego z błędem dostępu do `config/`/modułów. Wcześniejsze U potwierdziło fizycznie ich otwieranie po remoncie PFS.
+
+Analiza artefaktów CI: `PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF` jest **pakowany przez `ps2-packer`** (73,172 B, punkt wejścia `0x01d0001c`). Sprawdzony T/U używał niespakowanego ELF. Podejrzewamy problem z wejściem do spakowanego Neutrino przez oryginalny OSDMenu, ale nie zakładamy przyczyny bez pomiaru.
+
+**V2 to kontrola tylko jednej zmiennej:** ten sam przypięty commit `pcm720/neutrino:bsd-dvr`, ten sam `patch_probe.py` (bez własnego startu gry, bez otwierania ISO, stop po konfiguracjach i `modlist_load` na `V70`), te same argumenty, HDD/DEV9, partcja `PP.TESTDVR` montowana tylko RO i `chdir("pfs0:/")`. Zamiast kompresowanego `neutrino.elf`, CI kopiuje **`neutrino_unpacked.elf`** jako `PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF`, do osobnej konfiguracji:
+```ini
+boot=PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso
+arg=-dev9=NICHDD
+```
+
+**Test:**
+1. Skopiować tylko `PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF` i `DIAG_V2.CNF` obok starych plików w **`hdd0:PP.TESTDVR`**, bez nadpisywania `neutrino.elf`, `BOOT.ELF`, `BOOT.CNF` czy V.
+2. W wLE-R3Z uruchomić `PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF` z UDPFS. Pierwszy ekran powinien pokazać `CHECK=0` i poprawny `V2CNF` (tylko ta konfiguracja jest dozwolona); X uruchomi oryginalny OSDMenu→ **niespakowany** Neutrino V2. START anuluje.
+3. Sfotografować pierwszy ekran oraz jakikolwiek ekran/marker `V00 ... V70`/`V RESULT LAST_STAGE`. Jeśli znów wróci do XMB **bez komunikatów V**, zanotować orientacyjny czas od X — pozwala odróżnić celowy automatyczny powrót po 45 sekundach od awarii przed wejściem do programu.
+4. Brak jakichkolwiek zmian w prawdziwych ISO, systemowych partycjach Sony, stabilnym USB v0.8 i `main`. Obie wersje V/V2 są diagnostyką bez gry. Draft PR #26 jest eksperymentalny.
+
+**Interpretacja:** jeśli V2 pokaże fazy/osiągnie `V70`, a spakowana V ich nie pokazywała, przyczyną może być wykonywanie spakowanego ELF przez OSDMenu; wniosek potwierdzimy oddzielnym kontrolnym testem, nie automatycznie. Jeśli V2 też wróci do XMB, następną hipotezą jest wczesna inicjalizacja/nielogowany powrót Neutrino, której nie wystarczy wyjaśnić samym pakowaniem.
+
+---
+
 # DIAG V — Neutrino pcm720 z kontrolowanym montowaniem HDD (test bez gry)
 
 **Stan: eksperymentalny, nieprzetestowany na sprzęcie.** Źródło: pinned publiczny `pcm720/neutrino` z `bsd-dvr`, commit `aa8d80a1a0b5323cb407c814c0568c3489597c1c`; upstream PS2 `ps2max32/neutrino` pozostaje nietknięty. OSDMenu `BOOT.ELF` i wariant USB v0.8 pozostają bez zmian.
