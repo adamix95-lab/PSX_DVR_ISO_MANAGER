@@ -1,3 +1,15 @@
+## Krytyczna kolejność argumentów OSDMenu/Neutrino — 3.11.2026
+
+Użytkownik skopiował katalogi `config/` i `modules/` z działającego USB do testowej partycji `PP.TESTDVR`, po czym uruchomił `BOOT.ELF`. Widział chwilę czarny ekran i powrót do XMB, ale tym razem **bez wcześniej występującego `-19`**. Dodał `arg=-dev9=NICHDD` **PRZED** argumentami `-bsd=dvr` i `-dvd=...`. Nie traktować braku `-19` jako dowodu startu gry.
+
+**Weryfikacja kodu OSDMenu pcm720:** `launcher/src/handler_quickboot.c` zachowuje kolejność wpisów `arg=`; `common/src/cnf.c` (`addStr`) dopina je na koniec listy; `launcher/src/common.c` (`parseGlobalFlags`) przegląda `argv` od końca, usuwa znane flagi OSDMenu `-dev9=NICHDD` dopiero gdy są na końcu i zatrzymuje się na zwykłym argumencie aplikacji. Jeżeli `-dev9=NICHDD` stoi **przed** `-bsd=dvr` i `-dvd=...`, pozostaje nieprzetworzony i może dotrzeć do Neutrino. `pcm720/neutrino:bsd-dvr` `ee/loader/src/main.c` nie obsługuje `-dev9=` i dla nieznanych opcji zwraca błąd.
+
+**Jeden kontrolowany następny test:** ustawić na **samym końcu** `BOOT.CNF` w `PP.TESTDVR` wpis `arg=-dev9=NICHDD`, za istniejącymi `arg=-bsd=dvr` i `arg=-dvd=dvr_pfs0:/ISO/[rzeczywisty plik ISO]`. Nie ruszać innych ustawień, folderów, `neutrino.elf`, działającego USB v0.8 i partycji systemowych Sony. Zachować kopię dotychczasowego `BOOT.CNF`; wykonać próbę i zapisać, czy powrót do XMB, czarny ekran, pokazane komunikaty albo gra. Opcja OSDMenu zachowuje zasilanie HDD/DEV9, ale oryginalny loader nadal może odmontować `pfs0:`, a ścieżki względne `config/` i `modules/` w Neutrino mogą wymagać poprawnego cwd.
+
+Źródła: https://github.com/pcm720/OSDMenu/blob/main/launcher/src/handler_quickboot.c ; https://github.com/pcm720/OSDMenu/blob/main/launcher/src/common.c ; https://github.com/pcm720/OSDMenu/blob/main/common/src/cnf.c ; https://github.com/pcm720/neutrino/blob/bsd-dvr/ee/loader/src/main.c
+
+---
+
 # PSX DVR ISO Manager v1.0 — wariant USB i wariant HDD
 
 Status: **decyzja projektowa, 3 listopada 2026**. Dokument roboczy na gałęzi eksperymentalnej. Nie zmienia wersji v0.8 ani gałęzi `main`.
