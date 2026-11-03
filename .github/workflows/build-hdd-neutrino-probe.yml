@@ -63,8 +63,8 @@ jobs:
         working-directory: neutrino-pinned
         run: |
           python3 ../hdd-diagnostics/neutrino-hdd-probe/patch_w_entry_hold.py ee/loader/src/main.c
-          grep -F 'DelayThread(15000000)' ee/loader/src/main.c
-          grep -F 'DelayThread(30000000)' ee/loader/src/main.c
+          grep -F 'w_busy_hold(8)' ee/loader/src/main.c
+          grep -F 'w_busy_hold(16)' ee/loader/src/main.c
           grep -F 'return 0; /* ABSOLUTE no-game stop' ee/loader/src/main.c
           make -C ee/loader clean
           make -C ee/loader all
