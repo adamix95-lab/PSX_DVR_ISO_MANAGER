@@ -868,9 +868,12 @@ int main(int argc, char *argv[]) {
 #ifdef DESR_HDD_TEST
               int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
               art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
+              int bad=0,link=0,http_status=0;
+              art_sync_last_net_details(&bad,&link,&http_status);
               snprintf(status,sizeof(status),
-                       "ART: %d/%d OK, MISS%d NET%d PFS%d IDX%d",
-                       saved,candidates,not_found,http_failed,write_failed,matched);
+                       "ART %d/%d IDX%d MISS%d NET%d BAD%d LINK%d H%d PFS%d",
+                       saved,candidates,matched,not_found,http_failed,
+                       bad,link,http_status,write_failed);
 #else
               snprintf(status,sizeof(status),
                        "ART SYNC: %d saved. INDEX: %d/%d",
@@ -885,9 +888,12 @@ int main(int argc, char *argv[]) {
             {
               int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
               art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
+              int bad=0,link=0,http_status=0;
+              art_sync_last_net_details(&bad,&link,&http_status);
               snprintf(status,sizeof(status),
-                       "ART: 0/%d, try%d MISS%d NET%d PFS%d",
-                       candidates,tried,not_found,http_failed,write_failed);
+                       "ART 0/%d TRY%d MISS%d NET%d BAD%d LINK%d H%d PFS%d",
+                       candidates,tried,not_found,http_failed,
+                       bad,link,http_status,write_failed);
             }
 #else
             snprintf(status,sizeof(status),

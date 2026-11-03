@@ -17,4 +17,9 @@ int art_sync_run(const probe_config *cfg);
 void art_sync_last_stats(int *candidates, int *attempted, int *not_found,
                          int *http_failed, int *write_failed);
 
+/* HDD test: errors split into invalid HTTP body/PNG, TCP/socket and
+   non-200/non-404 HTTP statuses. Read-only status reporting. */
+void art_sync_last_net_details(int *bad_payload, int *transport_fail,
+                               int *http_status_fail);
+
 #endif

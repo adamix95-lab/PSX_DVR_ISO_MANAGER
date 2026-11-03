@@ -27,6 +27,14 @@ static char report[ART_SYNC_REPORT_MAX + 1U];
 static art_sync_item games[ART_SYNC_GAMES_MAX];
 static int game_count;
 static int last_attempted, last_not_found, last_http_failed, last_write_failed;
+static int last_bad_payload, last_transport_fail, last_http_status_fail;
+
+void art_sync_last_net_details(int *bad_payload, int *transport_fail,
+                               int *http_status_fail) {
+  if (bad_payload) *bad_payload=last_bad_payload;
+  if (transport_fail) *transport_fail=last_transport_fail;
+  if (http_status_fail) *http_status_fail=last_http_status_fail;
+}
 void art_sync_last_stats(int *candidates, int *attempted, int *not_found,
                          int *http_failed, int *write_failed) {
   if (candidates) *candidates=game_count;
@@ -152,7 +160,20 @@ static int download(const probe_config *cfg, const char *id,
   scr_printf("GET %s\n",url);
   stage=5;
   for (;;) {
-    if (!ready(sock,0)) goto fail;
+    if (!ready(sock,0)) {
+#ifdef DESR_HDD_TEST
+      /* Some LAN peers delay FIN after fully sending Content-Length.
+         Accept only a byte-complete and CRC-validated PNG; a short or
+         malformed response is still an error, never written to HDD. */
+      if (received>0 &&
+          probe_http_extract_png(response,received,png,png_size)==0) {
+        scr_printf("HTTP full PNG received before FIN\n");
+        lwip_close(sock);
+        return 0;
+      }
+#endif
+      goto fail;
+    }
     if (received>=BUF_CAP) goto fail;
     rc=lwip_recv(sock,response+received,BUF_CAP-received,0);
     if (rc<0 && (errno==EWOULDBLOCK||errno==EAGAIN)) continue;
@@ -283,6 +304,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
 int art_sync_run(const probe_config *cfg) {
   int i,attempted=0,saved=0,fail_streak=0,not_found=0,http_failed=0,write_failed=0,stale=0;
   last_attempted=last_not_found=last_http_failed=last_write_failed=0;
+  last_bad_payload=last_transport_fail=last_http_status_fail=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];
@@ -315,14 +337,29 @@ int art_sync_run(const probe_config *cfg) {
       }
       if (got==-403) {
         http_failed++;
+        last_http_status_fail++;
         scr_printf("STOP HTTP 403: PC rejects console IP; check server settings\n");
         break;
       }
       if (got<0) {
         http_failed++;
-        scr_printf("ART HTTP FAILED: %s\n",games[i].id);
+#ifdef DESR_HDD_TEST
+        /* A 200 response whose PNG/body is invalid is a per-game failure,
+           NOT a global LAN outage. Continue trying the next game.
+           Keep the 4-failure safety stop only for repeated transport or
+           actual HTTP server errors (e.g. 503). */
+        if (got==-6) {
+          last_bad_payload++;
+          fail_streak=0;
+          scr_printf("SKIP BAD HTTP/PNG for %s; next game\n", games[i].id);
+          continue;
+        }
+        if (got==-7) last_http_status_fail++;
+        else last_transport_fail++;
+#endif
+        scr_printf("ART HTTP FAILED: %s code=%d\n",games[i].id,got);
         if (++fail_streak>=4) {
-          scr_printf("STOP: 4 consecutive HTTP failures; check PC server.\n");
+          scr_printf("STOP: 4 consecutive network/server failures.\n");
           break;
         }
         continue;
@@ -349,6 +386,10 @@ int art_sync_run(const probe_config *cfg) {
              game_count,attempted,saved);
   scr_printf("ART RESULTS: NOT_FOUND=%d HTTP_FAIL=%d PFS_WRITE=%d STALE_PART=%d\n",
              not_found,http_failed,write_failed,stale);
+#ifdef DESR_HDD_TEST
+  scr_printf("HTTP DETAIL: BAD_PNG=%d LINK=%d STATUS=%d\n",
+             last_bad_payload,last_transport_fail,last_http_status_fail);
+#endif
   if (saved>0)
     scr_printf("New PNG covers saved in app ART.\n");
   return saved>0 ? saved : -1;

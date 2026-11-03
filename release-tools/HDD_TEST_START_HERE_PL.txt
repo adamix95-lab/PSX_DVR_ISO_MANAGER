@@ -100,3 +100,17 @@ ART HTTP 404 (HDD TEST FIX):
  bezcelowo i przechodzi do nastepnej gry. Kody HTTP 403, bledy
  transportu oraz niepoprawne PNG pozostaja osobnymi bledami.
  Nie wylaczono walidacji CRC i nie nadpisuje juz istniejacych ART.
+
+ART - diagnoza transferu (HDD TEST, bad HTTP/PNG):
+  MISS  = HTTP 404 / okładka niedostępna w OPL i PSBBN.
+  NET   = łącznie nieudane odpowiedzi HTTP, niekompletne body/PNG lub TCP.
+  BAD   = HTTP 200, ale body/PNG nie przeszło ścisłej weryfikacji;
+          pomiń ten Game ID po 2 próbach i kontynuuj kolejne gry.
+  LINK  = błąd socket/connect/send/receive (kod -1..-5).
+  H     = inny kod HTTP (np. 503) albo zablokowany dostęp 403.
+  PFS   = błąd zapisu w PP.DVRISO/ART.
+  IDX   = indeksowane okładki.
+Nie zniesiono weryfikacji Content-Length/CRC PNG ani limitu sesji 40
+gier. Po 4 kolejnych rzeczywistych błędach TCP/serwera działa STOP.
+Jeśli pojawi się BAD, zrób zdjęcie "HTTP BAD" / "HTTP BODY" z konsoli.
+Jeżeli LINK, zanotuj "HTTP FAILURE stage/errno".
