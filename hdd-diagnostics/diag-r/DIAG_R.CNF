@@ -1,0 +1,3 @@
+boot=PSX_DVR_HDD_DIAG_R_ARG.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso
