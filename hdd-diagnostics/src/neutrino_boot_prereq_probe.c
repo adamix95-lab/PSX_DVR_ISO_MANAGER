@@ -138,7 +138,6 @@ static int config_type; /* 1 = SYSTEM, 2 = ENGLISH, 0 = unknown */
 static int bsd_dvr;
 static int has_dvd;
 static int usb_dep;
-static int dvd_open_code = -999;
 
 static int read_config(void)
 {
@@ -210,20 +209,6 @@ close_config:
                result, config_type, bsd_dvr, has_dvd, usb_dep);
     return result;
 }
-
-static int probe_selected_iso(void)
-{
-    int fd, rv;
-    if (!has_dvd) return -135;
-    before("I DVD ISO PATH");
-    fd = fileXioOpen(dvd_path, FIO_O_RDONLY, 0);
-    scr_printf("I ISO FILE OPEN=%d\n", fd);
-    if (fd < 0) return fd;
-    rv = fileXioClose(fd);
-    return rv;
-}
-
-
 
 static int quiet_file_size(const char *path)
 {
