@@ -340,3 +340,21 @@ target_link_libraries(PSX_DVR_HDD_DIAG_S.ELF
   pad patches fileXio cdvd libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_S.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG T: read-only target-entry cwd/config/modules visibility via actual OSDMenu.
+# Target MUST probe BEFORE its own IOP reset; only then load pad for results.
+add_executable(PSX_DVR_HDD_DIAG_T_TARGET.ELF
+  src/osdmenu_entry_file_access_target.c
+  ${EXIT_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_T_TARGET.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_T_TARGET.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
+  src/osdmenu_entry_file_access_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_T_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
