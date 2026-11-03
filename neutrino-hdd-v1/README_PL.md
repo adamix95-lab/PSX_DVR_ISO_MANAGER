@@ -53,6 +53,15 @@ Obrazy ISO pozostają bez zmian w dvr_pfs0:/ISO/ — nie przenosimy gier i nie f
 
 Generator CNF (dvr-iso-manager/src/hdd_boot_config.c) jest już dodany i testowany host-side. Zachowuje -dev9=NICHDD na końcu argumentów i ignorowaną linię #PAD na końcu całego pliku. Przestrzega dokładnej wielkości liter w nazwie ISO.
 
+
+## Ważne: FIX95 z działającego DIAG Z jest warunkiem regresji
+
+W fizycznym teście DESR-7000 dopiero **DIAG Z FIX95** umożliwił uruchomienie `MGS 2.ISO` z HDD. Skrypt diagnostyczny `hdd-diagnostics/neutrino-hdd-probe/patch_z_real_iso.py` usunął pozostawiony po DIAG Y warunek na `DIAG_V_NO_GAME.iso` i wstawił dokładne porównanie ścieżki `strcmp(sDVDFile, argv[2] + 5) != 0` przed `setup_dvd_iso`.
+
+W wydaniu 1.0 HDD pozostawiamy **oryginalny** mechanizm DVR FHI i `setup_dvd_iso` z przypiętego pcm720 PR #228, bez diagnostycznych zatrzymań. Do `patch_hdd_runtime.py` dodano **osobną kontrolę FIX95** po odczycie TOML i przetworzeniu argumentów: ścieżka ISO wybrana przez OSDMenu musi pozostać identyczna z tą, którą Neutrino zamierza otworzyć. Dotyczy to zarówno SYSTEM, jak i ENGLISH. Błędny lub podmieniony argument zatrzymuje start kodem `-95`, bez prób otwarcia innego ISO.
+
+GitHub Actions kontroluje w obu binariach obecność komunikatu `HDD FIX95 ISO argument/path mismatch`, brak fikcyjnego `DIAG_V_NO_GAME.iso` i zachowanie granicy `PP.DVRISO`. **To zabezpieczenie regresji, nie nowy sprzętowy PASS dla wersji 1.0 HDD.**
+
 ## Budowanie Neutrino HDD
 
 Eksperymentalny workflow build-neutrino-hdd-v1.yml kompiluje dwie osobne binarki z przypiętego commita pcm720 PR #228 aa8d80a1a0b5323cb407c814c0568c3489597c1c.

@@ -24,7 +24,30 @@ def once(old, new):
     s = s.replace(old, new)
 
 once("int main(int argc, char *argv[])\n{",
+     "static int desr_iso_arg_allowed(const char *arg);\n\n"
      "static int neutrino_hdd_upstream_main(int argc, char *argv[])\n{")
+
+# FIX95: verify OSDMenu-selected ISO, not an old diagnostic dummy.
+# Check AFTER Neutrino has parsed -dvd and the TOML configs.
+once('''        sDVDFile = sys.sDVDMode;
+        sys.sDVDMode = "file";
+    }
+''',
+'''        sDVDFile = sys.sDVDMode;
+        sys.sDVDMode = "file";
+    }
+
+    /* FIX95: match the actual parsed ISO to the OSDMenu-selected filename.
+     * Apply this to both SYSTEM (argc=3) and ENGLISH (argc=5).
+     * Do not accept dummy-ISO checks or a config override of -dvd=.
+     */
+    if (argc < 3 || !argv || !argv[2] ||
+        !desr_iso_arg_allowed(argv[2]) || !sDVDFile ||
+        strcmp(sDVDFile, argv[2] + 5) != 0) {
+        printf("ERROR: HDD FIX95 ISO argument/path mismatch\\n");
+        return -95;
+    }
+''')
 
 s += r'''
 
@@ -98,9 +121,13 @@ int main(int argc, char *argv[])
 '''
 if "PP.TESTDVR" in s:
     raise SystemExit("Unexpected test partition in production source")
+if "DIAG_V_NO_GAME.iso" in s or "Y95 REJECT UNEXPECTED ISO PATH" in s:
+    raise SystemExit("HDD FIX95 refuses leftover diagnostic dummy ISO guard")
+if "strcmp(sDVDFile, argv[2] + 5) != 0" not in s:
+    raise SystemExit("HDD FIX95 missing real selected-ISO match")
 if 'fileXioMount("pfs0:", "hdd0:PP.DVRISO", FIO_MT_RDONLY)' not in s:
     raise SystemExit("HDD partition RO mount missing")
 if 'neutrino_hdd_upstream_main(argc,argv)' not in s:
     raise SystemExit("Upstream Neutrino call missing")
 source.write_text(s,encoding="utf-8")
-print("HDD 1.0 runtime: pinned Neutrino + verified RO PFS remount/chdir + English argv allowlist")
+print("HDD 1.0 runtime: RO PFS remount + FIX95 exact selected-ISO + English argv allowlist")
