@@ -74,10 +74,10 @@ jobs:
                        b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
                        b"arg=-dev9=NICHDD\n")
           cnf2=Path("hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF").read_bytes()
-          assert cnf2==(b"boot=PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF\\n"
-                        b"arg=-bsd=dvr\\n"
-                        b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\\n"
-                        b"arg=-dev9=NICHDD\\n")
+          assert cnf2==(b"boot=PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF\n"
+                        b"arg=-bsd=dvr\n"
+                        b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
+                        b"arg=-dev9=NICHDD\n")
           import struct
           e_packed=struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF").read_bytes(),24)[0]
           e_plain=struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF").read_bytes(),24)[0]
