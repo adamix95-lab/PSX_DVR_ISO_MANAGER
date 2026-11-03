@@ -1,3 +1,36 @@
+## DIAG R — rzeczywisty OSDMenu i przekazanie argumentów, BEZ Neutrino/gry
+
+**Warunek wejściowy:** użytkownik potwierdził, że oryginalny `PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF` z `hdd0:PP.TESTDVR/DIAG_Q.CNF` uruchomił DIAG F. `DIAG_Q.CNF` ma dokładnie 28 bajtów i nie zawiera `-dev9=NICHDD`. W DIAG J uruchamianie Neutrino z `BOOT.CNF` doprowadziło do powrotu do XMB. Nie wiemy jeszcze, czy problem zależy od argumentów, trybu wyłączenia DEV9 czy samego Neutrino.
+
+**DIAG R ma rozdzielić te kwestie bez wykonywania Neutrino.** Oryginalny `BOOT.ELF` OSDMenu zostaje nienaruszony; jego prawdziwy Quickboot → handlePFS → embedded loader wczytuje nowy, nieszkodliwy `PSX_DVR_HDD_DIAG_R_ARG.ELF` z własnej `PP.TESTDVR`. R_ARG wykorzystuje stos z fizycznie sprawdzonego DIAG F, **nie ładuje żadnych modułów HDD/DVR**, nie otwiera obrazu ani partycji, wyświetla tylko `argc/argv[0..2]`, `ARGS_OK` i pozwala wrócić przez START.
+
+### Pliki DIAG R (nie mylić z DIAG_Q.CNF)
+
+1. `PSX_DVR_HDD_DIAG_R_ARG.ELF` — **skopiować do głównego katalogu `PP.TESTDVR`**. Jest to program docelowy (nie launcher UDPFS).
+2. `DIAG_R.CNF` — **również skopiować do głównego katalogu `PP.TESTDVR`**. To nowa, osobna konfiguracja.
+3. `PSX_DVR_HDD_DIAG_R_LAUNCH.ELF` — **uruchomić przez UDPFS** w wLE-R3Z (lub USB), nie kopiować na HDD.
+
+Zawartość testowego pliku `DIAG_R.CNF` dokładnie 87 bajtów, LF:
+```text
+boot=PSX_DVR_HDD_DIAG_R_ARG.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso
+```
+
+**`DIAG_R_NO_GAME.iso` jest celowo fikcyjną nazwą.** Nie jest i nie musi być obecny na HDD. OSDMenu w tym kroku tylko przekazuje argument `-dvd` do R_ARG, który wyświetla go i **nigdy nie otwiera**. `-bsd=dvr` również jest jedynie tekstem przekazanym do naszego programu. Tym testem badamy transport argumentów, a nie funkcje DVR Neutrino ani faktyczny odczyt ISO. Podobnie jak w pierwotnym Q **nie ustawiamy `-dev9=NICHDD`**.
+
+### Plan na konsoli
+
+1. Zachowaj kopię danych i nie edytuj `BOOT.CNF`, `BOOT.ELF`, `DIAG_Q.CNF`, `neutrino.elf`, `PSX_DVR_HDD_DIAG_F.ELF`, gier, partycji systemowych Sony ani XMB. PR #26 pozostaje eksperymentalny, `main` i v0.8 nietknięte.
+2. Po **zielonym GitHub Actions** pobierz paczkę `PSX-DVR-HDD-DIAG-R-OSDMENU-ARGV-ONLY`. Skopiuj na **własną** `PP.TESTDVR` tylko R_ARG.ELF oraz `DIAG_R.CNF`.
+3. Uruchom przez UDPFS `PSX_DVR_HDD_DIAG_R_LAUNCH.ELF`. Tak jak oryginalny Q: montuje `PP.TESTDVR` jako `pfs1:` **tylko do odczytu**, sprawdza istniejące `BOOT.CNF` (bez zmian), pliki startowe, wybrane ISO, R_ARG oraz **dokładną zawartość `DIAG_R.CNF`**. Dopiero przy `CHECK=0` możesz świadomie nacisnąć X. Przy błędzie X będzie wyłączony; zrób zdjęcie.
+4. Po X realny OSDMenu powinien załadować R_ARG z HDD. Na ekranie `PSX DVR HDD DIAG R / ARG RESULTS` oczekujemy `ARGC=3 ARGS_OK=1`, `ARGV1=-bsd=dvr` oraz `ARGV2=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`. Zrób zdjęcie. START to zwykłe wyjście do XMB (nie testujemy już osobno działania START).
+5. W przypadku powrotu do XMB bez ekranu R_ARG, błędu OSDMenu lub zawieszenia, zapisz ostatni ekran/komunikat. W sytuacji zablokowania IOP może być konieczny restart konsoli.
+
+**Ograniczenia:** to pierwszy eksperyment z prawdziwym loaderem przekazującym dwa argumenty do nowego ELF, ale R_ARG nie jest Neutrino i nie otwiera ISO. Nawet pełny PASS nie wykaże, czy same moduły Neutrino i jego DVR `-dvd` startują poprawnie na DESR. Oryginalny OSDMenu może wykonać własną sekwencję DEV9 / HDD (nie gwarantujemy braku wewnętrznych zapisów sterowników), choć nasz kod diagnostyczny nie zawiera zapisu. Jeżeli R przejdzie, następny etap to diagnostyka inicjalizacji Neutrino bez launchu gry lub kontrolowany, świadomy start przy realnym ISO.
+
+---
+
 ## DIAG Q — korekta identyfikacji wariantu, fizyczny PASS na DESR-7000 (3.11.2026)
 
 **Użytkownik wyjaśnił:** wykonał próbę z pierwszym wariantem **`PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF` + `DIAG_Q.CNF`**, a **DIAG F rzeczywiście wystartował**. NIE używał dodatkowego wariantu `PSX_DVR_HDD_DIAG_Q.ELF` + `BOOTQ.CNF`. Poprzedni wpis w PR i README, który przypisał ten wynik konfiguracji `BOOTQ.CNF` z `-dev9=NICHDD`, był błędny i zostaje jednoznacznie sprostowany.
