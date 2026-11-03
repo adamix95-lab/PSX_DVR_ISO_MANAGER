@@ -115,6 +115,29 @@ jobs:
           name: PSX-DVR-ISO-Manager-v1.0-HDD-TEST-ELF
           path: build-dvr-manager/DVR_ISO_MANAGER_HDD_TEST.ELF
           if-no-files-found: error
+      - name: Build HDD LAN RAM-only diagnostic
+        run: |
+          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("dvr-iso-manager/src/main.c").read_text()
+          cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          net=Path("dvr-iso-manager/src/net/art_sync_runtime.c").read_text()
+          assert 'DESR_HDD_PREVIEW=1 DESR_HDD_ART_PROBE=1' in cm
+          assert 'desr_lan_art_probe(covers,count)' in s
+          assert 'art_sync_probe_all' in net
+          assert 'RAM DONE' in net
+          assert 'hdd_mount_readonly()' in s
+          assert 'HDD preview: CNF / ART writes and launch disabled' in s
+          print("HDD LAN RAM benchmark: separate PREVIEW-gated RO target PASS")
+          PY
+      - name: Upload HDD LAN RAM-only diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-HDD-LAN-RO-PROBE-ELF
+          path: build-dvr-manager/DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF
+          if-no-files-found: error
       - name: Upload separate 1.0 HDD read-only preview
         uses: actions/upload-artifact@v4
         with:

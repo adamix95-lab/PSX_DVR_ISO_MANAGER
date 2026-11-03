@@ -2,6 +2,9 @@
 #define DESR_ART_SYNC_RUNTIME_H
 
 #include "probe_config.h"
+#ifdef DESR_HDD_ART_PROBE
+#include "cover_index.h"
+#endif
 #include <stddef.h>
 
 /* Read the Manager's USB scan report and select only missing covers.
@@ -13,6 +16,11 @@ int art_sync_prepare(void);
    Downloads up to ART_SYNC_BATCH_MAX missing covers from local LAN.
    Returns count saved, or -1 if none was saved. */
 int art_sync_run(const probe_config *cfg);
+#ifdef DESR_HDD_ART_PROBE
+/* Never calls fileXioOpen/write/rename: network receive + CRC only. */
+int art_sync_probe_all(const probe_config *cfg,
+                       const desr_cover_entry covers[], int count);
+#endif
 
 /* Last batch counters for the menu status, not only transient console text. */
 void art_sync_last_stats(int *candidates, int *attempted, int *not_found,

@@ -835,6 +835,24 @@ int main(int argc, char *argv[]) {
       if (new_press & PAD_START) break;
 
 #ifdef DESR_HDD_PREVIEW
+#ifdef DESR_HDD_ART_PROBE
+      /* Dedicated RO LAN benchmark: TRIANGLE fetches every indexed Game ID
+         into RAM and validates it. Never mount RW, scan/write INDEX or
+         allow Quickboot/CNF writes. START cleanly unmounts our PFS1. */
+      if (new_press & PAD_TRIANGLE) {
+        int ok;
+        scr_clear();
+        scr_printf("PSX DVR HDD LAN RAM PROBE - READ ONLY\n");
+        scr_printf("PP.DVRISO remains PFS1 READ-ONLY.\n");
+        scr_printf("All indexed games are fetched even if ART exists.\n");
+        ok=desr_lan_art_probe(covers,count);
+        snprintf(status,sizeof status,
+                 "HDD LAN RAM PROBE: %d/%d PNG valid (no writes)",ok,count);
+        status_visible=1;
+        draw();
+        continue;
+      }
+#else
       /* Preview only: permit menu navigation and read-only rescans.
          DO NOT call write_verified_file(), desr_covers_refresh() or
          desr_lan_art_download() until dedicated HDD write/rename tests. */
@@ -847,9 +865,15 @@ int main(int argc, char *argv[]) {
         draw();
         continue;
       }
+#endif /* not DESR_HDD_ART_PROBE */
       if (new_press & (PAD_CROSS | PAD_SQUARE)) {
         snprintf(status, sizeof(status),
-                 "HDD preview: CNF / ART writes and launch disabled");
+#ifdef DESR_HDD_ART_PROBE
+                 "HDD LAN PROBE READ ONLY: X/SQUARE launch & writes disabled"
+#else
+                 "HDD preview: CNF / ART writes and launch disabled"
+#endif
+                 );
         status_visible = 1;
         draw();
         continue;

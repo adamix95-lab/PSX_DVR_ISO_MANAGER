@@ -421,3 +421,47 @@ int art_sync_run(const probe_config *cfg) {
     scr_printf("New PNG covers saved in app ART.\n");
   return saved>0 ? saved : -1;
 }
+
+#ifdef DESR_HDD_ART_PROBE
+/* Strict read-only benchmark of the very same download()/PNG checker.
+ * Pull ALL Game IDs from the already-loaded COVERS.IDX, including artwork
+ * that exists, to avoid any filesystem writes and eliminate PFS write
+ * contention from the experiment.
+ */
+int art_sync_probe_all(const probe_config *cfg,
+                       const desr_cover_entry covers[], int total) {
+  int i, ok=0, bad=0, link=0, missing=0, status=0, skipped=0;
+  if (!cfg || !covers || total<=0 || total>DESR_GAME_CAP) return -1;
+  for (i=0;i<total;i++) {
+    const uint8_t *img=NULL;
+    size_t len=0;
+    int rc;
+    if (!art_sync_valid_id(covers[i].game_id)) {
+      skipped++;
+      continue;
+    }
+    scr_printf("RAM PROBE %d/%d: %s\n",i+1,total,covers[i].game_id);
+    rc=download(cfg,covers[i].game_id,&img,&len);
+    if (rc==0) {
+      ok++;
+      scr_printf("RAM OK %s: %lu bytes, valid CRC\n",
+                 covers[i].game_id,(unsigned long)len);
+    } else if (rc==-6) {
+      bad++;
+    } else if (rc==-404) {
+      missing++;
+    } else if (rc==-7 || rc==-403) {
+      status++;
+    } else {
+      link++;
+    }
+    /* Deliberate spacing to avoid mistaking a back-to-back socket reuse
+       race for invalid PNG bytes; no fileXio writes anywhere in this loop. */
+    usleep(200000);
+  }
+  scr_printf("RAM DONE %d/%d VALID, BAD%d LINK%d H%d MISS%d SKIP%d\n",
+             ok,total,bad,link,status,missing,skipped);
+  scr_printf("NO FILES WRITTEN. PFS1 LEFT READ-ONLY.\n");
+  return ok;
+}
+#endif

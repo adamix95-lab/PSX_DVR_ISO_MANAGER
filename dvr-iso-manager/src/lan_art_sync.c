@@ -99,3 +99,13 @@ int desr_lan_art_download(void) {
   if (network_init(&cfg)<0) return -1;
   return art_sync_run(&cfg);
 }
+
+#ifdef DESR_HDD_ART_PROBE
+int desr_lan_art_probe(const desr_cover_entry covers[], int count) {
+  probe_config cfg;
+  if (!covers || count<=0) return -1;
+  if (config_read(&cfg)<0) return -1;
+  if (network_init(&cfg)<0) return -1;
+  return art_sync_probe_all(&cfg,covers,count);
+}
+#endif

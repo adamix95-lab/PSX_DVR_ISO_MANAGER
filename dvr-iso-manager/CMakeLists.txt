@@ -59,3 +59,11 @@ target_compile_definitions(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE DESR_HDD_TEST=1)
 target_include_directories(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
 target_link_libraries(DVR_ISO_MANAGER_HDD_TEST.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
 target_compile_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE -Os -Wall -Wextra)
+
+# STANDALONE, READ-ONLY HDD LAN diagnostic.  It deliberately inherits the
+# PREVIEW compile gate so all launch/write commands remain disabled.
+add_executable(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES})
+target_compile_definitions(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE DESR_HDD_PREVIEW=1 DESR_HDD_ART_PROBE=1)
+target_include_directories(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
+target_link_libraries(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+target_compile_options(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE -Os -Wall -Wextra)

@@ -9,7 +9,11 @@
  * a separate Sony DVR file store and is never writable by the Manager.
  */
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
+#ifdef DESR_HDD_ART_PROBE
+#define DESR_APP_VARIANT "1.0 HDD LAN PROBE RO"
+#else
 #define DESR_APP_VARIANT "1.0 HDD"
+#endif
 #define DESR_APP_ROOT "pfs1:/"
 #define DESR_APP_PARTITION "hdd0:PP.DVRISO"
 #ifdef DESR_HDD_TEST
