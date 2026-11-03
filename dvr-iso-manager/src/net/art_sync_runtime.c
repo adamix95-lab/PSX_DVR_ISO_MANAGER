@@ -423,6 +423,15 @@ int art_sync_run(const probe_config *cfg) {
 }
 
 #ifdef DESR_HDD_ART_PROBE
+static int probe_ok,probe_total,probe_bad,probe_link,probe_missing,probe_status,probe_skipped;
+void art_sync_probe_stats(int *ok,int *total,int *bad,int *link,int *http,int *missing) {
+  if (ok) *ok=probe_ok;
+  if (total) *total=probe_total;
+  if (bad) *bad=probe_bad;
+  if (link) *link=probe_link;
+  if (http) *http=probe_status;
+  if (missing) *missing=probe_missing;
+}
 /* Strict read-only benchmark of the very same download()/PNG checker.
  * Pull ALL Game IDs from the already-loaded COVERS.IDX, including artwork
  * that exists, to avoid any filesystem writes and eliminate PFS write
@@ -459,6 +468,13 @@ int art_sync_probe_all(const probe_config *cfg,
        race for invalid PNG bytes; no fileXio writes anywhere in this loop. */
     usleep(200000);
   }
+  probe_ok=ok;
+  probe_total=total;
+  probe_bad=bad;
+  probe_link=link;
+  probe_status=status;
+  probe_missing=missing;
+  probe_skipped=skipped;
   scr_printf("RAM DONE %d/%d VALID, BAD%d LINK%d H%d MISS%d SKIP%d\n",
              ok,total,bad,link,status,missing,skipped);
   scr_printf("NO FILES WRITTEN. PFS1 LEFT READ-ONLY.\n");

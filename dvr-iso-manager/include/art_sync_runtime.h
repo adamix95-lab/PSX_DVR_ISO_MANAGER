@@ -20,6 +20,8 @@ int art_sync_run(const probe_config *cfg);
 /* Never calls fileXioOpen/write/rename: network receive + CRC only. */
 int art_sync_probe_all(const probe_config *cfg,
                        const desr_cover_entry covers[], int count);
+void art_sync_probe_stats(int *ok,int *total,int *bad,int *link,
+                          int *http,int *missing);
 #endif
 
 /* Last batch counters for the menu status, not only transient console text. */

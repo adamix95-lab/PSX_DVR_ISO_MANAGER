@@ -846,8 +846,17 @@ int main(int argc, char *argv[]) {
         scr_printf("PP.DVRISO remains PFS1 READ-ONLY.\n");
         scr_printf("All indexed games are fetched even if ART exists.\n");
         ok=desr_lan_art_probe(covers,count);
-        snprintf(status,sizeof status,
-                 "HDD LAN RAM PROBE: %d/%d PNG valid (no writes)",ok,count);
+        {
+          int done=0,total=0,bad=0,link=0,http=0,miss=0;
+          art_sync_probe_stats(&done,&total,&bad,&link,&http,&miss);
+          if (ok<0)
+            snprintf(status,sizeof status,
+                     "RAM PROBE ERROR %d; no PFS writes performed",ok);
+          else
+            snprintf(status,sizeof status,
+                     "RAM %d/%d VALID, BAD%d LINK%d H%d MISS%d; RO",
+                     done,total,bad,link,http,miss);
+        }
         status_visible=1;
         draw();
         continue;
