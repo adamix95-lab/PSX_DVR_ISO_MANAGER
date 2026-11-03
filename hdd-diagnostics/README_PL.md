@@ -1,3 +1,48 @@
+## DIAG T — rzeczywisty wynik na DESR-7000, DIAG U — następny test RO
+
+**DIAG T zaliczony na fizycznym PSX DESR-7000 (3.11.2026)**, dwa zdjęcia użytkownika:
+
+```text
+PSX DVR HDD DIAG T / RESULTS
+CHECK=0 MOUNT=0
+CNF=91 ELF=197396 NEUT=75140
+SYS=1 BSD=1 DVD=1 USB=0
+ISO=3 DVR=3 PFS=3
+TCNF=107 TARGET ELF BYTES=1550452
+TCNF PREFIX EXACT. LAST=00 NUL=1
+T PROBES ENTRY CWD. NO GAME.
+```
+
+Po naciśnięciu X realny oryginalny OSDMenu uruchomił T_TARGET:
+
+```text
+PSX DVR HDD DIAG T / TARGET ENTRY
+ARGC=3 ARGS_OK=1
+ARGV0: hdd0:PP.TESTDVR:pfs:/PSX_DVR_HDD_DIAG_T_TARGET.ELF
+CWD: hdd0:PP.TESTDVR:pfs:
+fileXioInit=0 PFS0=-19 HDD0=2
+RPC PFS CFG=-19 IRX=-19
+RPC REL CFG=-19 IRX=-19
+POSIX CFG=-1 ER=22
+POSIX IRX=-1 ER=22
+DUMMY ISO NOT OPENED. NO GAME.
+```
+
+**Wniosek potwierdzony sprzętowo:** łańcuch OSDMenu → ELF → argv działa, urządzenie HDD jest widoczne, ale zamontowany w OSDMenu punkt `pfs0:` **nie jest dostępny** w uruchomionym ELF; RPC i POSIX nie potrafią otworzyć `config/system.toml` ani `modules/dvrfile_fhi.irx` przy bieżącym CWD. Te wyniki nie dowodzą, że pliki nie są fizycznie obecne na testowej partycji.
+
+**Potwierdzenie źródłowe:** oryginalny `pcm720/OSDMenu` w `launcher/src/common.c` `deinitPFS()` wywołuje `fileXioUmount(PFS_MOUNTPOINT)`; `utils/loader/src/loader.c` `shutdownDEV9()` *bezwarunkowo* wywołuje `fileXioUmount("pfs0:")`, a `-dev9=NICHDD` zabezpiecza zasilanie DEV9/HDD, ale nie powoduje automatycznego remountu. Nie stwierdzono jeszcze, czy to jedyna przeszkoda w rozruchu rozszerzonego Neutrino pcm720.
+
+**DIAG U** — kontrolowany test możliwości przywrócenia dostępu PFS po handoffie:
+- Nowe pliki testowe `PSX_DVR_HDD_DIAG_U_TARGET.ELF` i `DIAG_U.CNF` (107 bajtów) należy skopiować obok istniejących plików do **wyłącznie** `hdd0:PP.TESTDVR`; `PSX_DVR_HDD_DIAG_U_LAUNCH.ELF` uruchamia się **z UDPFS** przez wLE-R3Z. Żadnych innych plików nie nadpisywać. Używana jest tylko alternatywna konfiguracja U, **nie** `BOOT.CNF`.
+- U config jest identyczna układem do T, ale wskazuje wyłącznie U_TARGET i celowo nieistniejący `DIAG_U_NO_GAME.iso`; ostatni argument `-dev9=NICHDD` przechwytuje OSDMenu.
+- U LAUNCH przeprowadza fizycznie sprawdzoną preflight R3/T: tylko `FIO_MT_RDONLY`, ścisła kontrola pliku CNF (prefix zgodny byte-for-byte, ostatni LF lub NUL), sprawdzenie targetu, izolowanego HDD, znanej konfiguracji i dostępności katalogu ISO, następnie świadome **X**, lub START anulowanie.
+- U TARGET najpierw wykonuje **identyczne sondowanie stanu wejścia jak T przed swoim IOP reset**. Wyłącznie jeśli istnieje `hdd0:` i brak dostępu do `pfs0:`, próbuje `fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)`. Jeśli montowanie uda się, sprawdza `pfs0:/`, otwiera **tylko do odczytu** `pfs0:/config/system.toml`, `pfs0:/modules/dvrfile_fhi.irx`, próbuje `chdir("pfs0:/")` i POSIX `open(O_RDONLY)` na odpowiednich ścieżkach względnych. Otwierane deskryptory są zamykane, własny mount odmontowuje przed swoim IOP reset, który służy wyłącznie do wyświetlenia zachowanych wyników i uruchomienia padu.
+- Końcowy ekran `PSX DVR HDD DIAG U / RO REMOUNT` zawiera `MOUNT_RO`, `PFS_AFTER`, `RPC CONFIG`, `DVR IRX`, `CHDIR`, `NEW CWD`, `POSIX CFG/IRX ERRNO`, `UMOUNT OWN`. Jeśli zawiesi się wcześniej, sfotografować ostatni marker `U... BEGIN`.
+
+**Bezpieczniki:** brak otwierania rzeczywistego ISO, brak Neutrino i gry, brak zapisu na HDD w kodzie U, montowanie wyłącznie `PP.TESTDVR` w RO, bez kolizji z istniejącym `pfs0`, brak zmian na USB v0.8, stabilnym `main`, `BOOT.CNF` i systemowych partycjach Sony. Wywołania istniejących obcych sterowników IOP mogą mieć efekty wewnętrzne, dlatego zabezpieczyć ważne dane przed eksperymentami.
+
+---
+
 ## DIAG T — dostęp do config/modules w chwili wejścia do ELF z OSDMenu
 
 Po kopiowaniu `config/` i `modules/` na `PP.TESTDVR` i przesunięciu `arg=-dev9=NICHDD` na koniec `BOOT.CNF`, użytkownik nadal widzi czarny ekran i powrót do XMB bez dawnego `-19`. To nie dowodzi uruchomienia Neutrino ani zachowania dostępu do HDD.
