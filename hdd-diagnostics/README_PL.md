@@ -1,3 +1,36 @@
+## DIAG R2 — powtarzalny błąd `RCNF=-344` znaleziony na ostatnim bajcie (zdjęcie 3.11.2026)
+
+Użytkownik wykonał R2 przez UDPFS i przesłał zdjęcie:
+
+```text
+PSX DVR DIAG R2 / CNF BYTES
+CHECK=-136 MOUNT=0 RCNF=-344
+SIZE=87 EXPECT=87 READ=87
+DIFF OFFSET=86 E=0A A=00
+CR=0 LF=2 NUL=1
+SUM EXPECT=7111 READ=7101
+WINDOW AT 83 (UP TO 8 BYTES):
+E: 69 73 6F 0A
+A: 69 73 6F 00
+```
+
+**Potwierdzenie:** odczytane 87 bajtów zgadza się ze wzorcem aż do indeksu 85 włącznie. **Jedyna różnica to ostatni bajt 86 (0x0A LF zmienione w 0x00 NUL)**. Nie wiemy, czy powstaje podczas zapisu, kopiowania czy odczytu przez stos PS2. Ponowne kopiowanie oryginału nie pomogło.
+
+## DIAG R3 — ograniczona poprawka, bez zmian plików HDD
+
+Zamiast edytować `DIAG_R.CNF`, przygotowano **tylko nowy `PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF`**, do uruchomienia wyłącznie przez UDPFS w wLE-R3Z. Działające `BOOT.CNF`, `BOOT.ELF`, `DIAG_Q.CNF`, `DIAG_R.CNF`, `PSX_DVR_HDD_DIAG_R_ARG.ELF`, `neutrino.elf` i ISO pozostają nienaruszone. Po inicjalizacji IOP i weryfikacji wyłącznie do odczytu odblokowuje X tylko wtedy, gdy:
+
+- plik `pfs1:/DIAG_R.CNF` ma **dokładnie 87 bajtów** i wszystkie zostały odczytane,
+- pierwsze **86 bajtów są identyczne** z bezpiecznym wzorcem (`boot=PSX_DVR_HDD_DIAG_R_ARG.ELF`, `arg=-bsd=dvr`, fikcyjny `arg=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`),
+- ostatni bajt to **wyłącznie 0x0A albo 0x00**, a nie dowolna inna wartość,
+- pozostałe preflight APA/DVR/ELF nadal przechodzą.
+
+Na ekranie pierwszym oczekujemy `RCNF=87 CHECK=0` i `LAST=00 NUL=1`. Zrób zdjęcie. Przy `CHECK=0` naciśnij **X** świadomie, aby przekazać sterowanie oryginalnemu `pfs1:/BOOT.ELF` z argumentem `hdd0:PP.TESTDVR/DIAG_R.CNF`. OSDMenu powinien uruchomić wyłącznie dotychczasowy, niewykonujący HDD IO `PSX_DVR_HDD_DIAG_R_ARG.ELF`. Docelowy ekran powinien pokazać `PSX DVR HDD DIAG R / ARG RESULTS`, `ARGC=3 ARGS_OK=1`, `ARGV1=-bsd=dvr`, `ARGV2=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`.
+
+**Ograniczenie:** samo dopuszczenie końcowego NUL nie dowodzi jego pochodzenia; OSDMenu powinien parsować ostatnią linię także bez końcowego LF, ale dopiero test na konsoli to zweryfikuje. Sam R3 w kodzie aplikacji nie zapisuje na dysk, lecz jego oryginalny OSDMenu i sterowniki mogą mieć inne operacje wewnętrzne. Zachowaj kopię ważnych danych. START to zwykłe wyjście, bez osobnego testowania. `main`, v0.8 i systemowe partycje Sony są nietknięte, PR #26 zostaje Draft.
+
+---
+
 ## DIAG R2 — rozpoznanie powtarzalnego RCNF=-344 (3 listopada 2026)
 
 Użytkownik zgłosił **ten sam błąd po ponownym skopiowaniu oryginalnego DIAG_R.CNF**. Na pierwszym zdjęciu: `CHECK=-136 MOUNT=0`, `RCNF=-344`, `ARG ELF BYTES=1525188`; pozostałe preflight APA/DVR/PFS są OK. Kod wskazuje, że `-344` powstaje po udanym odczytaniu 87 bajtów `DIAG_R.CNF`, gdy `memcmp` wykrywa różnicę od wzorca. Nie należy ponawiać ślepo kopiowania ani uznawać problemu za błąd Neutrino.
