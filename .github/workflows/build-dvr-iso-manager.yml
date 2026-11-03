@@ -97,7 +97,13 @@ jobs:
           assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in s
           assert 'HDD preview: CNF / ART writes and launch disabled' in s
           assert 'PP.TESTDVR' not in s
-          print('HDD TEST opt-in + separate READONLY preview guards PASS')
+
+          storage=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert '#define DESR_APP_ROOT "pfs1:/"' in storage
+          assert '#define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"' in storage
+          assert '#define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"' in storage
+          assert '"pfs0:/neutrino_hdd' not in storage
+          print('HDD TEST PFS1 + separate READONLY preview guards PASS')
           PY
       - name: Build HDD TEST interactive target
         run: |

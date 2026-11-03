@@ -55,7 +55,13 @@ jobs:
               assert term in src, term
           assert 'DESR_HDD_PREVIEW=1' in cm and 'DESR_HDD_TEST=1' in cm
           assert 'PP.TESTDVR' not in src
-          print("HDD TEST, staged CNF and DIAG Z OSDMenu chainload PASS")
+
+          storage=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert '#define DESR_APP_ROOT "pfs1:/"' in storage
+          assert '#define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"' in storage
+          assert '#define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"' in storage
+          assert '"pfs0:/neutrino_hdd' not in storage
+          print("HDD TEST, staged CNF, Neutrino PFS1 and DIAG Z OSDMenu chainload PASS")
           PY
       - uses: actions/upload-artifact@v4
         with:

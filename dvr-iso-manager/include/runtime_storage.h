@@ -18,8 +18,8 @@
 #define DESR_APP_READONLY 1
 #endif
 #define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO/BOOT.CNF"
-#define DESR_APP_SYSTEM_NEUTRINO "pfs0:/neutrino_hdd.elf"
-#define DESR_APP_ENGLISH_NEUTRINO "pfs0:/neutrino_hdd_lang.elf"
+#define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"
+#define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"
 #else
 #define DESR_APP_VARIANT "1.0 USB"
 #define DESR_APP_ROOT "mass0:/DESR_DVR/"

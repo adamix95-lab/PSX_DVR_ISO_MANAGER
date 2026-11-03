@@ -104,6 +104,15 @@ def build(args: argparse.Namespace) -> None:
     for name in ("DVR_ISO_MANAGER_HDD_TEST.ELF", "DVR_ISO_MANAGER_HDD_PREVIEW.ELF"):
         if b"hdd0:PP.DVRISO" not in payload[name] or b"PP.TESTDVR" in payload[name]:
             raise ValueError(f"Wrong Manager partition: {name}")
+        # Regression guard: PFS1 is mounted by the Manager. PFS0 belongs
+        # only to OSDMenu/Neutrino AFTER handoff, as in proven DIAG Z.
+        if b"pfs1:/neutrino_hdd.elf" not in payload[name] or (
+            b"pfs1:/neutrino_hdd_lang.elf" not in payload[name]
+        ):
+            raise ValueError(f"Wrong Manager Neutrino PFS unit: {name}")
+        if (b"pfs0:/neutrino_hdd.elf" in payload[name] or
+                b"pfs0:/neutrino_hdd_lang.elf" in payload[name]):
+            raise ValueError(f"Old incorrect Neutrino PFS0 path: {name}")
     if b"ee_core_lang.elf" not in payload["config/osdlang.toml"]:
         raise ValueError("Language config does not reference English EE core")
     note = args.readme.read_bytes()
