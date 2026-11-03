@@ -1,3 +1,39 @@
+## DIAG Z — pierwsza próba uruchomienia prawdziwego ISO z HDD po sprzętowym Y2P PASS
+
+**Potwierdzenie Y2P na fizycznej DESR-7000 (3.11.2026):** `Y2 ACTUAL SELECT idx=3 dvrfile_fhi.irx`, `Y2 87 DVR PRE=1 POST=0 CHOSEN=3`, `Y90 CDVDMAN SETTINGS=1`, `Y2 95 DVR FHI+CDVD READY / SAFE STOP` i `V RESULT=0 LAST_STAGE=95`. Ta faza była uruchomiona przez rzeczywisty OSDMenu z HDD (`CHECK=0 → X` w launcherze UDPFS), ale **nie wykonywała odczytu ISO ani gry**.
+
+**DIAG Z to NOWY ETAP O WIĘKSZYM RYZYKU:** użytkownik poprosił, by po PASS Y2 spróbować uruchomić faktyczne ISO. Z bazowego pinned `pcm720/neutrino:bsd-dvr` budujemy oddzielną, niespakowaną wersję `PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF` z proven `fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)`, `chdir("pfs0:/")`, diagnostyką FHI i bez sztucznego `Y95` STOP. Pozwalamy wykonać **oryginalny kod Neutrino**: `setup_dvd_iso`, odczyt `SYSTEM.CNF`, przełączenie do Emulation Environment i `ExecPS2` (gra). Dodaliśmy markery `Z96`, `Z97`, `Z98`, `Z99` przed kolejnymi operacjami, żeby móc rozpoznać nieudane etapy. Osiągnięcie `Z99` samo nie oznacza jeszcze działania gry — wymagany test obrazu i kontrolerów.
+
+### Bezpieczny wybór ISO
+
+Zawartość nowego osobnego pliku `DIAG_Z.CNF` (szablon):
+```ini
+boot=PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/NAZWA_GRY.iso
+arg=-dev9=NICHDD
+#PAD
+```
+
+**Użytkownik edytuje WYŁĄCZNIE `NAZWA_GRY.iso`**, zastępując je dokładną nazwą istniejącego pliku ISO z `dvr_pfs0:/ISO/`; np. jeśli w folderze rzeczywiście jest `SLUS_000.00.iso`, wpisuje tę nazwę, bez cudzysłowów. To tylko przykład — nie deklarować, że taki plik jest na dysku. Zachować wszystkie inne znaki, kolejność argumentów i pięć linii. Zapis w UTF-8 **bez BOM**, końce wierszy **LF**, końcowy LF po `#PAD`; nie używać CRLF. Obsługiwane są nazwy prostych plików ASCII o długości 5–95 znaków, zakończone `.iso` lub `.ISO`; ukośniki, dwukropki, `..`, `=` i inne urządzenia są odrzucane. Nie tworzyć nowego katalogu ani nie kopiować gry, jeśli już znajduje się na DVR.
+
+- `PSX_DVR_HDD_NEUTRINO_Z_LAUNCH.ELF` **uruchamiamy z UDPFS/wLE-R3Z**, jak w Y2P; nadal używa oryginalnego OSDMenu `BOOT.ELF` z HDD. Otwiera i czyta `DIAG_Z.CNF` przez tylko RO PFS, weryfikuje dokładny `boot=`, `arg=-bsd=dvr`, stały prefiks `arg=-dvd=dvr_pfs0:/ISO/`, dozwoloną pojedynczą nazwę pliku ISO i `arg=-dev9=NICHDD`; **nie** dopuszcza dodatkowych argumentów. `#PAD` na końcu musi być zgodne, a wyłącznie jego ostatni bajt dopuszcza LF/NUL/01 (sprzętowo zaobserwowana anomalia). Weryfikuje istnienie **wybranego, rzeczywistego obrazu ISO** przez `fileXioOpen(..., FIO_O_RDONLY)`, zamyka deskryptor, a dopiero `CHECK=0` udostępnia X. W razie błędnej nazwy pliku pokaże ujemny kod `SELECTED ISO OPEN` i zablokuje X.
+- `PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF` samodzielnie sprawdza po otrzymaniu przez OSDMenu, że `argv[0]` wskazuje jedynie `hdd0:PP.TESTDVR:pfs:/`, `argv[1]=-bsd=dvr`, a `argv[2]` zaczyna się od `-dvd=dvr_pfs0:/ISO/` i zawiera jedynie dozwoloną prostą nazwę ISO. Nie pozwala używać żadnych innych partycji jako miejsca przygotowania czy zewnętrznych modułów. Montuje tylko testową partycję jako RO, ale **gra zostaje naprawdę uruchomiona i jej własne zachowanie (np. zapis karty pamięci) wykracza poza kontrolę diagnostyki**.
+- Jeżeli ISO jest prawidłowe i fork Neutrino wystartuje, Z może przekazać sterowanie `ExecPS2` bez powrotu do testu. Jeśli nastąpi powrót/error, wynik `V RESULT` i ostatni widoczny marker mogą wskazać etap niepowodzenia.
+
+### Procedura
+
+1. Zabezpieczyć ważne dane, zamknąć pozostałe zadania, upewnić się, że na `dvr_pfs0:/ISO/` jest prawidłowy obraz PS2, który użytkownik może legalnie uruchomić.
+2. Edytować na PC **tylko nazwę ISO** w `DIAG_Z.CNF`; nie zmieniać `-dev9=NICHDD` ani końcowego `#PAD`. Zapis UTF-8 bez BOM/LF.
+3. Na `hdd0:PP.TESTDVR` skopiować nowe `PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF` i dopasowany `DIAG_Z.CNF`. **NIE nadpisywać** `BOOT.ELF`, `BOOT.CNF`, `neutrino.elf`, `config/`, `modules/`, żadnego ISO i nie dotykać systemowych partycji Sony. Nie ruszać USB v0.8.
+4. Uruchomić `PSX_DVR_HDD_NEUTRINO_Z_LAUNCH.ELF` z UDPFS w wLE-R3Z; sprawdzić `CHECK=0`, `SELECTED ISO OPEN>=0` i poprawną wyświetloną nazwę. **Dopiero wtedy nacisnąć X**, świadomie zgadzając się na realny start gry przez oryginalny OSDMenu→Neutrino.
+5. Zrobić zdjęcie pierwszych markerów `Z95`, `Z96`, `Z97`, `Z98` lub `Z99` jeżeli są widoczne; w razie zawieszenia podać ostatni marker. Jeśli gra uruchomi się, sprawdzić ekran menu gry i sterowanie; nie wnioskować o działaniu po samym `Z99`.
+6. Po zakończeniu testu może być konieczny restart konsoli. Przestrzegać wszystkich instrukcji dotyczących kopii danych.
+
+**To nie jest instalacja produkcyjnej v1.0 HDD.** Jest to osobny, eksperymentalny test możliwego uruchomienia gry; do wydania HDD potrzebne będą jeszcze dopracowanie Managera, samodzielny start bez UDPFS, stabilność i regresja. Draft PR #26 nadal niepołączony, stabilne main/USB v0.8 bez zmian.
+
+---
+
 ## DIAG Y2P — zabezpieczony wariant CNF po `LAST=01` (3.11.2026)
 
 **Rzeczywisty wynik sprzętowy launchera Y2:** użytkownik uruchomił Y2 przez UDPFS/wLE, na pierwszym ekranie:
