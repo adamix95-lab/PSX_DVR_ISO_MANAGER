@@ -51,6 +51,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -187,5 +188,15 @@ jobs:
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
             build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload original OSDMenu loader test Q plus harmless alternate CNF
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-Q-REAL-OSDMENU-TO-F
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+            hdd-diagnostics/diag-q/DIAG_Q.CNF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
