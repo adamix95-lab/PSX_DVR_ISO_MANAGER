@@ -1,5 +1,5 @@
-/* PSX DVR ISO Manager v0.8 — USB launcher, DVR ISO browser and cover sync.
- * DVR/ISO data is read-only. Launch configuration and cover cache use USB.
+/* PSX DVR ISO Manager v1: shared UI, runtime-specific app storage.
+ * HDD preview is strictly read-only while PP.DVRISO writes are unverified.
  */
 
 #include "iso_utils.h"
@@ -26,14 +26,16 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#define USB_TEST_CNF "mass0:/DESR_DVR/DVR_TEST.CNF"
-#define USB_BOOT_CNF "mass0:/DESR_DVR/BOOT.CNF"
-#define USB_BACKUP_CNF "mass0:/DESR_DVR/BOOT_RECOVERY.CNF"
-#define USB_LAUNCHER "mass0:/DESR_DVR/BOOT.ELF"
-#define USB_NEUTRINO "mass0:/DESR_DVR/neutrino.elf"
-#define USB_NEUTRINO_LANG "mass0:/DESR_DVR/neutrino_lang.elf"
-#define USB_EECORE_LANG "mass0:/DESR_DVR/modules/ee_core_lang.elf"
-#define USB_LANG_CFG "mass0:/DESR_DVR/config/osdlang.toml"
+/* All read paths come from one v1 layout header. HDD_PREVIEW never writes. */
+#include "runtime_storage.h"
+#define USB_TEST_CNF DESR_APP_TEST_CNF
+#define USB_BOOT_CNF DESR_APP_BOOT_CNF
+#define USB_BACKUP_CNF DESR_APP_BACKUP_CNF
+#define USB_LAUNCHER DESR_APP_OSDMENU
+#define USB_NEUTRINO DESR_APP_SYSTEM_NEUTRINO
+#define USB_NEUTRINO_LANG DESR_APP_ENGLISH_NEUTRINO
+#define USB_EECORE_LANG DESR_APP_EECORE_LANG
+#define USB_LANG_CFG DESR_APP_LANG_CFG
 #define DVR_FOLDER "dvr_pfs0:/ISO"
 
 #define IRX(name) \
@@ -185,7 +187,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.8");
+  scr_printf("%s", DESR_APP_VARIANT);
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------------------");
@@ -279,7 +281,7 @@ static void draw_scan_art_question(int missing) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setXY(2, 1);
-  scr_printf("PSX DVR ISO MANAGER v0.8");
+  scr_printf("PSX DVR ISO MANAGER %s", DESR_APP_VARIANT);
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("-------------------------------------------------------");
@@ -428,7 +430,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.8\n");
+  scr_printf("PSX DVR ISO MANAGER %s\n", DESR_APP_VARIANT);
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -461,6 +463,19 @@ int main(int argc, char *argv[]) {
     sleep(60);
     return 1;
   }
+#ifdef DESR_HDD_PREVIEW
+  /* First hardware gate for the future HDD Manager. This preview has no
+     write path: PP.DVRISO is only mounted read-only, and every key handler
+     that could save CNF/ART/IDX is explicitly disabled below. */
+  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY);
+  if (rc < 0) {
+    scr_printf("1.0 HDD: PP.DVRISO READ-ONLY MOUNT FAILED %d\n", rc);
+    scr_printf("No writes made. START after reboot/restore.\n");
+    sleep(60);
+    return 3;
+  }
+  scr_printf("1.0 HDD: PP.DVRISO READ-ONLY MOUNT OK\n");
+#endif
   scan_dvr();
   desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
@@ -476,6 +491,28 @@ int main(int argc, char *argv[]) {
       new_press = bits & ~prev_buttons;
       prev_buttons = bits;
       if (new_press & PAD_START) break;
+
+#ifdef DESR_HDD_PREVIEW
+      /* Preview only: permit menu navigation and read-only rescans.
+         DO NOT call write_verified_file(), desr_covers_refresh() or
+         desr_lan_art_download() until dedicated HDD write/rename tests. */
+      if (new_press & PAD_TRIANGLE) {
+        rc = scan_dvr();
+        if (rc >= 0) desr_covers_load(games, count, covers);
+        snprintf(status, sizeof(status),
+                 "HDD preview: read-only ISO rescan (%d)", rc);
+        status_visible = 1;
+        draw();
+        continue;
+      }
+      if (new_press & (PAD_CROSS | PAD_SQUARE)) {
+        snprintf(status, sizeof(status),
+                 "HDD preview: CNF / ART writes and launch disabled");
+        status_visible = 1;
+        draw();
+        continue;
+      }
+#endif
 
       /* X downloads only during the scan confirmation; otherwise Quickboot. */
       if (art_prompt) {
