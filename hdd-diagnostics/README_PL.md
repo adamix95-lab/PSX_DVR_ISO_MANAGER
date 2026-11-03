@@ -1,3 +1,15 @@
+## DIAG P — fizyczny PASS na Sony PSX DESR-7000 (3 listopada 2026)
+
+Użytkownik przesłał dwa zdjęcia z prawidłowego testu **X** (wcześniejsze przypadkowe naciśnięcie START wycofał, więc nie zaliczamy go jako testu uruchomieniowego).
+
+**Launcher DIAG P:** `CHECK=0 MOUNT=0`, `CNF=74 ELF=197396 NEUT=75140`, `SYS=1 BSD=1 DVD=1 USB=0`, `ISO=3 DVR=3 PFS=3`, `TARGET P BYTES=1757308`.
+
+**Target uruchomiony z PP.TESTDVR:** `RESULT=0 STAGE=64`, `ARG=1 OSDMOD=0`, `HDD=2 MOUNT=0 PFS=3`, `CNF=74 ELF=197396 NEUT=75140`, `QB=75140 STDIO=0 BOOT=1`, `RESET2=1 MOD2=1 PAD2=1`, `UM1=0 REMOUNT=0`, `TRYFD=3 UM2=0 PATH=1`. Zbudowana ścieżka: `hdd0:PP.TESTDVR:pfs:/neutrino.elf`. Ekran potwierdził `NO TARGET EXECUTION`.
+
+**Wniosek:** potwierdzony drugi reset IOP po Quickboot oraz powtórne uruchomienie przygotowanego zestawu modułów OSDMenu-like, ponowny montaż tylko do odczytu i przygotowanie ścieżki loadera. **Nie** oznacza to wykonania rzeczywistego oryginalnego OSDMenu, jego wszystkich kroków (m.in. CLOSEALL/SYNC) ani uruchomienia Neutrino/gry. Powrót do XMB po uruchomieniu OSDMenu w DIAG J pozostaje niewyjaśniony. Proponowany następny etap: izolacja rzeczywistego przekazania sterowania do nieszkodliwego testowego ELF przy użyciu tego samego mechanizmu ścieżki `:pfs:`, zanim zostanie wywołane Neutrino. Brak zmian na `main`, v0.8, partycjach systemowych i XMB. START nie wymaga osobnych testów.
+
+---
+
 # DIAG P — drugi reset IOP po Quickboot, bez uruchamiania Neutrino
 
 **Dotychczas potwierdzone na fizycznym DESR-7000:** DIAG O po wystartowaniu z PP.TESTDVR zakończył się `RESULT=0 STAGE=38`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1` i wyświetlił `hdd0:PP.TESTDVR:pfs:/neutrino.elf`. W DIAG O nie było jednak drugiego resetu IOP wykonywanego przez oryginalny OSDMenu w `handlePFS`. DIAG P pozostaje nowym eksperymentem — **jeszcze nie sprawdzonym sprzętowo**.
