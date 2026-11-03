@@ -65,7 +65,10 @@ anchors = [
      72, "module load"),
     ("        SifExitIopHeap();",
      75, "IOP LE transition"),
-    ("        for (i = 0; i < drv.mod.count; i++) {\n"
+    ("        /*\n"
+     "         * Start load environment modules\n"
+     "         */\n"
+     "        for (i = 0; i < drv.mod.count; i++) {\n"
      "            struct SModule *pm = &drv.mod.mod[i];",
      76, "LE module start"),
     ("    int fhi_active = (fhi_config_init(&drv.mod) == 0);",
