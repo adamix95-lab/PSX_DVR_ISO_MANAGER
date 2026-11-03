@@ -41,11 +41,11 @@ config = unique_replace(config,
     if (!res.ok)
         printf("ERROR: failed to load and parse %s: %s\\n", filename, res.errmsg);''',
     '''    snprintf(desr_hdd_last_toml, sizeof(desr_hdd_last_toml),
-             "%s", filename);
+             "%.120s", filename);
     res = toml_parse_file_ex(filename);
     if (!res.ok) {
         snprintf(desr_hdd_failed_toml, sizeof(desr_hdd_failed_toml),
-                 "%s", filename);
+                 "%.120s", filename);
         snprintf(desr_hdd_toml_reason, sizeof(desr_hdd_toml_reason),
                  "%.90s", res.errmsg);
         desr_hdd_config_error_kind = 1;
@@ -61,7 +61,7 @@ config = unique_replace(config,
         /* Do not mask an inner dependency failure with the outer file. */
         if (rv < 0 && desr_hdd_config_error_kind == 0) {
             snprintf(desr_hdd_failed_toml, sizeof(desr_hdd_failed_toml),
-                     "%s%s%s%s.toml", g_config_prefix, type,
+                     "%.40s%.30s%.1s%.30s.toml", g_config_prefix, type,
                      subtype != NULL ? "-" : "",
                      subtype != NULL ? subtype : "");
             snprintf(desr_hdd_toml_reason, sizeof(desr_hdd_toml_reason),
