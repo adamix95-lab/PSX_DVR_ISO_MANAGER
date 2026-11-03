@@ -80,7 +80,7 @@ int art_sync_prepare(void) {
                   tmp,sizeof(tmp),jpg,sizeof(jpg))<0) return -1;
     if (!present(dst) && !present(jpg)) remain++;
   }
-  scr_printf("Unfilled USB ART files: %d\n",remain);
+  scr_printf("Unfilled ART files: %d\n",remain);
   if (remain>ART_SYNC_BATCH_MAX)
     scr_printf("Safety: at most %d downloads per run.\n",ART_SYNC_BATCH_MAX);
   return remain;
@@ -165,7 +165,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
     return -1;
   }
   fd=fileXioOpen(tmp,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_TRUNC,0666);
-  if (fd<0) {scr_printf("ERROR: cannot create USB .PART\n");return -1;}
+  if (fd<0) {scr_printf("ERROR: cannot create ART .PART\n");return -1;}
   while (pos<(int)count) {
     int want=(int)count-pos;
     if (want>4096) want=4096;
@@ -191,7 +191,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
   if (fileXioClose(fd)<0 || n!=0) return -1;
   if (present(dst) || present(jpg)) return -1;
   if (fileXioRename(tmp,dst)<0) {
-    scr_printf("ERROR: USB rename failed; .PART retained\n");
+    scr_printf("ERROR: ART rename failed; .PART retained\n");
     return -1;
   }
   return 0;
@@ -223,7 +223,7 @@ int art_sync_run(const probe_config *cfg) {
     fail_streak=0;
     scr_printf("PNG: CRC OK, %lu bytes\n",(unsigned long)bytes);
     if (write_new_art(games[i].id,png,bytes)<0) {
-      scr_printf("FAIL: USB staging/verify/rename\n");
+      scr_printf("FAIL: ART staging/verify/rename\n");
       continue;
     }
     scr_printf("SAVED: %s_COV.png\n",games[i].id);
@@ -231,6 +231,6 @@ int art_sync_run(const probe_config *cfg) {
   }
   scr_printf("ART SYNC: %d saved of %d attempted\n",saved,attempted);
   if (saved>0)
-    scr_printf("New PNG covers saved in USB ART.\n");
+    scr_printf("New PNG covers saved in app ART.\n");
   return saved>0 ? saved : -1;
 }

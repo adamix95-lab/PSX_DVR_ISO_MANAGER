@@ -3,6 +3,7 @@
  */
 
 #include "iso_utils.h"
+#include "hdd_boot_config.h"
 #include "cover_runtime.h"
 #include "cover_preview.h"
 #include "lan_art_sync.h"
@@ -54,7 +55,7 @@ IRX(usbmass_bd_mini);
 IRX(dev9_ns);
 IRX(dvrdrv);
 IRX(dvrfile);
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 IRX(ps2dev9);
 IRX(ps2atad);
 IRX(ps2hdd);
@@ -65,6 +66,10 @@ static const char pfs_arguments[] = "-m\0" "4\0" "-o\0" "10\0" "-n\0" "40";
 typedef char hdd_args_len_check[(sizeof(hdd_arguments) == 11) ? 1 : -1];
 typedef char pfs_args_len_check[(sizeof(pfs_arguments) == 17) ? 1 : -1];
 static int hdd_mount_owned;
+#ifdef DESR_HDD_TEST
+static int hdd_writable;
+static int hdd_enable_writes(void);
+#endif
 #endif
 
 static char games[DESR_GAME_CAP][DESR_FILENAME_CAP];
@@ -94,7 +99,7 @@ static int load_irx(const char *label, void *irx, unsigned size) {
   return 0;
 }
 
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 static int load_irx_args(const char *label, void *irx, unsigned size,
                          const char *args, unsigned arg_size) {
   int rv = -999, id;
@@ -111,7 +116,7 @@ static int load_irx_args(const char *label, void *irx, unsigned size,
 
 static int init_drivers(void) {
   int r;
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   u32 notice_arg = 0;
 #endif
   scr_printf("Resetting IOP (no disk writes)...\n");
@@ -125,7 +130,7 @@ static int init_drivers(void) {
 #define LOAD(name) do { r = load_irx(#name, name##_irx, size_##name##_irx); if (r < 0) return r; } while (0)
   LOAD(iomanX);
   LOAD(fileXio);
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   /* Same APA/PFS driver order as DIAG G. No USB or dev9_ns modules. */
   LOAD(ps2dev9);
   LOAD(ps2atad);
@@ -146,7 +151,7 @@ static int init_drivers(void) {
   LOAD(mcman);
   LOAD(mcserv);
   LOAD(freepad);
-#ifndef DESR_HDD_PREVIEW
+#if !defined(DESR_HDD_PREVIEW) && !defined(DESR_HDD_TEST)
   /* usbmass_bd requires BDM; FAT filesystem handles mass0: USB access. */
   LOAD(bdm);
   LOAD(bdmfs_fatfs);
@@ -166,7 +171,7 @@ static int init_drivers(void) {
   LOAD(dvrdrv);
   LOAD(dvrfile);
 #undef LOAD
-#ifndef DESR_HDD_PREVIEW
+#if !defined(DESR_HDD_PREVIEW) && !defined(DESR_HDD_TEST)
   /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
   dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
   scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
@@ -358,7 +363,11 @@ static void draw_scan_art_question(int missing) {
   scr_printf("X: DOWNLOAD       O: SKIP / RETURN");
   scr_setfontcolor(0xA0A0A0);
   scr_setXY(2, 24);
+#ifdef DESR_HDD_TEST
+  scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
+#else
   scr_printf("Only new PNG files are written to USB ART.");
+#endif
   scr_setfontcolor(0xFFFFFF);
 }
 
@@ -429,10 +438,18 @@ static int save_test_cnf(void) {
   char cnf[320];
   int len, rc;
   if (count <= 0) return -80;
+#ifdef DESR_HDD_TEST
+  len = desr_make_hdd_boot_cnf(games[selected], force_english, cnf, sizeof(cnf));
+#else
   len = desr_make_boot_cnf_lang(games[selected], force_english, cnf, sizeof(cnf));
+#endif
   if (len <= 0) return -80;
   rc = usb_ready();
   if (rc < 0) return rc;
+#ifdef DESR_HDD_TEST
+  rc = hdd_enable_writes();
+  if (rc < 0) return rc;
+#endif
   return write_verified_file(USB_TEST_CNF, cnf, len);
 }
 
@@ -462,13 +479,62 @@ static int ensure_original_backup(void) {
   return 0;
 }
 
+#ifdef DESR_HDD_TEST
+/* Keep the first BOOT.CNF unchanged as BOOT_RECOVERY.CNF.
+ * Every selection is staged, read-back verified and published by rename.
+ * Stale NEXT files are preserved, never silently overwritten. */
+static int publish_hdd_cnf(const char *cnf, int len) {
+  char old[512], backup[512];
+  int old_len, bak_len, rc, fd, had_live = 0;
+  old_len = read_small_file(USB_BOOT_CNF, old, sizeof old);
+  if (old_len > 0) {
+    had_live = 1;
+    bak_len = read_small_file(USB_BACKUP_CNF, backup, sizeof backup);
+    if (bak_len != -2 && bak_len != -4 && bak_len <= 0) return -301;
+    if (bak_len <= 0) {
+      rc = write_verified_file(USB_BACKUP_CNF, old, old_len);
+      if (rc < 0) return -302;
+    }
+  } else if (old_len != -2 && old_len != -4) {
+    return -303;
+  }
+  fd = fileXioOpen(DESR_APP_BOOT_NEXT, FIO_O_RDONLY, 0);
+  if (fd >= 0) {
+    fileXioClose(fd);
+    return -304;
+  }
+  rc = write_verified_file(DESR_APP_BOOT_NEXT, cnf, len);
+  if (rc < 0) return -305;
+  if (had_live) {
+    fd = fileXioOpen(DESR_APP_BOOT_PREV, FIO_O_RDONLY, 0);
+    if (fd >= 0) {
+      fileXioClose(fd);
+      if (fileXioRemove(DESR_APP_BOOT_PREV) < 0) return -306;
+    }
+    if (fileXioRename(USB_BOOT_CNF, DESR_APP_BOOT_PREV) < 0)
+      return -307;
+  }
+  rc = fileXioRename(DESR_APP_BOOT_NEXT, USB_BOOT_CNF);
+  if (rc < 0) {
+    if (had_live) fileXioRename(DESR_APP_BOOT_PREV, USB_BOOT_CNF);
+    return -308;
+  }
+  return 0;
+}
+#endif
+
 /* X: save+verify BOOT.CNF, then chain to the OSDMenu Launcher with NO
    extra arguments. Its Quickboot uses argv[0] to find BOOT.CNF. */
 static int launch_via_quickboot(void) {
   char cnf[320];
   int len, rc;
   if (count <= 0) return -90;
+#ifdef DESR_HDD_TEST
+  char *hdd_launcher_args[1] = {(char *)DESR_APP_HDD_CNF_ARG};
+  len = desr_make_hdd_boot_cnf(games[selected], force_english, cnf, sizeof(cnf));
+#else
   len = desr_make_boot_cnf_lang(games[selected], force_english, cnf, sizeof(cnf));
+#endif
   if (len <= 0) return -90;
   rc = usb_ready();
   if (rc < 0) {
@@ -481,6 +547,18 @@ static int launch_via_quickboot(void) {
     snprintf(status, sizeof(status), "Missing OSDMenu BOOT.ELF: %d", rc);
     return -92;
   }
+#ifdef DESR_HDD_TEST
+  rc = hdd_enable_writes();
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+    return -93;
+  }
+  rc = publish_hdd_cnf(cnf, len);
+  if (rc < 0) {
+    snprintf(status, sizeof(status), "HDD BOOT.CNF transaction failed: %d", rc);
+    return -93;
+  }
+#else
   rc = ensure_original_backup();
   if (rc < 0) return rc;
   rc = write_verified_file(USB_BOOT_CNF, cnf, len);
@@ -488,32 +566,52 @@ static int launch_via_quickboot(void) {
     snprintf(status, sizeof(status), "BOOT.CNF write failed: %d. USB backup preserved!", rc);
     return -93;
   }
+#endif
 
   scr_clear();
   scr_printf("PSX DVR ISO MANAGER %s\n", DESR_APP_VARIANT);
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
+#ifdef DESR_HDD_TEST
+  scr_printf("HDD PP.DVRISO BOOT.CNF verified.\n");
+  scr_printf("OSDMenu CNF: %s\n", DESR_APP_HDD_CNF_ARG);
+#else
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
+#endif
   scr_printf("Chainloading OSDMenu BOOT.ELF...\n");
 
   padPortClose(0, 0);
   padEnd();
   /* Keep the established OSDMenu/Neutrino chainload path unchanged. */
+#ifdef DESR_HDD_TEST
+  /* DIAG Z proven entry: explicit HDD CNF argument, PFS mount kept until
+     LoadELFFromFile has read BOOT.ELF into EE RAM. */
+  rc = LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args);
+  scr_clear();
+  scr_printf("HDD OSDMenu returned=%d. REBOOT; no IOP calls.\n", rc);
+  for (;;) sleep(1);
+#else
   rc = LoadELFFromFile(USB_LAUNCHER, 0, NULL);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) return -94;
   prev_buttons = 0xffff;
   snprintf(status, sizeof(status), "BOOT.ELF chainload returned: %d. CNF saved.", rc);
   return -95;
+#endif
 }
 
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 /* Operates only on the owner-created application partition. No disk writes. */
 static void hdd_unmount_owned(void) {
   int rc;
   if (!hdd_mount_owned) return;
   rc = fileXioUmount("pfs0:");
   scr_printf("1.0 HDD: OWN PFS0 UMOUNT=%d\n", rc);
-  if (rc >= 0) hdd_mount_owned = 0;
+  if (rc >= 0) {
+    hdd_mount_owned = 0;
+#ifdef DESR_HDD_TEST
+    hdd_writable = 0;
+#endif
+  }
 }
 static int hdd_mount_readonly(void) {
   int fd, rc;
@@ -548,6 +646,33 @@ static int hdd_mount_readonly(void) {
   fileXioDclose(fd);
   return 0;
 }
+#ifdef DESR_HDD_TEST
+/* Explicit user action required for writes; app PP.DVRISO only. */
+static int hdd_enable_writes(void) {
+  int rc, fd;
+  if (hdd_writable) return 0;
+  if (!hdd_mount_owned) return -220;
+  rc = fileXioUmount("pfs0:");
+  if (rc < 0) return -221;
+  hdd_mount_owned = 0;
+  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDWR);
+  if (rc < 0) {
+    if (fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY) >= 0)
+      hdd_mount_owned = 1;
+    return rc;
+  }
+  hdd_mount_owned = 1;
+  fd = fileXioDopen(DESR_APP_ROOT);
+  if (fd < 0) {
+    hdd_unmount_owned();
+    return fd;
+  }
+  fileXioDclose(fd);
+  hdd_writable = 1;
+  scr_printf("1.0 HDD: PP.DVRISO READ/WRITE OPT-IN OK\n");
+  return 0;
+}
+#endif
 #endif
 
 int main(int argc, char *argv[]) {
@@ -567,7 +692,7 @@ int main(int argc, char *argv[]) {
     sleep(60);
     return 1;
   }
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   /* Read-only preflight, before loading ISO list or artwork. */
   rc = hdd_mount_readonly();
   if (rc < 0) {
@@ -582,7 +707,7 @@ int main(int argc, char *argv[]) {
   desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_printf("\nUnable to initialize gamepad\n");
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
     hdd_unmount_owned();
 #endif
     sleep(60);
@@ -678,6 +803,15 @@ int main(int argc, char *argv[]) {
           }
           /* Rebuild the report when the cached one is no longer usable. */
         }
+#ifdef DESR_HDD_TEST
+        rc = hdd_enable_writes();
+        if (rc < 0) {
+          snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+          status_visible = 1;
+          draw();
+          continue;
+        }
+#endif
         rc = scan_dvr();
         if (rc >= 0) {
           desr_covers_load(games, count, covers);
@@ -767,7 +901,7 @@ int main(int argc, char *argv[]) {
   }
   padPortClose(0, 0);
   padEnd();
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   hdd_unmount_owned();
 #endif
   return 0;

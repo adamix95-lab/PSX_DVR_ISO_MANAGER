@@ -8,11 +8,16 @@
  * DEV NOTE: This is an APPLICATION partition only. dvr_pfs0:/ISO remains
  * a separate Sony DVR file store and is never writable by the Manager.
  */
-#ifdef DESR_HDD_PREVIEW
+#if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 #define DESR_APP_VARIANT "1.0 HDD"
 #define DESR_APP_ROOT "pfs0:/"
 #define DESR_APP_PARTITION "hdd0:PP.DVRISO"
+#ifdef DESR_HDD_TEST
+#define DESR_APP_READONLY 0
+#else
 #define DESR_APP_READONLY 1
+#endif
+#define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO/BOOT.CNF"
 #define DESR_APP_SYSTEM_NEUTRINO "pfs0:/neutrino_hdd.elf"
 #define DESR_APP_ENGLISH_NEUTRINO "pfs0:/neutrino_hdd_lang.elf"
 #else
@@ -24,6 +29,8 @@
 #endif
 
 #define DESR_APP_BOOT_CNF DESR_APP_ROOT "BOOT.CNF"
+#define DESR_APP_BOOT_NEXT DESR_APP_ROOT "BOOT.NEXT.CNF"
+#define DESR_APP_BOOT_PREV DESR_APP_ROOT "BOOT.PREV.CNF"
 #define DESR_APP_TEST_CNF DESR_APP_ROOT "DVR_TEST.CNF"
 #define DESR_APP_BACKUP_CNF DESR_APP_ROOT "BOOT_RECOVERY.CNF"
 #define DESR_APP_OSDMENU DESR_APP_ROOT "BOOT.ELF"
