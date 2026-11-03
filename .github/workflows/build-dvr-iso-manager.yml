@@ -80,6 +80,35 @@ jobs:
         run: |
           cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_PREVIEW.ELF -j2
           test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+      - name: Verify HDD TEST runtime invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("dvr-iso-manager/src/main.c").read_text()
+          st=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          assert 'DESR_HDD_TEST=1' in cm
+          assert 'hdd0:PP.DVRISO/BOOT.CNF' in st
+          assert 'LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args)' in s
+          assert 'desr_make_hdd_boot_cnf(games[selected], force_english' in s
+          assert 'fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDWR)' in s
+          assert 'write_verified_file(DESR_APP_BOOT_NEXT, cnf, len)' in s
+          assert 'fileXioRename(DESR_APP_BOOT_NEXT, USB_BOOT_CNF)' in s
+          assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in s
+          assert 'HDD preview: CNF / ART writes and launch disabled' in s
+          assert 'PP.TESTDVR' not in s
+          print('HDD TEST opt-in + separate READONLY preview guards PASS')
+          PY
+      - name: Build HDD TEST interactive target
+        run: |
+          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_TEST.ELF
+      - name: Upload standalone 1.0 HDD TEST
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-TEST-ELF
+          path: build-dvr-manager/DVR_ISO_MANAGER_HDD_TEST.ELF
+          if-no-files-found: error
       - name: Upload separate 1.0 HDD read-only preview
         uses: actions/upload-artifact@v4
         with:
