@@ -30,7 +30,7 @@ class NeutrinoWContract(unittest.TestCase):
             self.assertIn(token,LAUNCH)
 
     def test_kernel_hold_is_before_filexio_and_has_exit_hold(self):
-        for token in ("DelayThread(15000000)", "DelayThread(30000000)",
+        for token in ("w_busy_hold(8)", "w_busy_hold(16)",
                       "W00 MAIN REACHED", "W01 ENTRY HOLD COMPLETED"):
             self.assertIn(token,HOLD)
         self.assertIn('scr_printf("NO ISO OR GAME. READ ONLY.',HOLD)
