@@ -237,6 +237,43 @@ static char q_config_bytes[384] __attribute__((aligned(64)));
 static char z_selected_iso[200] __attribute__((aligned(64)));
 static int z_selected_iso_open = -999;
 static int z_iso_name_len;
+#define Z_LIST_MAX 8
+static iox_dirent_t z_dirent __attribute__((aligned(64)));
+static char z_dirnames[Z_LIST_MAX][64];
+static int z_dirnames_count;
+static int z_dir_entries_seen;
+static int z_dir_read_result = -999;
+static int z_dir_open_result = -999;
+
+/* The DVR-specific dvr_pfs0 device is already ONLINE here (ISO=3, DVR=3
+ * on the user's hardware). If an exact file open returns ENOENT (-2),
+ * list ACTUAL entries rather than remapping to unrelated pfs0:.
+ * All calls are read-only. This listing is diagnostic, never a bypass.
+ */
+static void z_list_real_dvr_names(void)
+{
+    int dir, n, i;
+    before("Z ISO FILENAME DIRECTORY CHECK");
+    dir = fileXioDopen("dvr_pfs0:/ISO");
+    z_dir_open_result = dir;
+    if (dir < 0) return;
+    for (i=0; i<256; ++i) {
+        memset(&z_dirent, 0, sizeof(z_dirent));
+        n=fileXioDread(dir, &z_dirent);
+        z_dir_read_result = n;
+        if (n <= 0) break;
+        z_dirent.name[sizeof(z_dirent.name)-1] = '\0';
+        if (!strcmp(z_dirent.name, ".") || !strcmp(z_dirent.name, "..")) continue;
+        ++z_dir_entries_seen;
+        if (z_dirnames_count < Z_LIST_MAX) {
+            snprintf(z_dirnames[z_dirnames_count],
+                     sizeof(z_dirnames[z_dirnames_count]), "%.62s", z_dirent.name);
+            ++z_dirnames_count;
+        }
+    }
+    fileXioDclose(dir);
+}
+
 
 static int z_valid_name(const char *p, size_t n)
 {
@@ -328,7 +365,7 @@ static int wait_for_choice(int enabled)
     struct padButtonStatus btn;
 
     if (enabled) {
-        scr_printf("X: OSDMENU -> Y2 DVR FHI VERIFY\n");
+        scr_printf("X: OSDMENU -> Z REAL ISO GAME\n");
         scr_printf("START: CANCEL TO XMB/OSD\n");
     } else {
         scr_printf("PRECHECK FAILED; X DISABLED\n");
@@ -459,6 +496,10 @@ int main(void)
         if (fd >= 0) {
             int close_result=fileXioClose(fd);
             if (close_result < 0) z_selected_iso_open=close_result;
+        } else if (fd == -2) {
+            /* A working DVR ISO directory does not guarantee this exact
+             * basename exists. Keep X disabled; report actual entries. */
+            z_list_real_dvr_names();
         }
     }
 
@@ -480,8 +521,16 @@ done:
     scr_printf("ISO=%d DVR=%d PFS=%d\n", dvd_open_code, iso_code, pfs_code);
     scr_printf("ZCNF=%d TARGET ELF BYTES=%d\n", q_config_ok, f_target_size);
     scr_printf("SELECTED ISO OPEN=%d\n", z_selected_iso_open);
+    if (z_selected_iso_open == -2) {
+        int k;
+        scr_printf("FILE NOT FOUND: CHECK EXACT NAME/CASE\n");
+        scr_printf("DVR DIR OPEN=%d READ=%d SEEN=%d\n",
+                   z_dir_open_result, z_dir_read_result, z_dir_entries_seen);
+        for (k=0; k<z_dirnames_count; ++k)
+            scr_printf("DVR FILE %d: %.61s\n", k+1, z_dirnames[k]);
+    }
     scr_printf("GAME: %.72s\n",z_selected_iso);
-        scr_printf("ZCNF PREFIX EXACT. LAST=%02X NUL=%d\n",
+    scr_printf("ZCNF PREFIX EXACT. LAST=%02X NUL=%d\n",
                q_last_byte, q_last_is_nul);
     scr_printf("Z: X WILL START SELECTED GAME.\n");
     if (!wait_for_choice(result == 0)) {
