@@ -1,3 +1,24 @@
+## DIAG R3 — pełny PASS z ekranu docelowego na fizycznym DESR-7000 (3.11.2026)
+
+Użytkownik uruchomił `PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF` i po naciśnięciu X przesłał zdjęcie **końcowego ekranu R_ARG**. Nie wykonał zdjęcia ekranu preflight przed X, więc wartości `CHECK`, `RCNF` i `LAST` z tego ekranu nie są odrębnie potwierdzone fotograficznie. Widoczny wynik:
+
+```text
+PSX DVR HDD DIAG R / ARG RESULTS
+ARGC=3 ARGS_OK=1
+ARGV0: hdd0:PP.TESTDVR:pfs:/PSX_DVR_HDD_DIAG_R_ARG.ELF
+ARGV1: -bsd=dvr
+ARGV2: -dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso
+DUMMY ISO PATH - NOT OPENED.
+START: EXIT TO XMB/OSD
+PHOTO RESULTS.
+```
+
+**Wniosek:** realny łańcuch OSDMenu Quickboot → handlePFS → loader wykonał na Sony PSX DESR-7000 benigny `R_ARG.ELF` z `PP.TESTDVR` i przekazał **oba argumenty poprawnie** (`ARGC=3 ARGS_OK=1`), bez jawnej flagi `-dev9=NICHDD`. Wcześniejszy problem preflight R/R2 (`RCNF=-344` przez końcowe `00` zamiast `0A`) został ominięty precyzyjnym R3; nie wiemy, skąd bierze się ten bajt. Potwierdzenie nie dowodzi startu Neutrino ani poprawnego dostępu do DVR/ISO: ścieżka ISO w R_ARG była celowo fikcyjna i **nie została otwarta**. Wcześniejszy DIAG J nadal zwracał do XMB. Następny etap powinien rozdzielać inicjalizację Neutrino od jego argumentów i odczytu rzeczywistego ISO, bez nadpisywania dotychczasowych konfiguracji.
+
+Zmiany wyłącznie na gałęzi eksperymentalnej; `main`, v0.8 i partycje systemowe Sony pozostają bez zmian. PR #26 pozostaje Draft.
+
+---
+
 ## DIAG R2 — sprzętowa diagnoza, wynik 3.11.2026
 
 Zdjęcie użytkownika: `CHECK=-136 MOUNT=0 RCNF=-344`; `SIZE=87 EXPECT=87 READ=87`; `DIFF OFFSET=86 E=0A A=00`; `CR=0 LF=2 NUL=1`; sumy `7111/7101`, ostatnie bajty `E: 69 73 6F 0A`, `A: 69 73 6F 00`. Zawartość jest identyczna poza ostatnim bajtem, który przy odczycie jest NUL zamiast LF. Nie znamy jeszcze źródła zamiany.
