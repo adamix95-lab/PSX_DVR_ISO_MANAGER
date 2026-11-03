@@ -29,46 +29,46 @@ once("int main(int argc, char *argv[])\n{",
 static int neutrino_probe_main(int argc, char *argv[])
 {''')
 
-once('    printf("--------------------------------\\\\n");\n    printf("- Neutrino PS2 Device Emulator\\\\n");',
+once('    printf("--------------------------------\\n");\n    printf("- Neutrino PS2 Device Emulator\\n");',
 '''    v_stage = 10; /* Neutrino started; ROMVER next */
-    scr_printf("V10 Neutrino core entered\\\\n");
-    printf("--------------------------------\\\\n");
-    printf("- Neutrino PS2 Device Emulator\\\\n");''')
+    scr_printf("V10 Neutrino core entered\\n");
+    printf("--------------------------------\\n");
+    printf("- Neutrino PS2 Device Emulator\\n");''')
 
 once('    /*\n     * Initialize structures before filling them from config files\n     */',
 '''    v_stage = 20; /* ROMVER OK */
-    scr_printf("V20 ROMVER OK\\\\n");
+    scr_printf("V20 ROMVER OK\\n");
     /*
      * Initialize structures before filling them from config files
      */''')
 
 once('    if (load_config_file("system", NULL) < 0) {',
 '''    v_stage = 30;
-    scr_printf("V30 LOAD SYSTEM BEGIN\\\\n");
+    scr_printf("V30 LOAD SYSTEM BEGIN\\n");
     if (load_config_file("system", NULL) < 0) {''')
 
-once('        printf("ERROR: failed to load system settings\\\\n");\n        return -1;\n    }',
-'''        printf("ERROR: failed to load system settings\\\\n");
+once('        printf("ERROR: failed to load system settings\\n");\n        return -1;\n    }',
+'''        printf("ERROR: failed to load system settings\\n");
         return -1;
     }
     v_stage = 40;
-    scr_printf("V40 SYSTEM OK\\\\n");''')
+    scr_printf("V40 SYSTEM OK\\n");''')
 
 once('    if (parse_cmdline_args(argc, argv, &iELFArgcStart) < 0)',
 '''    v_stage = 45;
-    scr_printf("V45 PARSE ARGS\\\\n");
+    scr_printf("V45 PARSE ARGS\\n");
     if (parse_cmdline_args(argc, argv, &iELFArgcStart) < 0)''')
 
 once('    /*\n     * Load backing store driver settings\n     */',
 '''    v_stage = 50;
-    scr_printf("V50 DRIVER CONFIGS NEXT\\\\n");
+    scr_printf("V50 DRIVER CONFIGS NEXT\\n");
     /*
      * Load backing store driver settings
      */''')
 
 once('    /*\n     * Load all needed files before rebooting the IOP\n     */',
 '''    v_stage = 60;
-    scr_printf("V60 LOAD EE_CORE + IRX\\\\n");
+    scr_printf("V60 LOAD EE_CORE + IRX\\n");
     /*
      * Load all needed files before rebooting the IOP
      */''')
@@ -76,13 +76,13 @@ once('    /*\n     * Load all needed files before rebooting the IOP\n     */',
 # Critical guard: stops before any IOP mode switch or even file-backed ISO.
 # Neutrino genuinely loads config and modules from read-only HDD,
 # but may NOT execute game/ISO in this diagnostic artifact.
-once('    if (modlist_load(&drv.mod, (sys.bQuickBoot == 0) ? (MOD_ENV_LE | MOD_ENV_EE) : MOD_ENV_EE) < 0) {\n        printf("ERROR: failed to load drv.mod\\\\n");\n        return -1;\n    }',
+once('    if (modlist_load(&drv.mod, (sys.bQuickBoot == 0) ? (MOD_ENV_LE | MOD_ENV_EE) : MOD_ENV_EE) < 0) {\n        printf("ERROR: failed to load drv.mod\\n");\n        return -1;\n    }',
 '''    if (modlist_load(&drv.mod, (sys.bQuickBoot == 0) ? (MOD_ENV_LE | MOD_ENV_EE) : MOD_ENV_EE) < 0) {
-        printf("ERROR: failed to load drv.mod\\\\n");
+        printf("ERROR: failed to load drv.mod\\n");
         return -1;
     }
     v_stage = 70;
-    scr_printf("V70 MODULES LOADED, SAFE STOP\\\\n");
+    scr_printf("V70 MODULES LOADED, SAFE STOP\\n");
     return 0; /* ABSOLUTE no-game stop: before IOP reset, FHI or ISO */''')
 
 s += r'''
