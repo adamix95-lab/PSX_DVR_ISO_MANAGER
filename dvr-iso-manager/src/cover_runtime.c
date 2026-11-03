@@ -4,16 +4,17 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 #include <limits.h>
+#include "runtime_storage.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
 
-#define COVER_IDX "mass0:/DESR_DVR/COVERS.IDX"
-#define COVER_NEW "mass0:/DESR_DVR/COVERS.NEW"
-#define COVER_BAK "mass0:/DESR_DVR/COVERS.BAK"
-#define COVER_SCAN_LOG "mass0:/DESR_DVR/COVER_SCAN.LOG"
-#define COVER_ART "mass0:/DESR_DVR/ART/"
+#define COVER_IDX DESR_APP_COVERS_IDX
+#define COVER_NEW DESR_APP_COVERS_NEW
+#define COVER_BAK DESR_APP_COVERS_BAK
+#define COVER_SCAN_LOG DESR_APP_COVER_SCAN_LOG
+#define COVER_ART DESR_APP_ART_ROOT
 #define SECTOR 2048
 
 /* Bounded static buffers: never keep cover bitmaps or an entire ISO in RAM. */
