@@ -297,7 +297,7 @@ int main(void)
     result = -136;
     if (iso_code >= 0 && pfs_code >= 0 &&
         boot_cnf == (int)(sizeof(expected_q_cnf) - 1) &&
-        boot_elf > 0 && target_f > 0)
+        boot_elf == 197396 && target_f == 1524548)
         result = 0;
 
 done:
@@ -306,7 +306,8 @@ done:
     scr_printf("CHECK=%d MOUNT=%d\n", result, mount_code);
     scr_printf("BOOTQ=%d OSD ELF=%d\n", boot_cnf, boot_elf);
     scr_printf("TARGET F=%d DVR=%d PFS=%d\n", target_f, iso_code, pfs_code);
-    scr_printf("RO PRECHECK, NO GAME BOOT.\n");
+    scr_printf("EXPECTED OSD=197396 F=1524548\n");
+    scr_printf("NO GAME BOOT / RO PRECHECK.\n");
     if (!wait_for_choice(result == 0)) {
         /* Ordinary START exit: release exactly our own mount, then pad. */
         owned_unmount();
