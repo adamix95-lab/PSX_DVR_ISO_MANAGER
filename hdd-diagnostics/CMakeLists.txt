@@ -321,3 +321,12 @@ target_link_libraries(PSX_DVR_HDD_DIAG_R2_CNF.ELF
   pad patches fileXio cdvd libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_R2_CNF.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG R3: exact prefix; last LF or NUL only
+add_executable(PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+  src/osdmenu_arg_echo_r3_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
