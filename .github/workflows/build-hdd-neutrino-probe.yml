@@ -42,10 +42,10 @@ jobs:
           grep -F 'return 0; /* ABSOLUTE no-game stop' neutrino-pinned/ee/loader/src/main.c
           grep -F 'fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)' neutrino-pinned/ee/loader/src/main.c
           grep -F 'strcmp(argv[2], "-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso")' neutrino-pinned/ee/loader/src/main.c
-      - name: Build complete pinned pcm720 Neutrino with diagnostic stop
+      - name: Build only pinned pcm720 EE Neutrino loader with diagnostic stop
         working-directory: neutrino-pinned
         run: |
-          make all
+          make -C ee/loader all
           test -s ee/loader/neutrino.elf
           cp ee/loader/neutrino.elf ../PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF
       - name: Build isolated real OSDMenu launcher
