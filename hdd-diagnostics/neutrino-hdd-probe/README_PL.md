@@ -1,3 +1,43 @@
+## DIAG W — pełny PASS na fizycznej PSX DESR-7000; następny etap DIAG X (3.11.2026)
+
+**Wynik W (zdjęcie z konsoli):**
+
+```text
+PSX DVR NEUTRINO W / HDD PROBE
+W00 MAIN REACHED: CPU LOOP
+W01 ENTRY HOLD COMPLETED
+V00 ARGC=3 ARGS_OK=1
+V01 fileXioInit=0
+V02 MOUNT=0
+V03 CHDIR=0
+V04 CONFIG FD=3
+V05 DVR IRX FD=3
+V10 Neutrino core entered
+V20 ROMVER OK
+V30 LOAD SYSTEM BEGIN
+V40 SYSTEM OK
+V45 PARSE ARGS
+V50 DRIVER CONFIGS NEXT
+V60 LOAD EE_CORE + IRX
+V70 MODULES LOADED, SAFE STOP
+V RESULT=0 LAST_STAGE=70
+NO GAME/ISO EXECUTED.
+W90 CPU LOOP, PHOTO
+```
+
+**Potwierdzone sprzętowo:** oryginalny OSDMenu uruchamia prawdziwe, rozbudowane o DVR Neutrino pcm720 z osobnego `PP.TESTDVR`; argumenty są prawidłowe, wczesny remount PFS w `FIO_MT_RDONLY` i `chdir("pfs0:/")` skutkują dostępem przez POSIX, a rzeczywisty kod Neutrino ukończył konfigurację TOML i załadował moduły do pamięci. Nie jest to potwierdzenie rozruchu gry ani nawet startu LE — `V70` był twardym stopem przed restartem IOP.
+
+**DIAG X — następny, ściśle odseparowany eksperyment:**
+- Budowa na podstawie **tego samego, przypiętego commita pcm720 Neutrino** co W; `patch_probe.py` i `patch_w_entry_hold.py` są nadal używane. Dodatkowy `patch_x_dvr_le.py` usuwa **tylko** dotychczasowy stop `V70`, sprawdza, że `sys.sBSD == "dvr"` i QuickBoot jest wyłączony, a następnie instrumentuje **prawdziwą sekwencję pcm720**: `SifIopReset("rom0:UDNL rom0:OSDCNF")`, `sceCdApplySCmd(0x29)`, drugi reset IOP i start modułów LE. Widoczne markery `X71`... `X79`, w tym indeks modułu i kod `module_start()`. Po powrocie ze startu modułów bezwzględny stop `X85 LE MODULES DONE / STOP` przed `fhi_config_init`, `setup_dvd_iso`, otwarciem ISO i grą. Pętla CPU z W utrzymuje wynik.
+- `PSX_DVR_HDD_NEUTRINO_X_LE.ELF` jest **niespakowanym** testowym Neutrino z tym instrumentowaniem. `DIAG_X.CNF` jest osobny i dozwala tylko docelowy X ELF, dokładnie `-bsd=dvr` i **fikcyjną** ścieżkę `-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso`; `-dev9=NICHDD` pozostaje ostatnią, konsumowaną przez OSDMenu flagą. `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` wymusza ten konkretny CNF po wcześniejszym preflight RO i po świadomym X uruchamia rzeczywisty OSDMenu.
+- **Znacząca różnica ryzyka względem W:** DIAG X naprawdę przełącza PSX DVR w fazę LE, wysyła polecenie SCmd 0x29, resetuje IOP i ładuje moduły IOP. Nie dokonuje zapisów do plików w kodzie programu, lecz wewnętrzne działania oryginalnych modułów/firmware są poza naszą kontrolą. Przed testem wskazana jest kopia ważnych danych, wyłącznie testowa `PP.TESTDVR`, brak ingerencji w Sony partycje systemowe, stabilną USB v0.8 czy prawdziwy `BOOT.CNF`.
+- **Po udanym CI:** skopiować na `PP.TESTDVR` tylko `PSX_DVR_HDD_NEUTRINO_X_LE.ELF` i `DIAG_X.CNF`. Uruchomić osobny `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` z UDPFS w wLE-R3Z. Na pierwszym ekranie wymaga `CHECK=0` i `XCNF` zgodnego z dozwolonym wzorcem; sfotografować, nacisnąć X. W razie zawieszenia sfotografować ostatni marker `X...`. Jeżeli dojdzie do `X85`, należy sfotografować `V RESULT=0 LAST_STAGE=85`. Po testach może być konieczny normalny restart konsoli (środowisko IOP zostało zmienione).
+- **NIE TESTOWANE JESZCZE NA SPRZĘCIE.** Dopiero po sprzętowym PASS rozważać osobny test obsługi *realnego* obrazu ISO; DIAG X nie czyta ISO i nie startuje gier.
+
+**Odporność procesu:** PR #26 pozostaje Draft, main/v0.8 USB niezmienione; kopia oryginalnego `neutrino.elf`, `BOOT.CNF`, `BOOT.ELF`, `config/`, `modules/` na `PP.TESTDVR` nie jest nadpisywana przez pliki X.
+
+---
+
 ## DIAG W — bezpieczny marker początku `main()` (3.11.2026)
 
 **Wynik sprzętowy V2 (PSX DESR-7000):** Po poprawnym `CHECK=0` i X konsola wróciła do XMB **szybko, zdecydowanie krócej niż 45 sekund**, tak jak przy starej próbie `BOOT.ELF`→Neutrino. W nieudanej spakowanej V również wróciła do XMB. Nie mamy zdjęcia ekranu V00 ani telemetrii z wnętrza Neutrino. Zatem **nie wiemy**, czy Neutrino w ogóle weszło do `main()`, czy tylko nie zdążyło narysować ekranu/od razu wróciło. DIAG U nadal jest prawdziwym, fizycznym dowodem działania RO remountu i POSIX otwierania z PFS.
