@@ -1,3 +1,25 @@
+## DIAG Z — zdjęcie z PSX: CHECK=-136 z powodu konkretnej nazwy ISO, bez błędu CNF
+
+Na fizycznej DESR-7000 użytkownik uruchomił Z przez UDPFS/wLE. Wynik zdjęcia:
+
+```text
+CHECK=-136 MOUNT=0
+CNF=91 ELF=197396 NEUT=75140
+SYS=1 BSD=1 DVD=1 USB=0
+ISO=3 DVR=3 PFS=3
+ZCNF=105 TARGET ELF BYTES=154676
+SELECTED ISO OPEN=-2
+GAME: dvr_pfs0:/ISO/MGS 2.iso
+ZCNF PREFIX EXACT. LAST=00 NUL=1
+PRECHECK FAILED; X DISABLED
+```
+
+**Ustalenie:** `ZCNF=105` jest zgodnym plikiem, a `TARGET ELF BYTES=154676` oznacza obecność Z_GAME. Jedyną wykazaną przeszkodą jest `SELECTED ISO OPEN=-2` (`ENOENT`) przy tej **konkretnej** ścieżce. `ISO=3 DVR=3` potwierdza, że katalog `dvr_pfs0:/ISO` i sterownik DVR są już dostępne w samym launcherze — **nie** podmieniać ścieżki na `pfs0:/ISO`, bo to inny filesystem. Nie wyłączać bramki `CHECK` bez znajomości rzeczywistej nazwy ISO.
+
+**Poprawka na branchu, tylko launcher Z:** gdy otwarcie wybranego pliku zwraca `-2`, wykonuje `fileXioDopen("dvr_pfs0:/ISO")` i do 256 wywołań `fileXioDread`, zapisując pierwsze osiem nazw i liczbę pozycji. Końcowy ekran pokazuje `DVR DIR OPEN`, `READ`, `SEEN` i `DVR FILE 1..8`. Operacje są tylko do odczytu; `CHECK` pozostaje ujemne, jeśli brak dokładnej nazwy. Nie zmienia się `Z_GAME.ELF`, CNF, aktualny argument `-dvd=dvr_pfs0:/ISO/...`, USB v0.8 ani `BOOT.CNF`. Po odczycie prawdziwej nazwy operator poprawi tylko nazwę pliku w `DIAG_Z.CNF`.
+
+---
+
 ## DIAG Z — pierwsza próba uruchomienia prawdziwego ISO z HDD po sprzętowym Y2P PASS
 
 **Potwierdzenie Y2P na fizycznej DESR-7000 (3.11.2026):** `Y2 ACTUAL SELECT idx=3 dvrfile_fhi.irx`, `Y2 87 DVR PRE=1 POST=0 CHOSEN=3`, `Y90 CDVDMAN SETTINGS=1`, `Y2 95 DVR FHI+CDVD READY / SAFE STOP` i `V RESULT=0 LAST_STAGE=95`. Ta faza była uruchomiona przez rzeczywisty OSDMenu z HDD (`CHECK=0 → X` w launcherze UDPFS), ale **nie wykonywała odczytu ISO ani gry**.
