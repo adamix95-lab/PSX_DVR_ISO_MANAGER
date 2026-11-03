@@ -161,7 +161,48 @@ static int download(const probe_config *cfg, const char *id,
   }
   lwip_close(sock);
   if (probe_http_extract_png(response,received,png,png_size)<0) {
-    scr_printf("HTTP RESPONSE INVALID: bytes=%lu\n",(unsigned long)received);
+    /* Diagnose incomplete TCP body vs unavailable image vs corrupt PNG.
+       Preserve the strict PNG CRC and Content-Length checks: NEVER write
+       a file merely because HTTP had status 200. */
+    size_t h=0,content_at=0,expected=0,body_len=0,i;
+    char firstline[28];
+    int known_length=0,valid_png=-1;
+    for (i=0;i<sizeof(firstline)-1 && i<received;i++) {
+      unsigned char c=response[i];
+      if (c=='\r' || c=='\n') break;
+      firstline[i]=(c>=32 && c<=126)?(char)c:'?';
+    }
+    firstline[i]='\0';
+    for (h=0;h+3<received && h<PROBE_HTTP_HEADER_MAX;h++)
+      if (!memcmp(response+h,"\r\n\r\n",4)) {
+        content_at=h+4;
+        break;
+      }
+    if (content_at>0) {
+      for (i=0;i+16<h;i++) {
+        static const char length_tag[]="Content-Length: ";
+        if ((i==0 || (i>=2 && response[i-2]=='\r' &&
+                       response[i-1]=='\n')) &&
+            !memcmp(response+i,length_tag,sizeof(length_tag)-1)) {
+          size_t j=i+sizeof(length_tag)-1;
+          int digits=0;
+          for (;j<h && response[j]>='0' && response[j]<='9';j++) {
+            expected=expected*10U+(unsigned)(response[j]-'0');
+            digits++;
+            if (expected>PROBE_PNG_MAX) break;
+          }
+          known_length=digits>0;
+          break;
+        }
+      }
+      body_len=received-content_at;
+      valid_png=probe_png_check(response+content_at,body_len);
+    }
+    scr_printf("HTTP BAD: %.26s total=%lu\n",
+               firstline,(unsigned long)received);
+    scr_printf("HTTP BODY: %lu expected=%lu has_len=%d PNG=%d\n",
+               (unsigned long)body_len,(unsigned long)expected,
+               known_length,valid_png);
     return -6;
   }
   return 0;
