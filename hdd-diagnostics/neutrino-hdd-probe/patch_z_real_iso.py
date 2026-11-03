@@ -41,7 +41,7 @@ static int z_allowed_iso_arg(const char *a)
         return 0;
     for (i=off; i<n; ++i) {
         unsigned char c=(unsigned char)a[i];
-        if (c < 0x20 || c > 0x7e || c == '/' || c == '\\\\' || c == ':')
+        if (c < 0x20 || c > 0x7e || c == '/' || c == '\\' || c == ':')
             return 0;
     }
     if (strstr(a+off, "..") || strchr(a+off,'='))
@@ -61,11 +61,6 @@ once('    scr_printf("PSX DVR NEUTRINO Y2 / FHI TEST\\n");',
      '    scr_printf("PSX DVR NEUTRINO Z / ISO LAUNCH\\n");', "Z banner")
 once('    scr_printf("NO ISO OR GAME. READ ONLY.\\n");',
      '    scr_printf("Z TEST: REAL ISO / REAL GAME.\\n");', "visible warning")
-once('    scr_printf("Y2 95 DVR FHI+CDVD READY / SAFE STOP\\n");',
-     '    scr_printf("Z95 FHI READY / ISO START\\n");' if False else
-     '    scr_printf("Y2 95 DVR FHI+CDVD READY / SAFE STOP\\n");',
-     "noop label" ) if False else None
-
 once('''        if (setup_dvd_iso(sDVDFile, &iso_size, &layer1_lba_start) < 0)
             return -1;''',
 '''        v_stage=96;
