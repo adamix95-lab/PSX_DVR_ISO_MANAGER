@@ -20,7 +20,7 @@ class DiagUContract(unittest.TestCase):
         self.assertEqual(CNF,EXPECTED)
         self.assertEqual(len(CNF),107)
         for phrase in ('"hdd0:PP.TESTDVR/DIAG_U.CNF"', '"/DIAG_U.CNF"',
-                       '"PSX_DVR_HDD_DIAG_U_TARGET.ELF\\n"',
+                       '"boot=PSX_DVR_HDD_DIAG_U_TARGET.ELF\\n"',
                        '"arg=-dev9=NICHDD\\n"', 'q_last_byte != \'\\n\' && q_last_byte != 0',
                        'q_config_ok == (int)sizeof(q_expected_config) - 1'):
             self.assertIn(phrase,LAUNCH)
@@ -28,6 +28,8 @@ class DiagUContract(unittest.TestCase):
             self.assertIn(file,BUILD)
             self.assertIn(file,WF)
         self.assertIn("PSX-DVR-HDD-DIAG-U-RO-REMOUNT",WF)
+        self.assertIn('CNF: hdd0:PP.TESTDVR/DIAG_U.CNF',LAUNCH)
+        self.assertIn("RO PREFLIGHT. UCNF -> U TARGET ONLY.",LAUNCH)
 
     def test_mount_only_when_pfs0_absent_and_hdd_reachable(self):
         self.assertIn("inspect_at_elf_entry();", SRC)
