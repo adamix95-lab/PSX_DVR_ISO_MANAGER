@@ -1,5 +1,16 @@
 # PSX DVR ISO MANAGER 1.0 HDD — plan integracji (jeszcze nie wydanie)
 
+## Obecny podgląd interfejsu 1.0 HDD — tylko odczyt
+
+Dodatkowy target CI `DVR_ISO_MANAGER_HDD_PREVIEW.ELF` jest kompilowany z **tych samych źródeł menu** co USB 0.8/1.0, z etykietą **1.0 HDD**, zachowanymi 12 tytułami/stronę i podglądem PNG. Ścieżki aplikacji i cache zostały przeniesione na `pfs0:/` = `hdd0:PP.DVRISO`: `ART/`, `COVERS.IDX`, `COVER_SCAN.LOG`, `NET_PROBE.CNF` i inne. Samo `dvr_pfs0:/ISO` nadal pozostaje tylko do odczytu.
+
+To **jeszcze nie finalny Manager**. Po dotychczasowym resecie IOP wykonywany jest próbny montaż `fileXioMount("pfs0:", "hdd0:PP.DVRISO", FIO_MT_RDONLY)`. Jeśli moduły HDD/PFS lub partycja są niedostępne, program tylko wyświetli kod błędu i zakończy test bez zapisu. X, KWADRAT i pobieranie okładek są celowo zablokowane; TRÓJKĄT wykonuje wyłącznie nowy odczyt listy gier, bez zapisania indeksu. To pierwszy etap sprzętowej weryfikacji urządzenia, nie paczka do instalacji XMB.
+
+Do testowania tego targetu `PP.DVRISO` musi już istnieć i zawierać odpowiednie pliki; **nie tworzymy ani nie formatujemy partycji automatycznie**. Następnym krokiem będzie bezpieczny test dostępności wymaganych modułów HDD/PFS z IOP, a dopiero po nim zapis CNF/ART.
+
+---
+
+
 **Stan sprzętowy:** DIAG Z FIX95 uruchomił prawdziwą grę z HDD na DESR-7000 po przejściu przez OSDMenu i pcm720 Neutrino z DVR. Ten sukces dotyczy testowej partycji PP.TESTDVR oraz wejściowego launchera UDPFS. Nowe PP.DVRISO, pełny Manager HDD i instalator XMB **nie są jeszcze przetestowane**.
 
 ## Układ nowej partycji hdd0:PP.DVRISO (pfs0:/)
