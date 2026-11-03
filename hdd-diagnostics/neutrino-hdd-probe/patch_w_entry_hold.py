@@ -58,4 +58,4 @@ if "return 0; /* ABSOLUTE no-game stop:" not in s:
 if 'fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)' not in s:
     raise SystemExit("Unsafe build: missing RO mount")
 p.write_text(s,encoding="utf-8")
-print("Neutrino W: mandatory kernel DelayThread entry+result hold added")
+print("Neutrino W: bounded CPU loop entry+result hold added")
