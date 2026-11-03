@@ -31,11 +31,19 @@ class ZRealGame(unittest.TestCase):
             "q_last_byte != '\\n' && q_last_byte != 0 && q_last_byte != 1",
             "q_config_ok > 0 && z_selected_iso_open >= 0",
             "fileXioOpen(z_selected_iso,FIO_O_RDONLY,0)",
+            'fileXioDopen("dvr_pfs0:/ISO")',
+            "fileXioDread(dir, &z_dirent)",
+            'z_dir_open_result',
+            'z_dir_entries_seen',
+            'if (z_selected_iso_open == -2)',
+            'FILE NOT FOUND: CHECK EXACT NAME/CASE',
+            'z_list_real_dvr_names();',
             "z_valid_name(p, filename_len)",
             'z_selected_iso_open=fd',
             'if (enabled && (fresh & PAD_CROSS)) return 1;',
             "FIO_MT_RDONLY",
         ): self.assertIn(t,L)
+        self.assertNotIn('fileXioOpen("pfs0:/ISO",',L)
         for t in ("FIO_MT_RDWR", "fileXioWrite(", "fileXioRemove(",
                   "fileXioMkdir(", "fileXioFormat("):
             self.assertNotIn(t,L)
