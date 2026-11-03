@@ -31,6 +31,8 @@ extern uint32_t size_smap_irx;
 static char lan_config[LAN_CFG_CAP + 1];
 static int network_started;
 
+int desr_lan_art_started(void) { return network_started; }
+
 int desr_lan_art_missing(void) {
   return art_sync_prepare();
 }

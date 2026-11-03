@@ -11,4 +11,7 @@ int desr_lan_art_missing(void);
    Never touches DVR partitions, BOOT.CNF or existing art. */
 int desr_lan_art_download(void);
 
+/* True after NETMAN/SMAP + PS2IP start, for read-only HDD diagnostics. */
+int desr_lan_art_started(void);
+
 #endif

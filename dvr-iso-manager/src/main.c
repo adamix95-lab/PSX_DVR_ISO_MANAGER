@@ -87,6 +87,10 @@ static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
 static int dvr_notice_game_start = -999;
+#ifdef DESR_HDD_TEST
+static int hdd_at_boot_system = -999, hdd_at_boot_osd = -999;
+static int hdd_at_boot_root = -999;
+#endif
 
 static int load_irx(const char *label, void *irx, unsigned size) {
   int rv = 0, id;
@@ -395,6 +399,56 @@ static int usb_ready(void) {
   return 0;
 }
 
+
+#ifdef DESR_HDD_TEST
+/* Save read-only PFS diagnostics before the network driver is loaded.
+ * Error -19 is ENODEV: pfsX open failed due to inaccessible mount/unit.
+ * Do not write or auto-remount when the mount has unexpectedly vanished.
+ */
+static int hdd_probe_dir(const char *path) {
+  int fd=fileXioDopen(path);
+  if (fd<0) return fd;
+  return fileXioDclose(fd);
+}
+static void hdd_show_launch_diagnostic(const char *stage, int error_code) {
+  struct padButtonStatus diagpad;
+  int root_rc=hdd_probe_dir(DESR_APP_ROOT);
+  int system_rc=check_usb_file(USB_NEUTRINO);
+  int english_rc=check_usb_file(USB_NEUTRINO_LANG);
+  int osd_rc=check_usb_file(USB_LAUNCHER);
+  int apa_rc=hdd_probe_dir("hdd0:");
+  int dvr_rc=hdd_probe_dir(DVR_FOLDER);
+  int net_active=desr_lan_art_started();
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_printf("PSX DVR ISO MANAGER HDD / DIAG PFS\n");
+  scr_printf("STAGE: %.38s  FILE ERROR=%d\n",stage,error_code);
+  scr_printf("BOOT SNAPSHOT (before LAN):\n");
+  scr_printf("  PFS1 ROOT %d; SYSTEM %d; OSD %d\n",
+             hdd_at_boot_root,hdd_at_boot_system,hdd_at_boot_osd);
+  scr_printf("CURRENT (after LAN or X):\n");
+  scr_printf("  PFS1 ROOT %d; SYSTEM %d; ENGLISH %d\n",
+             root_rc,system_rc,english_rc);
+  scr_printf("  OSD BOOT.ELF %d; hdd0 %d; DVR ISO %d\n",
+             osd_rc,apa_rc,dvr_rc);
+  scr_printf("  NETMAN=%d; MOUNT_OWNED=%d; RW=%d\n",
+             net_active,hdd_mount_owned,hdd_writable);
+  scr_printf("  SYSTEM PATH: %s\n",USB_NEUTRINO);
+  scr_printf("  PARTITION: %s\n",DESR_APP_PARTITION);
+  if (error_code==-19)
+    scr_printf("  -19 ENODEV: PFS MOUNT/UNIT UNAVAILABLE\n");
+  scr_printf("PHOTO THIS SCREEN. CIRCLE: RETURN TO MENU\n");
+  /* Use controller instead of timer: no automatic return to XMB. */
+  for (;;) {
+    if (padRead(0,0,&diagpad)>0 &&
+        ((0xffff ^ diagpad.btns) & PAD_CIRCLE)) break;
+    usleep(30000);
+  }
+  prev_buttons=0xffff;
+}
+#endif
+
 /* Positive byte count, or a negative error. -ENOENT means absent file.
    A zero-length or oversized existing BOOT.CNF must not be overwritten. */
 static int read_small_file(const char *path, char *out, int cap) {
@@ -546,12 +600,20 @@ static int launch_via_quickboot(void) {
   if (len <= 0) return -90;
   rc = usb_ready();
   if (rc < 0) {
+#ifdef DESR_HDD_TEST
+    hdd_show_launch_diagnostic(force_english ? "ENGLISH RUNTIME" : "SYSTEM RUNTIME", rc);
+    snprintf(status, sizeof(status), "HDD runtime open error %d (see diagnostics)", rc);
+#else
     snprintf(status, sizeof(status), "Missing USB runtime (lang %s): %d",
              force_english ? "EN" : "SYSTEM", rc);
+#endif
     return -91;
   }
   rc = check_usb_file(USB_LAUNCHER);
   if (rc < 0) {
+#ifdef DESR_HDD_TEST
+    hdd_show_launch_diagnostic("OSDMENU BOOT.ELF", rc);
+#endif
     snprintf(status, sizeof(status), "Missing OSDMenu BOOT.ELF: %d", rc);
     return -92;
   }
@@ -646,7 +708,7 @@ static int hdd_mount_readonly(void) {
   if (fd < 0) return fd;
   fileXioDclose(fd);
 
-  fd = fileXioDopen("pfs0:/");
+  fd = fileXioDopen("pfs1:/");
   if (fd >= 0) {
     fileXioDclose(fd);
     scr_printf("1.0 HDD: PFS1 ALREADY OCCUPIED; ABORT\n");
@@ -728,6 +790,13 @@ int main(int argc, char *argv[]) {
     return 3;
   }
   scr_printf("1.0 HDD: BOTH FILESYSTEMS READABLE (RO)\n");
+#endif
+#ifdef DESR_HDD_TEST
+  hdd_at_boot_root=hdd_probe_dir(DESR_APP_ROOT);
+  hdd_at_boot_system=check_usb_file(USB_NEUTRINO);
+  hdd_at_boot_osd=check_usb_file(USB_LAUNCHER);
+  scr_printf("HDD EARLY: ROOT=%d SYS=%d OSD=%d\n",
+             hdd_at_boot_root,hdd_at_boot_system,hdd_at_boot_osd);
 #endif
   scan_dvr();
   desr_covers_load(games, count, covers);
@@ -825,6 +894,16 @@ int main(int argc, char *argv[]) {
                      "ART SYNC: no new PNG. Check PC server / USB.");
 #endif
           }
+#ifdef DESR_HDD_TEST
+          {
+            int sys_after=check_usb_file(USB_NEUTRINO);
+            if (sys_after<0) {
+              snprintf(status,sizeof status,
+                       "ART finished; HDD runtime error %d. Restart, test X first",
+                       sys_after);
+            }
+          }
+#endif
           status_visible = 1;
           draw();
         }
