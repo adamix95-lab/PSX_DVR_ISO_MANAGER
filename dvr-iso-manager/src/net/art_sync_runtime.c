@@ -28,6 +28,21 @@ static art_sync_item games[ART_SYNC_GAMES_MAX];
 static int game_count;
 static int last_attempted, last_not_found, last_http_failed, last_write_failed;
 static int last_bad_payload, last_transport_fail, last_http_status_fail;
+/* HDD-only diagnostic snapshot, no extra HDD writes. A BAD reason is:
+ * 1 short HTTP body; 2 longer-than-declared body; 3 complete but invalid PNG;
+ * 4 header/length could not be parsed. */
+static char last_bad_id[ART_SYNC_ID_CAP];
+static unsigned long last_bad_body, last_bad_expected;
+static int last_bad_reason;
+void art_sync_last_bad_detail(char *id, size_t cap, unsigned long *body,
+                              unsigned long *expected, int *reason) {
+  if (id && cap) {
+    snprintf(id,cap,"%s",last_bad_id);
+  }
+  if (body) *body=last_bad_body;
+  if (expected) *expected=last_bad_expected;
+  if (reason) *reason=last_bad_reason;
+}
 
 void art_sync_last_net_details(int *bad_payload, int *transport_fail,
                                int *http_status_fail) {
@@ -240,6 +255,15 @@ static int download(const probe_config *cfg, const char *id,
       body_len=received-content_at;
       valid_png=probe_png_check(response+content_at,body_len);
     }
+#ifdef DESR_HDD_TEST
+    snprintf(last_bad_id,sizeof last_bad_id,"%s",id);
+    last_bad_body=(unsigned long)body_len;
+    last_bad_expected=(unsigned long)expected;
+    last_bad_reason=(!content_at || !known_length) ? 4
+                    : body_len<expected ? 1
+                    : body_len>expected ? 2 : 3;
+    scr_printf("HTTP BAD GAME %s reason=%d\n",id,last_bad_reason);
+#endif
     scr_printf("HTTP BAD: %.26s total=%lu\n",
                firstline,(unsigned long)received);
     scr_printf("HTTP BODY: %lu expected=%lu has_len=%d PNG=%d\n",
@@ -305,6 +329,9 @@ int art_sync_run(const probe_config *cfg) {
   int i,attempted=0,saved=0,fail_streak=0,not_found=0,http_failed=0,write_failed=0,stale=0;
   last_attempted=last_not_found=last_http_failed=last_write_failed=0;
   last_bad_payload=last_transport_fail=last_http_status_fail=0;
+  last_bad_id[0]='\0';
+  last_bad_body=last_bad_expected=0;
+  last_bad_reason=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];

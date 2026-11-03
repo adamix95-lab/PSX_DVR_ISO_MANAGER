@@ -327,6 +327,22 @@ static void draw(void) {
   }
 
   if (status_visible) {
+#ifdef DESR_HDD_TEST
+    /* End-of-batch error evidence survives console scrollback. */
+    if (!strncmp(status,"ART ",4)) {
+      char bad_id[ART_SYNC_ID_CAP];
+      unsigned long received=0,expected=0;
+      int reason=0;
+      art_sync_last_bad_detail(bad_id,sizeof bad_id,&received,&expected,&reason);
+      if (bad_id[0]) {
+        scr_setfontcolor(0xE0C080);
+        scr_setXY(2,21);
+        scr_printf("BAD ID %.11s BODY%lu EXP%lu TYPE%d",
+                   bad_id,received,expected,reason);
+        scr_setfontcolor(0xFFFFFF);
+      }
+    }
+#endif
     scr_setXY(2, 22);
     scr_printf("%.54s", status); /* keep status left of the cover */
   }

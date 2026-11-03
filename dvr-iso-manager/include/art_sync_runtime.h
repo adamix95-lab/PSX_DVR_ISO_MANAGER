@@ -2,6 +2,7 @@
 #define DESR_ART_SYNC_RUNTIME_H
 
 #include "probe_config.h"
+#include <stddef.h>
 
 /* Read the Manager's USB scan report and select only missing covers.
    Returns -1 on invalid/missing log, 0 if nothing is missing, or a
@@ -21,5 +22,11 @@ void art_sync_last_stats(int *candidates, int *attempted, int *not_found,
    non-200/non-404 HTTP statuses. Read-only status reporting. */
 void art_sync_last_net_details(int *bad_payload, int *transport_fail,
                                int *http_status_fail);
+
+/* HDD-only diagnostic: last rejected HTTP 200 payload.
+   reason 1=SHORT, 2=EXTRA, 3=INVALID PNG with exact length,
+          4=unparsed headers/content length. Never writes to disk. */
+void art_sync_last_bad_detail(char *id, size_t cap, unsigned long *body,
+                              unsigned long *expected, int *reason);
 
 #endif
