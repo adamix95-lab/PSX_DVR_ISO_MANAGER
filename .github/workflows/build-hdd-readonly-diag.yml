@@ -58,6 +58,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R2_CNF.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_S.ELF
           test -s hdd-diagnostics/diag-r/DIAG_R.CNF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
@@ -243,5 +244,14 @@ jobs:
           name: PSX-DVR-HDD-DIAG-R3-LF-OR-NUL
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG S Neutrino prerequisites and read-only ISO probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-S-NEUTRINO-PREREQ-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_S.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
