@@ -424,8 +424,8 @@ done:
     scr_printf("SYS=%d BSD=%d DVD=%d USB=%d\n",
                config_type == 1, bsd_dvr, has_dvd, usb_dep);
     scr_printf("ISO=%d DVR=%d PFS=%d\n", dvd_open_code, iso_code, pfs_code);
-    scr_printf("RCNF=%d F BYTES=%d\n", q_config_ok, f_target_size);
-    scr_printf("RCNF EXACT. F ONLY. NO WRITES.\n");
+    scr_printf("RCNF=%d ARG ELF BYTES=%d\n", q_config_ok, f_target_size);
+    scr_printf("RCNF EXACT. R ARGS ONLY, NO GAME.\n");
     if (!wait_for_choice(result == 0)) {
         /* Ordinary START exit: release exactly our own mount, then pad. */
         owned_unmount();
@@ -442,7 +442,7 @@ done:
      * initializes APA/PFS itself instead of treating pfs1: as its device.
      *
      * There may be no return from a successful chainload. Launched
-     * OSDMenu / Neutrino have their own behavior; DIAG R never writes HDD.
+     * OSDMenu / R_ARG have their own behavior; DIAG R never writes HDD.
      */
     scr_clear();
     scr_printf("DIAG R / REAL OSDMENU ARGV TEST\n");
