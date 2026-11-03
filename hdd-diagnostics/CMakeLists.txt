@@ -397,3 +397,13 @@ target_link_libraries(PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG W: same RO Neutrino V stage-70-safe source, with mandatory
+# DelayThread entry marker to distinguish pre-main exit from libc sleep issue.
+add_executable(PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_w_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
