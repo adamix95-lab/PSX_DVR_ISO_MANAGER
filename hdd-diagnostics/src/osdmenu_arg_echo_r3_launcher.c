@@ -265,7 +265,7 @@ static int inspect_q_config(void)
      */
     q_last_byte = (unsigned char)q_config_bytes[length - 1];
     if (memcmp(q_expected_config, q_config_bytes, (size_t)(length - 1)) ||
-        (q_last_byte != '\\n' && q_last_byte != 0)) {
+        (q_last_byte != '\n' && q_last_byte != 0)) {
         rc = -344;
         goto done_config;
     }
