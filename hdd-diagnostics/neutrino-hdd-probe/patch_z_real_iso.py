@@ -68,16 +68,16 @@ once('    scr_printf("NO ISO OR GAME. READ ONLY.\\n");',
 # parse_cmdline_args(); check it matches exactly rather than accepting
 # an unrelated path or silently skipping safety checks.
 once('''        if (strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso") != 0) {
-            scr_printf("Y95 REJECT UNEXPECTED ISO PATH\n");
+            scr_printf("Y95 REJECT UNEXPECTED ISO PATH\\n");
             return -95;
         }''',
 '''        if (argc != 3 || !argv || !argv[2] ||
             !z_allowed_iso_arg(argv[2]) ||
             strcmp(sDVDFile, argv[2] + 5) != 0) {
-            scr_printf("Z95 REJECT ISO ARG / MODE MISMATCH\n");
+            scr_printf("Z95 REJECT ISO ARG / MODE MISMATCH\\n");
             return -95;
         }
-        scr_printf("Z95 EXACT ISO ARG: %.88s\n", sDVDFile);''',
+        scr_printf("Z95 EXACT ISO ARG: %.88s\\n", sDVDFile);''',
 "replace leftover Y dummy-only ISO path check")
 
 once('''        if (setup_dvd_iso(sDVDFile, &iso_size, &layer1_lba_start) < 0)
@@ -123,8 +123,8 @@ for expected in ('z_allowed_iso_arg(argv[2])',
                  'Y2 87 DVR PRE=',
                  'Z95 DVR FHI+CDVD READY, ISO NEXT'):
     if expected not in s: raise SystemExit("DIAG Z REFUSED missing "+expected)
-if 'Y95 REJECT UNEXPECTED ISO PATH' in s or
-   'strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso")' in s:
+if ('Y95 REJECT UNEXPECTED ISO PATH' in s or
+    'strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso")' in s):
     raise SystemExit("DIAG Z REFUSED leftover dummy-only Y95 gate")
 if "return 0; /* HARD NO-ISO STOP BEFORE setup_dvd_iso */" in s:
     raise SystemExit("DIAG Z REFUSED old stop still present")
