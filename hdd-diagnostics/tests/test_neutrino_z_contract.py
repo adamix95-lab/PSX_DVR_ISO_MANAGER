@@ -62,12 +62,19 @@ class ZRealGame(unittest.TestCase):
             "z_allowed_iso_arg(const char *a)",
             '"-dvd=dvr_pfs0:/ISO/"',
             "strstr(a+off, \"..\")",
+            'strcmp(sDVDFile, argv[2] + 5) != 0',
+            'Z95 EXACT ISO ARG:',
+            'Z95 REJECT ISO ARG / MODE MISMATCH',
             "Z96 setup_dvd_iso BEGIN",
             "Z97 ISO SETUP OK",
             "Z98 SYSTEM.CNF ISO READ BEGIN",
             "Z99 GAME HANDOFF BEGIN",
             'ExecPS2((void *)eh->entry',
         ): self.assertIn(t,P)
+        # Regression: firmware Y2P success must NOT leave the dummy
+        # DIAG_V_NO_GAME.iso-only check in the actual Z image.
+        self.assertIn('replace leftover Y dummy-only ISO path check',P)
+        self.assertIn('DIAG Z REFUSED leftover dummy-only Y95 gate',P)
         self.assertIn("patch_y2_fhi_preinit.py",WF)
         self.assertIn("patch_z_real_iso.py",WF)
         self.assertIn("PSX-DVR-HDD-NEUTRINO-Z-REAL-GAME",WF)
