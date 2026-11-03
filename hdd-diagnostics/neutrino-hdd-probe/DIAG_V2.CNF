@@ -1,0 +1,4 @@
+boot=PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso
+arg=-dev9=NICHDD

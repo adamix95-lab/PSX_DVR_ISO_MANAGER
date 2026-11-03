@@ -1,0 +1,283 @@
+name: Build v1.0 HDD read-only diagnostics (PP.TESTDVR)
+on:
+  push:
+    branches:
+      - feature/v1.0-hdd-readonly-diagnostics
+    paths:
+      - 'hdd-diagnostics/**'
+      - '.github/workflows/build-hdd-readonly-diag.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'hdd-diagnostics/**'
+      - '.github/workflows/build-hdd-readonly-diag.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake, C compiler and Python
+        run: apk add --no-cache cmake build-base python3
+      - name: Verify test-partition-only read-only contract
+        run: python3 -m unittest discover -s hdd-diagnostics/tests -p 'test_*.py' -v
+      - name: Compile separate HDD diagnostic ELF
+        run: |
+          cmake -S hdd-diagnostics -B build-hdd-diag
+          cmake --build build-hdd-diag -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_C.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_D.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_E.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_G.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_H.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_J.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_L.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_M.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_N.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_O.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_Q.ELF
+          test -s hdd-diagnostics/config/BOOTQ.CNF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_ARG.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R2_CNF.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_S.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_T_TARGET.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_U_TARGET.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
+          test -s hdd-diagnostics/diag-r/DIAG_R.CNF
+      - name: Upload standalone READ-ONLY diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-A-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_A.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload follow-up HELLO + staged HDD diagnostic B
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-B-STAGED
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_HELLO.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_B.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload IOP reset / fileXio isolation diagnostic C
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-C-FILEXIO
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_C.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload PP.TESTDVR read-only APA/PFS diagnostic D
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-D-APA-PFS-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_D.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload coexistence APA/PFS + DVR diagnostic E
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-E-APA-DVR-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_E.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload START -> XMB/OSD isolated DIAG F
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-F-PAD-EXIT
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload combined RO HDD + DVR + START DIAG G
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-G-RO-PAD-EXIT
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_G.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload staged OSDMenu and Neutrino read-only DIAG H
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-H-STAGED-FILES-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_H.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload OSDMenu HDD path audit DIAG I
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-I-BOOT-PATH-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_I.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload explicitly gated HDD OSDMenu launch DIAG J
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-J-X-ARMED-OSDMENU-LAUNCH
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_J.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload raw HDD ELF chainload diagnostic K and known-good target F
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-K-RAW-ELF-TEST
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_K.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_F.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload target + launcher for post-HDD-boot DIAG L
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-L-POSTBOOT-IOP
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_L.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_L_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload OSDMenu APA module probe DIAG M target + launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-M-OSDMENU-MODULE-PROBE
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_M.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_M_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload read-only Quickboot path DIAG N target + launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-N-QUICKBOOT-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_N.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_N_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload read-only handlePFS DIAG O target + launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-O-HANDLEPFS-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_O.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_O_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload second IOP reset DIAG P target + launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-P-SECOND-IOP-RESET-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_P.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload original OSDMenu loader test Q plus harmless alternate CNF
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-Q-REAL-OSDMENU-TO-F
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+            hdd-diagnostics/diag-q/DIAG_Q.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG Q gated original OSDMenu launcher + test-only CNF
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-Q-ORIGINAL-OSDMENU-TO-F
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_Q.ELF
+            hdd-diagnostics/config/BOOTQ.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG R real OSDMenu argv probe, dummy-only config
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-R-OSDMENU-ARGV-ONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R_ARG.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+            hdd-diagnostics/diag-r/DIAG_R.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+      - name: Upload R2 exact DIAG_R.CNF byte-level diagnostic only
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-R2-CNF-BYTE-INSPECTOR
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R2_CNF.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload R3 standalone launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-R3-LF-OR-NUL
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG S Neutrino prerequisites and read-only ISO probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-S-NEUTRINO-PREREQ-READONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_S.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG T real OSDMenu target-entry file access test
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-T-TARGET-ENTRY-CWD
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_T_TARGET.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
+            hdd-diagnostics/diag-t/DIAG_T.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG U RO remount after OSDMenu handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-U-RO-REMOUNT
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_U_TARGET.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
+            hdd-diagnostics/diag-u/DIAG_U.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error

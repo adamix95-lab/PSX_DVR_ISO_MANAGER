@@ -1,0 +1,2 @@
+boot=PSX_DVR_HDD_DIAG_F.ELF
+arg=-dev9=NICHDD
