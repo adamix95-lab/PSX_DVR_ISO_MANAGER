@@ -58,7 +58,7 @@ jobs:
           assert 'DESR_APP_VARIANT "1.0 HDD"' in paths
           assert 'DESR_APP_VARIANT "1.0 USB"' in paths
           assert 'fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY)' in main
-          assert 'if (new_press & (PAD_TRIANGLE))' in main
+          assert 'if (new_press & PAD_TRIANGLE)' in main
           assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in main
           assert 'HDD preview: CNF / ART writes and launch disabled' in main
           assert 'hdd0:PP.DVRISO' in paths and 'PP.TESTDVR' not in paths
