@@ -293,3 +293,21 @@ add_executable(PSX_DVR_HDD_DIAG_Q.ELF
 target_link_libraries(PSX_DVR_HDD_DIAG_Q.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_Q.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# DIAG R: original OSDMenu loads a harmless argv-echo target using F's
+# proven IOP/pad stack. Dummy ISO argument is NEVER opened by the target.
+add_executable(PSX_DVR_HDD_DIAG_R_ARG.ELF
+  src/osdmenu_arg_echo_target.c
+  ${EXIT_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_R_ARG.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_R_ARG.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+  src/osdmenu_arg_echo_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_R_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
