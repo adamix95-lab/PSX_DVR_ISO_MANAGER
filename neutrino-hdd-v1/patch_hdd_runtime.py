@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
         return -105;
     }
 
-    /* Neutrino reads config/* and modules/* relative to pfs0:/.
+    /* Neutrino reads the config and modules directories from pfs0:/.
      * The ISO remains on the completely separate dvr_pfs0:/ISO/ store.
      */
     rc=neutrino_hdd_upstream_main(argc,argv);
