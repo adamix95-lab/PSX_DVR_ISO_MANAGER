@@ -1,3 +1,30 @@
+## DIAG S — sprawdzenie warunków startu Neutrino bez jego uruchamiania
+
+**Stan sprzętowy:** DIAG R3 przeszło na fizycznym DESR-7000: prawdziwy OSDMenu uruchomił `PSX_DVR_HDD_DIAG_R_ARG.ELF` z `PP.TESTDVR` z `ARGC=3 ARGS_OK=1`, `ARGV1=-bsd=dvr` oraz `ARGV2=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`. DIAG J wcześniej zwracał do XMB podczas próby uruchomienia `neutrino.elf` ze wskazanym rzeczywistym ISO. **S jest nowym testem; nie był jeszcze sprawdzony na konsoli.**
+
+### Dlaczego taki zakres
+
+Obecny kod źródłowy upstream `ps2max32/neutrino`, `ee/loader/src/main.c`, sprawdza `rom0:ROMVER` (wymaga przynajmniej 15 bajtów), otwiera `config/system.toml` lub posługuje się alternatywnym układem płaskim, czyta konfigurację `compat.toml`, a przy `-bsd=dvr` próbuje wczytać konfigurację `bsd-dvr.toml`. Kod `ee/loader/src/config.c` tworzy nazwy `config/bsd-<nazwa>.toml` i `config/emu-dvd-file.toml`; `modlist.c` czyta moduły spod `modules/`. Standardowa lista driverów upstream **nie wymienia `dvr`**, ale binarny `neutrino.elf` na `PP.TESTDVR` może pochodzić z innej wersji lub forka. Nie znamy też rzeczywistego katalogu roboczego Neutrino po załadowaniu z OSDMenu. **Nie twierdzimy, że brak któregoś pliku na testowej partycji dowodzi błędu Neutrino** — to tylko diagnostyka kandydatów.
+
+### Co robi DIAG S
+
+`PSX_DVR_HDD_DIAG_S.ELF` jest jednym programem uruchamianym **bezpośrednio przez UDPFS z wLE-R3Z**, bez kopiowania niczego nowego na `PP.TESTDVR`. Używa fizycznie sprawdzonego z DIAG R stosu APA/PFS/DVR i montuje **wyłącznie własną partycję** `hdd0:PP.TESTDVR` jako `pfs1:` tylko do odczytu. Działa wyłącznie diagnostycznie:
+
+1. Odczytuje istniejący `BOOT.CNF`, sprawdza nagłówek `neutrino.elf` (ELF32, little-endian, MIPS) i `rom0:ROMVER` (liczbę odczytanych bajtów).
+2. Bez tworzenia plików sprawdza **potencjalne** pliki konfiguracyjne w `pfs1:/config/` i w wariancie płaskim: `system.toml`, `bsd-dvr.toml`, `compat.toml`, `emu-dvd-file.toml`, oraz katalog `modules/`. Wartości ujemne wskazują brak dostępu w **tym katalogu**, a nie automatycznie przyczynę awarii Neutrino.
+3. Inicjalizuje moduły DVR jak poprzednie testy, wybiera rzeczywisty ISO z dotychczasowego `BOOT.CNF` (nie wpisuje nowego ani nie używa fikcyjnego `DIAG_R_NO_GAME.iso`), sprawdza odczyt **tylko 6 bajtów** przy sektorze 16 ISO9660: typ deskriptora 01 i `CD001`. Zapisuje `ISO FD`, `ISO SEEK`, `ISO READ` i `PVD` (1: nagłówek pasuje, 0: inny, ujemne: błąd odczytu lub brak seeku). Nie czyta danych gry dalej niż wymagane 6 bajtów.
+4. Na ekranie `PSX DVR HDD DIAG S / RESULTS` pokazuje `CHECK/MOUNT`, `CNF/OSD/NEUT`, `ROMVER/MIPS`, `SYS/BSD DVR/COMPAT/DVD CFG`, `MODULES DIR`, `ISO FD/PVD/SEEK/READ`. **`CHECK=0` oznacza, że wstępna diagnostyka zakończyła się, nie że Neutrino działa!** Nawet przy błędach konfiguracji i PVD program nadal pokazuje wyniki.
+5. Po zdjęciu wystarczy START do powrotu do XMB, tak jak w dotychczasowych diagnostykach. **Nie ma przycisku X ani funkcji loadera**, więc S nie uruchamia OSDMenu, Neutrino ani żadnej gry.
+
+### Instrukcja sprzętowa i granice
+
+1. Wcześniejsze pliki pozostają nienaruszone: `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, `DIAG_Q.CNF`, `DIAG_R.CNF`, R_ARG, ISO. Niczego nie trzeba kopiować na HDD.
+2. Po udanym CI pobierz `PSX_DVR_HDD_DIAG_S.ELF` i uruchom **z UDPFS** w wLE-R3Z. Zrób zdjęcie końcowego ekranu, szczególnie wartości `ROMVER`, `SYS CFG`, `BSD DVR CFG`, `MODULES DIR`, `ISO PVD`. Jeśli zatrzyma się na `S... BEFORE`, sfotografuj ostatnią linijkę.
+3. Nie próbuj instalować nowej konfiguracji Neutrino ani nowych sterowników na podstawie domysłów. Po uzyskaniu wyników ustalimy, czy problemem jest niewidoczna konfiguracja/drivery, nagłówek ISO lub następny etap działania samego Neutrino.
+4. Kod S nie wykonuje zapisów ani nie montuje żadnych partycji RW. **Nie możemy gwarantować braku wewnętrznych operacji zewnętrznych sterowników IOP**, więc zalecana jest kopia ważnych danych. Nie dotykamy partycji systemowych Sony i nie zmieniamy `main`, v0.8 ani XMB. PR #26 pozostaje Draft.
+
+---
+
 ## DIAG R3 — pełny PASS z ekranu docelowego na fizycznym DESR-7000 (3.11.2026)
 
 Użytkownik uruchomił `PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF` i po naciśnięciu X przesłał zdjęcie **końcowego ekranu R_ARG**. Nie wykonał zdjęcia ekranu preflight przed X, więc wartości `CHECK`, `RCNF` i `LAST` z tego ekranu nie są odrębnie potwierdzone fotograficznie. Widoczny wynik:
