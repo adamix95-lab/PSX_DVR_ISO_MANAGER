@@ -50,6 +50,14 @@ static int z_allowed_iso_arg(const char *a)
 }
 
 '''
+# The original Neutrino function is physically earlier than the wrapper
+# where z_allowed_iso_arg() is defined. Declare it before this first use;
+# otherwise gcc -Werror catches implicit function declaration.
+once('static int neutrino_probe_main(int argc, char *argv[])\n{',
+     'static int z_allowed_iso_arg(const char *a);\n'
+     'static int neutrino_probe_main(int argc, char *argv[])\n{',
+     "forward-declare ISO basename guard for Neutrino core")
+
 once('int main(int argc, char *argv[])\n{\n    int init_ret',
      validator+'int main(int argc, char *argv[])\n{\n    int init_ret',
      "insert filename allowlist")
