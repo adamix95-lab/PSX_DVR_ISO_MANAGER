@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.8
+name: Build PSX DVR ISO Manager 1.0 USB (preview)
 on:
   workflow_dispatch:
   push:
@@ -44,7 +44,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.8
+          name: PSX-DVR-ISO-Manager-v1.0-USB-PREVIEW
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
