@@ -31,6 +31,14 @@ jobs:
           /tmp/test_http_png
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/art_sync.c dvr-iso-manager/tests/net/test_art_sync.c -o /tmp/test_art_sync
           /tmp/test_art_sync
+      - name: Host-test HDD Quickboot CNF (no filesystem writes)
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/iso_utils.c \
+            dvr-iso-manager/src/hdd_boot_config.c \
+            dvr-iso-manager/tests/test_hdd_boot_config.c \
+            -o /tmp/test_hdd_boot_config
+          /tmp/test_hdd_boot_config
       - name: Check available image libraries
         run: |
           for p in "$PS2SDK/ports/include/png.h" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" "$GSKIT/include/gsKit.h"; do
