@@ -1,3 +1,17 @@
+## DIAG R2 — sprzętowa diagnoza, wynik 3.11.2026
+
+Zdjęcie użytkownika: `CHECK=-136 MOUNT=0 RCNF=-344`; `SIZE=87 EXPECT=87 READ=87`; `DIFF OFFSET=86 E=0A A=00`; `CR=0 LF=2 NUL=1`; sumy `7111/7101`, ostatnie bajty `E: 69 73 6F 0A`, `A: 69 73 6F 00`. Zawartość jest identyczna poza ostatnim bajtem, który przy odczycie jest NUL zamiast LF. Nie znamy jeszcze źródła zamiany.
+
+### DIAG R3 — poprawiony launcher bez kolejnych kopii na HDD
+
+Po zielonym CI uruchom **tylko `PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF` przez UDPFS**. Nie kopiuj żadnego pliku na HDD. Nowy launcher porównuje dokładnie 86 pierwszych bajtów `DIAG_R.CNF` i wymaga rozmiaru/odczytu 87 bajtów. Ostatni bajt może być **tylko 0A (LF) albo 00 (NUL)**. Nie dopuszcza innych zmian treści ani nazw programu/argumentów.
+
+Jeśli pierwszy ekran pokaże `CHECK=0`, `RCNF=87`, `LAST=00 NUL=1`, zrób zdjęcie i świadomie naciśnij X. Oryginalny `BOOT.ELF` powinien uruchomić jedynie nieszkodliwy `PSX_DVR_HDD_DIAG_R_ARG.ELF`, a on pokazać `ARGC=3 ARGS_OK=1` oraz `-bsd=dvr`, `-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`. Fikcyjny obraz ISO nie jest otwierany przez program docelowy. Przy błędzie nie naciskaj X. Daj zdjęcie końcowego ekranu albo opisz powrót do XMB.
+
+`BOOT.CNF`, `BOOT.ELF`, `DIAG_Q.CNF`, `DIAG_R.CNF`, `R_ARG`, Neutrino, gry, Sony partycje systemowe, `main` i v0.8 pozostają bez zmian. Test nie rozstrzyga pochodzenia końcowego NUL, a oryginalny OSDMenu i zewnętrzne sterowniki mogą wykonywać własne operacje; zalecana kopia ważnych danych. PR #26 pozostaje Draft.
+
+---
+
 ## DIAG R2 — powtarzalny błąd `RCNF=-344` znaleziony na ostatnim bajcie (zdjęcie 3.11.2026)
 
 Użytkownik wykonał R2 przez UDPFS i przesłał zdjęcie:
