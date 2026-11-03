@@ -190,7 +190,18 @@ static int download(const probe_config *cfg, const char *id,
       goto fail;
     }
     if (received>=BUF_CAP) goto fail;
-    rc=lwip_recv(sock,response+received,BUF_CAP-received,0);
+    {
+      size_t remaining=BUF_CAP-received;
+#ifdef DESR_HDD_ART_PROBE
+      /* PS2SDK ps2ips RPC uses an IOP staging buffer BUFF_SIZE=1024
+         with only 32 bytes slack, although the DMA base can be offset
+         by up to 64. Request <=512 per recv as a controlled probe for
+         the known large-recv buffer-overrun/corrupted-PNG symptom.
+         DO NOT apply to the proven USB/HDD game launcher builds yet. */
+      if (remaining>512U) remaining=512U;
+#endif
+      rc=lwip_recv(sock,response+received,(int)remaining,0);
+    }
     if (rc<0 && (errno==EWOULDBLOCK||errno==EAGAIN)) continue;
     if (rc<0) goto fail;
     if (rc==0) break;

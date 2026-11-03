@@ -127,6 +127,8 @@ jobs:
           assert 'DESR_HDD_PREVIEW=1 DESR_HDD_ART_PROBE=1' in cm
           assert 'desr_lan_art_probe(probe_all_ids,count)' in s
           assert 'desr_covers_resolve_ids(games,count,probe_all_ids)' in s
+          assert 'COVER_SCAN_LOG' in Path("dvr-iso-manager/src/cover_runtime.c").read_text()
+          assert 'if (remaining>512U) remaining=512U' in net
           assert 'art_sync_probe_all' in net
           assert 'RAM DONE' in net
           assert 'hdd_mount_readonly()' in s

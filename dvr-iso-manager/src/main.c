@@ -850,7 +850,7 @@ int main(int argc, char *argv[]) {
         scr_printf("All indexed games are fetched even if ART exists.\n");
         {
           int ids=desr_covers_resolve_ids(games,count,probe_all_ids);
-          scr_printf("PROBE: resolved %d/%d Game IDs from COVERS.IDX\n",
+          scr_printf("PROBE: resolved %d/%d IDs from INDEX + SCAN.LOG\n",
                      ids,count);
           if (ids<0) ok=ids;
           else ok=desr_lan_art_probe(probe_all_ids,count);

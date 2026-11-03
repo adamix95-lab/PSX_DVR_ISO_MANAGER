@@ -244,7 +244,61 @@ int desr_covers_resolve_ids(char games[][DESR_FILENAME_CAP], int count,
     }
     p=nl+1;
   }
-  return parsed;
+  /* COVERS.IDX stores only covers which physically exist in ART/.
+     The full game -> boot ID mapping, including NO_ART, is in the
+     TRIANGLE scan report. Use it for a *read-only* all-games LAN probe.
+     This is deliberately not a rewrite of the live cover index. */
+  {
+    int fd=fileXioOpen(COVER_SCAN_LOG,FIO_O_RDONLY,0);
+    int bytes=0,got,closed,add=0;
+    if (fd<0) return parsed;
+    while (bytes<(int)sizeof(scan_report)-1) {
+      got=fileXioRead(fd,scan_report+bytes,
+                      (int)sizeof(scan_report)-1-bytes);
+      if (got<0) {fileXioClose(fd); return parsed;}
+      if (got==0) break;
+      bytes+=got;
+    }
+    closed=fileXioClose(fd);
+    if (closed<0 || bytes >= (int)sizeof(scan_report)-1 ||
+        bytes<(int)sizeof("PSXCOVSCAN1\n")-1 ||
+        memcmp(scan_report,"PSXCOVSCAN1\n",
+               sizeof("PSXCOVSCAN1\n")-1)) return parsed;
+    scan_report[bytes]='\0';
+    p=scan_report+sizeof("PSXCOVSCAN1\n")-1;
+    end=scan_report+bytes;
+    while (p<end) {
+      char *nl=memchr(p,'\n',(size_t)(end-p));
+      char *status,*id;
+      if (!nl) break;
+      *nl='\0';
+      status=strchr(p,'\t');
+      if (!status) {p=nl+1;continue;}
+      *status++='\0';
+      id=strchr(status,'\t');
+      if (!id) {p=nl+1;continue;}
+      *id++='\0';
+      if (!desr_filename_is_safe(p) || !desr_valid_game_id(id) ||
+          strchr(id,'\t')) {p=nl+1;continue;}
+      /* Report statuses are from our trusted TRIANGLE scan. Keep the
+         first valid match; do not fabricate a Game ID from an ISO name. */
+      if (strcmp(status,"NO_ART") && strcmp(status,"NO_ART_EXE") &&
+          strcmp(status,"FOUND_PNG") && strcmp(status,"FOUND_JPG") &&
+          strcmp(status,"FOUND_PNG_EXE") &&
+          strcmp(status,"FOUND_JPG_EXE")) {p=nl+1;continue;}
+      for (i=0;i<count;i++) {
+        if (!strcmp(p,games[i]) && !ids[i].game_id[0]) {
+          memcpy(ids[i].game_id,id,DESR_COVER_ID_CAP);
+          strcpy(ids[i].ext,"png");
+          ids[i].present=0; /* probe ID, not a filesystem assertion */
+          add++;
+          break;
+        }
+      }
+      p=nl+1;
+    }
+    return parsed+add;
+  }
 }
 #endif
 
