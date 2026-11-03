@@ -61,6 +61,8 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_S.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_T_TARGET.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_U_TARGET.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
           test -s hdd-diagnostics/diag-r/DIAG_R.CNF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
@@ -266,5 +268,16 @@ jobs:
             build-hdd-diag/PSX_DVR_HDD_DIAG_T_TARGET.ELF
             build-hdd-diag/PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
             hdd-diagnostics/diag-t/DIAG_T.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG U RO remount after OSDMenu handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-U-RO-REMOUNT
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_U_TARGET.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
+            hdd-diagnostics/diag-u/DIAG_U.CNF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
