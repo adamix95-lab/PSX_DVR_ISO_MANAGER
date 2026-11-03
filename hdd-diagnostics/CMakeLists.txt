@@ -330,3 +330,13 @@ target_link_libraries(PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG S: no target chainload; read-only Neutrino local config candidate check
+# and ISO9660 PVD read at LBA 16 after proven DVR driver preflight.
+add_executable(PSX_DVR_HDD_DIAG_S.ELF
+  src/neutrino_boot_prereq_probe.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_S.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_S.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
