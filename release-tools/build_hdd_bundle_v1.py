@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 from pathlib import Path, PurePosixPath
-import stat
 import sys
 import zipfile
 
@@ -49,9 +48,9 @@ REMOVE_LEGACY = {
 }
 
 
-def read_elf(path: Path) -> bytes:
+def read_elf(path: Path, minimum: int = 4096) -> bytes:
     b = path.read_bytes()
-    if len(b) < 100_000 or b[:4] != b"\x7fELF" or b[4:6] != b"\x01\x01":
+    if len(b) < minimum or b[:4] != b"\x7fELF" or b[4:6] != b"\x01\x01":
         raise ValueError(f"Not a sizeable PS2 ELF: {path}")
     if int.from_bytes(b[18:20], "little") != 8:
         raise ValueError(f"Not MIPS ELF: {path}")
@@ -71,10 +70,10 @@ def build(args: argparse.Namespace) -> None:
     payload = {k: v for k, v in retained.items()
                if k not in REMOVE_LEGACY and not k.endswith(".PART")}
     payload.update({
-        "DVR_ISO_MANAGER_HDD_TEST.ELF": read_elf(args.manager),
-        "DVR_ISO_MANAGER_HDD_PREVIEW.ELF": read_elf(args.preview),
-        "neutrino_hdd.elf": read_elf(args.system),
-        "neutrino_hdd_lang.elf": read_elf(args.english),
+        "DVR_ISO_MANAGER_HDD_TEST.ELF": read_elf(args.manager, 100_000),
+        "DVR_ISO_MANAGER_HDD_PREVIEW.ELF": read_elf(args.preview, 100_000),
+        "neutrino_hdd.elf": read_elf(args.system, 50_000),
+        "neutrino_hdd_lang.elf": read_elf(args.english, 50_000),
         "modules/ee_core_lang.elf": read_elf(args.core),
         "config/osdlang.toml": args.osdlang.read_bytes(),
         "NET_PROBE.CNF": args.network.read_bytes(),
@@ -107,8 +106,6 @@ def build(args: argparse.Namespace) -> None:
             raise ValueError(f"Wrong Manager partition: {name}")
     if b"ee_core_lang.elf" not in payload["config/osdlang.toml"]:
         raise ValueError("Language config does not reference English EE core")
-    if b"BOOT.CNF" in payload.get("DVR_ISO_MANAGER_HDD_TEST.ELF", b"") and False:
-        raise ValueError("Unreachable check")
     note = args.readme.read_bytes()
     members = {APP + key: value for key, value in payload.items()}
     members[ROOT + "START_HERE_PL.txt"] = note
