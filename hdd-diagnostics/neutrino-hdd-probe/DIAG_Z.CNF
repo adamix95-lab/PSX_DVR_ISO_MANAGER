@@ -1,0 +1,5 @@
+boot=PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/NAZWA_GRY.iso
+arg=-dev9=NICHDD
+#PAD
