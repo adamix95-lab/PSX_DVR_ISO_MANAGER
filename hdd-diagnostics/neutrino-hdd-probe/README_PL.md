@@ -1,3 +1,39 @@
+## DIAG Z — 44 wpisy ISO na fizycznym DESR-7000: pełne stronicowanie R1/L1, kontrola zgodności nazwy
+
+Użytkownik uruchomił diagnostyczny Z_LAUNCH przez UDPFS/wLE, przekazał zdjęcie:
+
+```text
+CHECK=-136 MOUNT=0
+SYS=1 BSD=1 DVD=1 USB=0
+ISO=3 DVR=3 PFS=3
+ZCNF=105 TARGET ELF BYTES=154676
+SELECTED ISO OPEN=-2
+FILE NOT FOUND: CHECK EXACT NAME/CASE
+DVR DIR OPEN=3 READ=0 SEEN=44
+DVR FILE 1: HALF-LIFE.iso
+DVR FILE 2: REZ.iso
+DVR FILE 3: ICO.iso
+DVR FILE 4: ONI.iso
+DVR FILE 5: Metal Slug Anthology.iso
+DVR FILE 6: Wipeout Fusion.iso
+DVR FILE 7: Age of Empires II The Age of Kings.iso
+DVR FILE 8: Black.iso
+GAME: dvr_pfs0:/ISO/MGS 2.iso
+```
+
+**Uwaga:** pokazanych było tylko pierwszych OSIEM wpisów, natomiast `SEEN=44`, więc **nie można jeszcze wnioskować**, że `MGS 2.iso` nie istnieje pod dokładną nazwą. Potrzebujemy przejrzeć pozostałe 36 pozycji oraz rozróżnić błąd nazwy od problemu drivera otwierającego istniejący plik.
+
+**Nowa poprawka dotyczy wyłącznie launchera Z**, nie dotyka HDD i nie zmienia oryginalnego Z_GAME.ELF, CNF, usb v0.8, ani main. Zwiększa limit zapamiętywanych nazw do 96, wyświetla 10 na ekran:
+- Jeżeli `SELECTED ISO OPEN=-2`, automatycznie pokazuje ekran `PSX DVR Z / ACTUAL ISO NAMES`. **R1: następne 10**, **L1: poprzednie 10**, **START: wyjście**. Wszystkie wpisy z dvr_pfs0:/ISO odczytywane są RO. Na fizycznym HDD użytkownika powinno być 5 stron (44 wpisy).
+- Pokazuje dodatkowo `EXACT` (czy pełna nazwa zgadza się bajt-w-bajt ze wskazaną `MGS 2.iso`) oraz `CASE_ONLY` (czy nazwa różni się tylko wielkością liter).
+- Jeśli `EXACT=0`, trzeba skorygować **wyłącznie** nazwę pliku w `DIAG_Z.CNF` według rzeczywistej nazwy z listy; potwierdzić `CHECK=0` w launcherze przed X.
+- Jeśli `EXACT>=1`, a `SELECTED ISO OPEN=-2` nadal, nie zmieniać CNF na ślepo: driver potrafi enumerować wpis, lecz nie otwiera wskazanej ścieżki. To **osobny problem implementacji DVR** do zbadania.
+- W żadnym przypadku ta poprawka nie włącza X przy błędzie. Dopiero po `SELECTED ISO OPEN>=0`, `CHECK=0` można zdecydować o rzeczywistym starcie gry.
+
+**Procedura:** nie kopiować NIC na HDD, uruchomić tylko nowy `PSX_DVR_HDD_NEUTRINO_Z_LAUNCH.ELF` z UDPFS przez wLE-R3Z, przewinąć R1 kolejne strony i zrobić zdjęcie zawierające wpisy z Metal Gear/MGS lub ekran pierwszej strony z `EXACT/CASE_ONLY`. Do poznania prawdziwej nazwy ISO nie wykonywać startu gry.
+
+---
+
 ## DIAG Z — zdjęcie z PSX: CHECK=-136 z powodu konkretnej nazwy ISO, bez błędu CNF
 
 Na fizycznej DESR-7000 użytkownik uruchomił Z przez UDPFS/wLE. Wynik zdjęcia:
