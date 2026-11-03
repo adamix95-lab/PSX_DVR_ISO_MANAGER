@@ -1,3 +1,46 @@
+## DIAG Z FIX95 — sprzętowy CHECK=0 oraz błąd pozostawionego testowego warunku Y95 (3.11.2026)
+
+Nowe dwa zdjęcia fizycznego DESR-7000: użytkownik ręcznie poprawił rzeczywistą nazwę gry w `DIAG_Z.CNF` na `MGS 2.ISO` (rozszerzenie pisane wielkimi literami) i uruchomił wcześniejszy launcher Z przez UDPFS/wLE.
+
+**Pierwszy ekran, już poprawnie:**
+```text
+CHECK=0 MOUNT=0
+SYS=1 BSD=1 DVD=1 USB=0
+ISO=3 DVR=3 PFS=3
+ZCNF=105 TARGET ELF BYTES=154676
+SELECTED ISO OPEN=3
+GAME: dvr_pfs0:/ISO/MGS 2.ISO
+ZCNF PREFIX EXACT. LAST=00 NUL=1
+X: OSDMENU -> Z REAL ISO GAME
+```
+Ściśle sprawdzona konfiguracja, oryginalny OSDMenu, wybrany rzeczywisty obraz ISO i odczyt na etapie launchera działają; nie trzeba zmieniać katalogu ani sterownika DVR.
+
+**Drugi ekran, po świadomym X i uruchomieniu Z_GAME z HDD:**
+```text
+Y85 LE MODULES READY / FHI NEXT
+Y2 ACTUAL SELECT idx=3 dvrfile_fhi.irx
+Y87 FHI ACTIVE=1 INIT=0
+Y2 87 DVR PRE=1 POST=0 CHOSEN=3
+Y2 89 CORRECT DVR FHI BACKEND
+Y90 CDVDMAN SETTINGS=1
+Y95 REJECT UNEXPECTED ISO PATH
+V RESULT=-95 LAST_STAGE=95
+Z: GAME NOT RUNNING / RETURNED.
+```
+Błąd jest jednoznacznie w naszym skrypcie `patch_z_real_iso.py`: DIAG Y zawierał dokładną walidację `strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso")` przed zatrzymaniem Y95. W DIAG Z usunęliśmy sztuczny stop Y95, **ale zapomnieliśmy zastąpić testowego warunku ścieżki**. Zatem prawdziwy ISO nie został jeszcze nawet otwarty przez Neutrino; to nie jest awaria backendu pcm720.
+
+**Poprawka FIX95 (ten sam Z_GAME ELF filename, nowe bajty):**
+- Zastąpiono fałszywy Y95 test dynamicznym sprawdzeniem `argc==3`, `z_allowed_iso_arg(argv[2])` i `strcmp(sDVDFile, argv[2]+5)==0`. W Neutrino `parse_cmdline_args` ustawia `sys.sDVDMode = &argv[i][5]`, następnie `sDVDFile = sys.sDVDMode`; porównanie wymusza idealną zgodność ścieżki, nie rezygnuje z ochrony przed innym urządzeniem/podkatalogiem/ISO.
+- Dodano marker `Z95 EXACT ISO ARG: ...` przed `Z96 setup_dvd_iso BEGIN`. Stary tekst `Y95 REJECT UNEXPECTED ISO PATH` nie występuje już w gotowym ELF (sprawdzono po binarnym buildzie).
+- Naprawiono wcześniejszą deklarację statycznego walidatora w oryginalnym `neutrino_probe_main`, wymagane przez `-Werror`.
+- Nie zmieniają się oryginalny `BOOT.ELF`, `BOOT.CNF`, `neutrino.elf`, działający Z_LAUNCH, `DIAG_Z.CNF` na konsoli (z `MGS 2.ISO`), moduły, folder `config`, systemowe partycje Sony, główny `main` ani USB v0.8. PR #26 nadal Draft.
+
+**CI PASS**: [workflow run 41635984840](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/41635984840), [artifact 13230212856](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/41635984840/artifacts/13230212856). `PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF` ma teraz 154804 B i SHA256 `407527fd426d95ee8e14e8df7d89f9581a4ebfc1ee69a52255a2a85e00386650`; zweryfikowano MIPS ELF32, nieobecność starego komunikatu Y95 i nowe markery Z95/Z96.
+
+**Następny test użytkownika**: skopiować **wyłącznie poprawiony `PSX_DVR_HDD_NEUTRINO_Z_GAME.ELF`** na `PP.TESTDVR`, nadpisując jedynie starą testową wersję Z_GAME. Nie ruszać aktualnego `DIAG_Z.CNF` z prawdziwym `MGS 2.ISO` ani działającego launchera Z. Ponownie uruchomić launcher przez UDPFS; przy `CHECK=0`, `SELECTED ISO OPEN>=0` nacisnąć X; fotografować ostatni marker `Z95`, `Z96`, `Z97`, `Z98`, `Z99` lub rzeczywisty ekran gry. Jest to pełny test uruchomienia gry i może wymagać restartu; wskazana kopia danych.
+
+---
+
 ## DIAG Z — 44 wpisy ISO na fizycznym DESR-7000: pełne stronicowanie R1/L1, kontrola zgodności nazwy
 
 Użytkownik uruchomił diagnostyczny Z_LAUNCH przez UDPFS/wLE, przekazał zdjęcie:
