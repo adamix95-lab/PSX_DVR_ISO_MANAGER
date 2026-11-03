@@ -387,3 +387,13 @@ target_link_libraries(PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# Neutrino V2: same early-stop fork source as V, but target ELF is UNPACKED.
+# The separate OSDMenu launcher uses strict DIAG_V2.CNF.
+add_executable(PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_v2_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
