@@ -99,7 +99,7 @@ for expected in ('z_allowed_iso_arg(argv[2])',
                  'scr_printf("Z96 setup_dvd_iso BEGIN',
                  'scr_printf("Z99 GAME HANDOFF BEGIN',
                  'fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)',
-                 'Y2 ACTUAL SELECT idx=',
+                 'Y2 87 DVR PRE=',
                  'Z95 DVR FHI+CDVD READY, ISO NEXT'):
     if expected not in s: raise SystemExit("DIAG Z REFUSED missing "+expected)
 if "return 0; /* HARD NO-ISO STOP BEFORE setup_dvd_iso */" in s:
