@@ -427,3 +427,13 @@ target_link_libraries(PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG Y2: correctly identify selected FHI from settings MAGIC before memset.
+# Does not open ISO or start a game, uses original X-gated OSDMenu.
+add_executable(PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_y2_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
