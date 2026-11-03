@@ -19,7 +19,7 @@ class DiagQContract(unittest.TestCase):
         self.assertIn("PSX-DVR-HDD-DIAG-Q-REAL-OSDMENU-TO-F", WORKFLOW)
         self.assertIn("build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF", WORKFLOW)
         self.assertIn("hdd-diagnostics/diag-q/DIAG_Q.CNF", WORKFLOW)
-        self.assertNotIn("PSX_DVR_HDD_DIAG_Q.ELF", WORKFLOW)
+        self.assertIn("PSX_DVR_HDD_DIAG_Q.ELF", WORKFLOW)  # separate NICHDD variant
 
     def test_config_exact_and_only_f_target(self):
         self.assertEqual(CNF, EXPECTED)
