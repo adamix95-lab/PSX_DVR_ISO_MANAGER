@@ -13,12 +13,13 @@
 #include <io_common.h>
 #include <ps2ip.h>
 #include <debug.h>
+#include "runtime_storage.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
-#define SCAN_LOG "mass0:/DESR_DVR/COVER_SCAN.LOG"
-#define ART_PATH "mass0:/DESR_DVR/ART/"
+#define SCAN_LOG DESR_APP_COVER_SCAN_LOG
+#define ART_PATH DESR_APP_ART_ROOT
 #define BUF_CAP (PROBE_PNG_MAX + PROBE_HTTP_HEADER_MAX)
 
 static char report[ART_SYNC_REPORT_MAX + 1U];
