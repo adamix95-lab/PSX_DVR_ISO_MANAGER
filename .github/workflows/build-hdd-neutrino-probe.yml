@@ -59,11 +59,27 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
           test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF
           test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_V.CNF
+      - name: Instrument same Neutrino source to hold on main entry
+        working-directory: neutrino-pinned
+        run: |
+          python3 ../hdd-diagnostics/neutrino-hdd-probe/patch_w_entry_hold.py ee/loader/src/main.c
+          grep -F 'DelayThread(15000000)' ee/loader/src/main.c
+          grep -F 'DelayThread(30000000)' ee/loader/src/main.c
+          grep -F 'return 0; /* ABSOLUTE no-game stop' ee/loader/src/main.c
+          make -C ee/loader clean
+          make -C ee/loader all
+          test -s ee/loader/neutrino_unpacked.elf
+          cp ee/loader/neutrino_unpacked.elf ../PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF
+      - name: Build W original OSDMenu gated launcher
+        run: |
+          cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF
+          test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_W.CNF
       - name: Check output is ELF32 little-endian MIPS, and exact dummy CNF
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF"):
+          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF"):
               b=Path(name).read_bytes()
               assert b[:6]==b"\x7fELF\x01\x01", name
               assert b[18:20]==b"\x08\x00", name
@@ -83,6 +99,12 @@ jobs:
           e_plain=struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF").read_bytes(),24)[0]
           assert e_packed != e_plain, (hex(e_packed),hex(e_plain))
           print("Packed entry",hex(e_packed),"Unpacked entry",hex(e_plain))
+          w=Path("hdd-diagnostics/neutrino-hdd-probe/DIAG_W.CNF").read_bytes()
+          assert w==(b"boot=PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF\n"
+                     b"arg=-bsd=dvr\n"
+                     b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
+                     b"arg=-dev9=NICHDD\n")
+          print("W entry",hex(struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF").read_bytes(),24)[0]))
           PY
       - name: Upload V safe Neutrino HDD probe package
         uses: actions/upload-artifact@v4
@@ -103,5 +125,16 @@ jobs:
             PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF
             build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
             hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF
+            hdd-diagnostics/neutrino-hdd-probe/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload Neutrino W first-entry screen with kernel delay
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-NEUTRINO-W-EARLY-ENTRY
+          path: |
+            PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF
+            build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF
+            hdd-diagnostics/neutrino-hdd-probe/DIAG_W.CNF
             hdd-diagnostics/neutrino-hdd-probe/README_PL.md
           if-no-files-found: error
