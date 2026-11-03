@@ -417,3 +417,13 @@ target_link_libraries(PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG Y: physically verified X85 DVR LE path, additionally checks
+# fork pcm720 FHI selection and CDVDMAN settings. NO ISO or game execution.
+add_executable(PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_y_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
