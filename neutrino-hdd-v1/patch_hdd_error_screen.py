@@ -38,6 +38,8 @@ static void desr_hdd_show_error(int code, int argc, char *argv[])
     scr_clear();
     scr_printf("PSX DVR NEUTRINO 1.0 HDD / FIX2\n");
     scr_printf("FAILED/RETURNED CODE=%d ARGC=%d\n", code, argc);
+    scr_printf("UPSTREAM STAGE=%d (see README stage map)\n",
+               (int)desr_hdd_stage);
     scr_printf("ARG0: %.60s\n",
                argv && argv[0] ? argv[0] : "(null)");
     scr_printf("ARG1: %.60s\n",
@@ -90,4 +92,4 @@ if "hdd0:PP.DVRISO" not in s or "PP.TESTDVR" in s:
     raise SystemExit("Wrong partition in generated source")
 source.write_text(s, encoding="utf-8")
 makefile.write_text(mk, encoding="utf-8")
-print("HDD FIX2 diagnostic: display real Neutrino failures/returns, preserve FIX95")
+print("HDD STAGES diagnostic: exact upstream fail phase, preserve FIX95")

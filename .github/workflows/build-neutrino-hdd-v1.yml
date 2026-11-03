@@ -36,7 +36,10 @@ jobs:
           git config --global --add safe.directory "$(pwd)"
           test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
           ! grep -Fq 'DIAG_V_NO_GAME.iso' ee/loader/src/main.c
           git diff --check
@@ -57,6 +60,7 @@ jobs:
           assert b"hdd0:PP.DVRISO" in b and b"PP.TESTDVR" not in b
           assert b"HDD FIX95 ISO argument/path mismatch" in b
           assert b"PSX DVR NEUTRINO 1.0 HDD / FIX2" in b
+          assert b"UPSTREAM STAGE=%d" in b
           assert b"DIAG_V_NO_GAME.iso" not in b
           print("SYSTEM: ELF32/MIPS, PP.DVRISO only, bytes",len(b))
           PY
@@ -91,7 +95,10 @@ jobs:
           git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
           git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
           ! grep -Fq 'DIAG_V_NO_GAME.iso' ee/loader/src/main.c
           git diff --check
@@ -119,6 +126,7 @@ jobs:
           assert b"hdd0:PP.DVRISO" in loader and b"PP.TESTDVR" not in loader
           assert b"HDD FIX95 ISO argument/path mismatch" in loader
           assert b"PSX DVR NEUTRINO 1.0 HDD / FIX2" in loader
+          assert b"UPSTREAM STAGE=%d" in loader
           assert b"DIAG_V_NO_GAME.iso" not in loader
           config=Path("dist-english/config/osdlang.toml").read_text()
           assert 'ee_core_lang.elf' in config

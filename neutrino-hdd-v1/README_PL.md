@@ -77,3 +77,29 @@ Wspólna poprawka patch_hdd_runtime.py zawiera potwierdzone na sprzęcie fileXio
 5. Dopiero wtedy instalator XMB — oddzielny, odwracalny projekt z własnym testem bezpieczeństwa.
 
 Do tego czasu nie nadpisywać oryginalnego BOOT.CNF, BOOT.ELF, neutrino.elf, działającego USB v0.8 ani plików systemowych Sony. Diagnostyki zostają w Draft PR #26; stabilny main niezmieniony.
+
+## Aktualny sprzętowy błąd -1 — diagnostyka STAGES
+
+Manager z PP.DVRISO uruchomił OSDMenu i Neutrino. Rzeczywisty pomiar potwierdza ARGC=3 i prawdziwe -dvd=dvr_pfs0:/ISO/REZ.iso. Błąd ogólny -1 oznacza, że upstream loader wrócił przed startem gry. Nowe Neutrino SYSTEM/ENGLISH ma na ekranie UPSTREAM STAGE=... pokazujący ostatni rozpoczęty etap. Ten test nie zmienia wybieranej gry, nic nie zapisuje i nie modyfikuje potwierdzonego DIAG Z FIX95.
+
+| Stage | Znaczenie |
+| --- | --- |
+| 10 | ROMVER z pamięci ROM |
+| 20 | Odczyt katalogu config/ |
+| 30 | config/system.toml |
+| 40 | Parsowanie argumentów OSDMenu |
+| 45 | config/compat.toml |
+| 50–55 | Dodatkowy config / GSM |
+| 60 | config/bsd-dvr.toml |
+| 65 | config/emu-dvd-file.toml |
+| 70 | modules/ee_core.elf |
+| 72 | Załadowanie IRX modułów |
+| 75–76 | Reset IOP w tryb PSX, start modułów LE |
+| 80–82 | Konfiguracja DVR FHI i CDVDMAN |
+| 85 | setup_dvd_iso() — otwarcie ISO |
+| 87 | Odczyt SYSTEM.CNF z ISO |
+| 90–95 | Ustawienia gry / przygotowanie handoff |
+| 99 | Przekazanie sterowania grze |
+
+Wystarczy skopiować wyłącznie nowy neutrino_hdd.elf z paczki na PP.DVRISO, bez ruszania BOOT.ELF, Managera czy BOOT.CNF. Zacząć od ICO.iso w SYSTEM, działającej z ręcznie edytowanym DIAG_Z.CNF; jeśli ekran błędu wróci, sfotografować STAGE. STAGES pozostaje eksperymentalne; PASS w CI nie potwierdza działania sprzętowego.
+

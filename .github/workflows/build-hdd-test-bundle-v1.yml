@@ -91,7 +91,10 @@ jobs:
           git config --global --add safe.directory "$(pwd)"
           test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
           git diff --check
           make -C ee/loader all
@@ -128,7 +131,10 @@ jobs:
           git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
           git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
           git diff --check
           make -C ee/ee_core all
