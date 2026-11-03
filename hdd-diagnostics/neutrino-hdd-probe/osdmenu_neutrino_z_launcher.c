@@ -237,13 +237,52 @@ static char q_config_bytes[384] __attribute__((aligned(64)));
 static char z_selected_iso[200] __attribute__((aligned(64)));
 static int z_selected_iso_open = -999;
 static int z_iso_name_len;
-#define Z_LIST_MAX 8
+#define Z_LIST_MAX 96
+#define Z_PAGE_SIZE 10
 static iox_dirent_t z_dirent __attribute__((aligned(64)));
-static char z_dirnames[Z_LIST_MAX][64];
+static char z_dirnames[Z_LIST_MAX][128];
 static int z_dirnames_count;
 static int z_dir_entries_seen;
 static int z_dir_read_result = -999;
 static int z_dir_open_result = -999;
+static int z_dir_exact_matches;
+static int z_dir_case_matches;
+
+static int z_ascii_ci_equal(const char *a, const char *b)
+{
+    while (*a && *b) {
+        unsigned char x = (unsigned char)*a++;
+        unsigned char y = (unsigned char)*b++;
+        if (x >= 'A' && x <= 'Z') x += 'a'-'A';
+        if (y >= 'A' && y <= 'Z') y += 'a'-'A';
+        if (x != y) return 0;
+    }
+    return *a == *b;
+}
+
+/* If the selected path fails, make the ENTIRE observed DVR folder
+ * browsable in pages on a gamepad, without ever relaxing the X gate.
+ */
+static void z_show_dir_page(int page)
+{
+    int k, start = page*Z_PAGE_SIZE;
+    int end = start + Z_PAGE_SIZE;
+    int pages = (z_dirnames_count + Z_PAGE_SIZE - 1)/Z_PAGE_SIZE;
+    if (end > z_dirnames_count) end = z_dirnames_count;
+    scr_clear();
+    scr_printf("PSX DVR Z / ACTUAL ISO NAMES\n");
+    scr_printf("REQUEST: %.68s\n", z_selected_iso);
+    scr_printf("OPEN=-2 EXACT=%d CASE_ONLY=%d\n",
+               z_dir_exact_matches, z_dir_case_matches);
+    scr_printf("DVR DIR=%d READ=%d SEEN=%d\n",
+               z_dir_open_result,z_dir_read_result,z_dir_entries_seen);
+    scr_printf("PAGE %d / %d (STORED %d)\n",
+               page+1,pages,z_dirnames_count);
+    for (k=start;k<end;++k)
+        scr_printf("%02d: %.65s\n",k+1,z_dirnames[k]);
+    scr_printf("R1 NEXT    L1 PREVIOUS\n");
+    scr_printf("START EXIT; X DISABLED\n");
+}
 
 /* The DVR-specific dvr_pfs0 device is already ONLINE here (ISO=3, DVR=3
  * on the user's hardware). If an exact file open returns ENOENT (-2),
@@ -265,9 +304,18 @@ static void z_list_real_dvr_names(void)
         z_dirent.name[sizeof(z_dirent.name)-1] = '\0';
         if (!strcmp(z_dirent.name, ".") || !strcmp(z_dirent.name, "..")) continue;
         ++z_dir_entries_seen;
+        /* An exact directory match plus -2 on open would demonstrate a
+         * file-open issue, not a mistaken filename. Check ALL entries. */
+        if (!strcmp(z_dirent.name,
+                    z_selected_iso + sizeof("dvr_pfs0:/ISO/") - 1))
+            ++z_dir_exact_matches;
+        else if (z_ascii_ci_equal(z_dirent.name,
+                      z_selected_iso + sizeof("dvr_pfs0:/ISO/") - 1))
+            ++z_dir_case_matches;
         if (z_dirnames_count < Z_LIST_MAX) {
             snprintf(z_dirnames[z_dirnames_count],
-                     sizeof(z_dirnames[z_dirnames_count]), "%.62s", z_dirent.name);
+                     sizeof(z_dirnames[z_dirnames_count]),
+                     "%.126s", z_dirent.name);
             ++z_dirnames_count;
         }
     }
@@ -362,6 +410,10 @@ static int wait_for_choice(int enabled)
     int prev_buttons = 0;
     int sampled = 0;
     int bits, fresh;
+    int dir_page = 0;
+    int max_page = (z_dirnames_count-1)/Z_PAGE_SIZE;
+    int browsing = !enabled && z_selected_iso_open == -2 &&
+                   z_dirnames_count > 0;
     struct padButtonStatus btn;
 
     if (enabled) {
@@ -375,6 +427,7 @@ static int wait_for_choice(int enabled)
         scr_printf("PAD NOT READY: PHOTO / REBOOT\n");
         for (;;) sleep(1);
     }
+    if (browsing) z_show_dir_page(dir_page);
     for (;;) {
         if (padRead(0, 0, &btn) > 0) {
             bits = 0xffff ^ btn.btns;
@@ -385,6 +438,14 @@ static int wait_for_choice(int enabled)
                 fresh = 0;
             }
             if (fresh & PAD_START) return 0;
+            if (browsing && (fresh & PAD_R1) && dir_page < max_page) {
+                ++dir_page;
+                z_show_dir_page(dir_page);
+            }
+            if (browsing && (fresh & PAD_L1) && dir_page > 0) {
+                --dir_page;
+                z_show_dir_page(dir_page);
+            }
             if (enabled && (fresh & PAD_CROSS)) return 1;
         }
         usleep(20000);
@@ -526,7 +587,10 @@ done:
         scr_printf("FILE NOT FOUND: CHECK EXACT NAME/CASE\n");
         scr_printf("DVR DIR OPEN=%d READ=%d SEEN=%d\n",
                    z_dir_open_result, z_dir_read_result, z_dir_entries_seen);
-        for (k=0; k<z_dirnames_count; ++k)
+        scr_printf("EXACT IN DIR=%d CASE-ONLY=%d\n",
+                   z_dir_exact_matches, z_dir_case_matches);
+        scr_printf("R1/L1: BROWSE %d FILE NAMES\n",z_dirnames_count);
+        for (k=0; k<z_dirnames_count && k<4; ++k)
             scr_printf("DVR FILE %d: %.61s\n", k+1, z_dirnames[k]);
     }
     scr_printf("GAME: %.72s\n",z_selected_iso);
