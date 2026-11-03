@@ -334,7 +334,7 @@ int main(void)
     scr_setbgcolor(0x000000);
     scr_clear();
     scr_printf("PSX DVR HDD DIAG U / X-GATED LAUNCH\n");
-    scr_printf("RO PREFLIGHT. UCNF -> T TARGET ONLY.\n");
+    scr_printf("RO PREFLIGHT. UCNF -> U TARGET ONLY.\n");
     before("R1 IOP RESET");
     while (!SifIopReset("", 0)) {}
     before("R2 IOP SYNC");
@@ -453,12 +453,12 @@ done:
      * initializes APA/PFS itself instead of treating pfs1: as its device.
      *
      * There may be no return from a successful chainload. Launched
-     * OSDMenu / R_ARG have their own behavior; DIAG R never writes HDD.
+     * OSDMenu / U_TARGET have their own behavior; DIAG U never writes HDD.
      */
     scr_clear();
     scr_printf("DIAG U / REAL OSDMENU REMOUNT TEST\n");
     scr_printf("ELF: pfs1:/BOOT.ELF (PP.TESTDVR)\n");
-    scr_printf("CNF: hdd0:PP.TESTDVR/DIAG_R.CNF\n");
+    scr_printf("CNF: hdd0:PP.TESTDVR/DIAG_U.CNF\n");
     scr_printf("EXPECTED TARGET: RO REMOUNT PROBE.\n");
     scr_printf("U BEFORE ORIGINAL OSDMENU\n");
     sleep(2);
