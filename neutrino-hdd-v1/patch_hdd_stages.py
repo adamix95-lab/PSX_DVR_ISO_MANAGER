@@ -80,7 +80,10 @@ anchors = [
      85, "ISO open"),
     ("            fd_system_cnf = read_system_cnf(sDVDFile, system_cnf_data, 128);",
      87, "read ISO SYSTEM.CNF"),
-    ("        toml_datum_t tbl_gc = toml_get(toml_compat.toptab, sGameID);",
+    ("        toml_datum_t tbl_gc = toml_get(toml_compat.toptab, sGameID);\n"
+     "        if (tbl_gc.type == TOML_TABLE) {\n"
+     "            if (load_config(tbl_gc) < 0) {\n"
+     "                printf(\"ERROR: failed to load per-game config for %s\\n\", sGameID);",
      90, "per-game settings"),
     ("    ResetDeckardXParams();",
      95, "game setup"),
