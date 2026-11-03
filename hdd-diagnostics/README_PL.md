@@ -1,3 +1,13 @@
+## AKTUALIZACJA 2026-11-03 — DIAG S nie jest wymagany, punktem odniesienia jest patch pcm720 (Neutrino PR #228)
+
+Użytkownik potwierdził, że używa **forka Neutrino z PR [ps2max32/neutrino#228](https://github.com/ps2max32/neutrino/pull/228)** autorstwa **pcm720**, a **nie** obecnego niezmodyfikowanego upstream. PR #228 jest otwarty i nie został zmergowany. Poprzednie rozumowanie „Neutrino nie obsługuje DVR” nie dotyczy naszej wersji i nie może być podstawą do diagnozy. **Nie wymagamy uruchomienia DIAG S**; pozostaje opcjonalnym narzędziem do read-only obserwacji (np. PVD ISO), lecz jego sondowanie układu plików `config/*.toml` względem `pfs1:/` nie dowodzi braków konfiguracji, bo rzeczywisty katalog roboczy Neutrino po OSDLauncher jest nieznany.
+
+Zweryfikowane w źródłach PR #228 (head `pcm720/neutrino:bsd-dvr`): `ee/loader/config/bsd-dvr.toml` ładuje `iomanX.irx`, `fileXio.irx`, `dvrdrv.irx` (LE+EE), `dvrfile.irx` (LE), `dvrfile_fhi.irx` (EE), zależność `i_dev9_ns`. `ee/loader/src/config.c` mapuje prefiks `dvr_pfs` na BSD `dvr`. `ee/loader/src/main.c` przed uruchomieniem środowiska LE dla `bsd=dvr` używa `SifIopReset("rom0:UDNL rom0:OSDCNF", 0)`, `sceCdInit(SCECdINoD)`, `sceCdApplySCmd(0x29,...)`, `sceCdInit(SCECdEXIT)`, a następnie kolejnego resetu IOP i ładowania modułów. PR opisuje realne testy Ridge Racer V oraz Gran Turismo 4 z `dvr_pfs0:`.
+
+R3 udowodnił łańcuch prawdziwy OSDMenu → `R_ARG` z `ARGC=3 ARGS_OK=1`; **nie** udowodnił działania patcha w Neutrino. Następny rozsądny test to instrumentacja **tej konkretnej gałęzi pcm720** (lub jej testowa kopia) z etapowymi markerami startu: odczyt TOML i modułów, zmiana trybu DVR/IOP, `dvrfile_fhi`, otwarcie/PVD ISO, aż do ładowania docelowego ELF. Osobno należy ustalić rzeczywisty cwd po OSDLauncher. **Bez wprowadzania zmian na Sony partycjach systemowych i bez uruchamiania gry w pierwszej próbie.** `main` i v0.8 pozostają bez zmian.
+
+---
+
 ## DIAG S — sprawdzenie warunków startu Neutrino bez jego uruchamiania
 
 **Stan sprzętowy:** DIAG R3 przeszło na fizycznym DESR-7000: prawdziwy OSDMenu uruchomił `PSX_DVR_HDD_DIAG_R_ARG.ELF` z `PP.TESTDVR` z `ARGC=3 ARGS_OK=1`, `ARGV1=-bsd=dvr` oraz `ARGV2=-dvd=dvr_pfs0:/ISO/DIAG_R_NO_GAME.iso`. DIAG J wcześniej zwracał do XMB podczas próby uruchomienia `neutrino.elf` ze wskazanym rzeczywistym ISO. **S jest nowym testem; nie był jeszcze sprawdzony na konsoli.**
