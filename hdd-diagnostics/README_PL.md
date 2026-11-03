@@ -1,3 +1,13 @@
+## DIAG Q — rzeczywisty BOOT.ELF → DIAG F, PASS zgłoszony przez użytkownika (3.11.2026)
+
+Użytkownik potwierdził słownie: „Miałem co prawda diag Q ale rzeczywiście wystartował DIAG F”. Chodzi o test nowym **`PSX_DVR_HDD_DIAG_Q.ELF` + `BOOTQ.CNF`**; wyświetlenie F jest oczekiwanym wynikiem tego eksperymentu, a nie pomyłką oznaczenia ekranu. **Nie dostarczono zdjęcia tego konkretnego uruchomienia** ani osobnych wartości pierwszego ekranu, dlatego odnotowujemy _PASS według relacji użytkownika_, a nie własną weryfikację fotograficzną.
+
+Q zażądał wykonania istniejącego `pfs1:/BOOT.ELF` (rzeczywisty OSDMenu) z argumentem `hdd0:PP.TESTDVR/BOOTQ.CNF`. Konfiguracja o dokładnej długości 45 bajtów wskazywała tylko `PSX_DVR_HDD_DIAG_F.ELF` i `arg=-dev9=NICHDD`. Uruchomienie F z tego łańcucha wspiera wniosek, że oryginalne `handleQuickboot → handlePFS → osadzony loader` może poprawnie wykonać program ELF z `PP.TESTDVR` na DESR-7000. Nie dowodzi to, że działa Neutrino, gra ani normalny `BOOT.CNF`. W DIAG J powrót do XMB nadal był nieoczekiwany.
+
+**Hipoteza do rozdzielenia w kolejnym eksperymencie:** Q w odróżnieniu od J ustawił `-dev9=NICHDD`, co nakazuje loaderowi pozostawić HDD i DEV9 włączone. Kolejny kontrolowany test może wykonać **ten sam DIAG F** przy domyślnym trybie wyłączenia DEV9, bez uruchamiania Neutrino, aby sprawdzić wpływ tego pojedynczego czynnika. Test nie został jeszcze przygotowany ani wykonany. Zachować `main` i v0.8 bez zmian oraz nie modyfikować systemowych partycji Sony, XMB, `BOOT.CNF`, `BOOT.ELF` ani `neutrino.elf`; PR #26 pozostaje Draft.
+
+---
+
 # DIAG Q — prawdziwy OSDMenu → prawdziwy loader → bezpieczny DIAG F
 
 **Stan:** fizyczny DESR-7000: DIAG P pełny PASS (`RESULT=0 STAGE=64`, `RESET2=1 MOD2=1 PAD2=1`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1`). **Oryginalny BOOT.ELF uruchamiany przez DIAG J po naciśnięciu X wrócił do XMB, bez zaobserwowanego Neutrino.** DIAG Q jest **nieprzetestowany sprzętowo**.
