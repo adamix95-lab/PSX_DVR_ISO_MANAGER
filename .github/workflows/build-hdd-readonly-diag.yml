@@ -57,6 +57,7 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_ARG.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R2_CNF.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
           test -s hdd-diagnostics/diag-r/DIAG_R.CNF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
@@ -233,5 +234,14 @@ jobs:
           name: PSX-DVR-HDD-DIAG-R2-CNF-BYTE-INSPECTOR
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_R2_CNF.ELF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload R3 standalone launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-R3-LF-OR-NUL
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R3_LAUNCH.ELF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
