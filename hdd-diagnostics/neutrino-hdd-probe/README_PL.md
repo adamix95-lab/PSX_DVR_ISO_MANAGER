@@ -1,3 +1,13 @@
+## Uzupełnienie potwierdzenia sprzętowego DIAG X — rzeczywisty łańcuch OSDMenu z UDPFS do HDD (3.11.2026)
+
+Użytkownik **jednoznacznie potwierdził sposób uruchomienia zdjęcia X85**: `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` został uruchomiony **z UDPFS przez wLE-R3Z**, na ekranie był `CHECK=0`, następnie użytkownik nacisnął **X**. Nie uruchamiał bezpośrednio X_LE.ELF z wLE. Tym samym zdjęcie `X85 LE MODULES DONE / STOP`, `V RESULT=0 LAST_STAGE=85` pochodzi **z prawdziwej ścieżki launchera diagnostycznego → oryginalny OSDMenu → X Neutrino na hdd0:PP.TESTDVR**, nie jedynie z bezpośredniego wykonania ELF.
+
+**Potwierdzone na sprzęcie:** oryginalny OSDMenu ładuje Neutrino X z HDD, przekazuje argumenty, Neutrino wykonuje RO remount `pfs0:`, czyta konfigurację i moduły z HDD, przechodzi przez sekwencję przejścia do DVR LE (reset `rom0:OSDCNF`, SCmd `0x29`, drugi reset IOP i start modułów LE) oraz dochodzi do celowego `X85`. `X85` jest stopem przed `fhi_config_init`, obsługą pliku ISO i uruchomieniem gry.
+
+**Granica wyniku:** wejściowy launcher diagnostyczny wciąż był uruchamiany z UDPFS — nie jest to jeszcze test całkowicie samodzielnego Managera bez UDPFS/USB. Nie deklarować uruchomienia ISO/grania. Do następnego etapu nie trzeba powtarzać testu X; celem jest osobne, kontrolowane sprawdzenie FHI i dostępu do obrazu ISO po przełączeniu środowiska LE. Wersja USB v0.8, main, istniejący `BOOT.CNF`, oryginalny `neutrino.elf` i partycje systemowe Sony pozostają bez zmian; PR #26 Draft.
+
+---
+
 ## DIAG W — pełny PASS na fizycznej PSX DESR-7000; następny etap DIAG X (3.11.2026)
 
 **Wynik W (zdjęcie z konsoli):**
