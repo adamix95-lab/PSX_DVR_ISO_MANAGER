@@ -376,3 +376,14 @@ target_link_libraries(PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_U_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# Probe V: the actual source-based Neutrino diagnostic is built separately
+# from pinned pcm720/neutrino:bsd-dvr. This target is ONLY the original
+# OSDMenu x-gated launcher using an exact alternate CNF for that test.
+add_executable(PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_v_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
