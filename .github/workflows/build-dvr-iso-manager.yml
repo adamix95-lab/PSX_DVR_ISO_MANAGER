@@ -125,7 +125,8 @@ jobs:
           cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
           net=Path("dvr-iso-manager/src/net/art_sync_runtime.c").read_text()
           assert 'DESR_HDD_PREVIEW=1 DESR_HDD_ART_PROBE=1' in cm
-          assert 'desr_lan_art_probe(covers,count)' in s
+          assert 'desr_lan_art_probe(probe_all_ids,count)' in s
+          assert 'desr_covers_resolve_ids(games,count,probe_all_ids)' in s
           assert 'art_sync_probe_all' in net
           assert 'RAM DONE' in net
           assert 'hdd_mount_readonly()' in s
