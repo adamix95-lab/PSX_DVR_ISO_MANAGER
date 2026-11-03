@@ -273,3 +273,14 @@ add_executable(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
 target_link_libraries(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_P_LAUNCH.ELF PRIVATE -Os -Wall -Wextra -Werror)
+
+# DIAG Q: executes existing real OSDMenu BOOT.ELF with a strict alternate
+# DIAG_Q.CNF pointing to validated standalone F (no Neutrino/game target).
+# Only Q launcher is new: the real OSDMenu and DIAG F already reside on HDD.
+add_executable(PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+  src/osdmenu_real_loader_q.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
