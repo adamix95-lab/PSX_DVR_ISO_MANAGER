@@ -26,6 +26,14 @@
 static char report[ART_SYNC_REPORT_MAX + 1U];
 static art_sync_item games[ART_SYNC_GAMES_MAX];
 static int game_count;
+static int last_attempted, last_http_failed, last_write_failed;
+void art_sync_last_stats(int *candidates, int *attempted,
+                         int *http_failed, int *write_failed) {
+  if (candidates) *candidates=game_count;
+  if (attempted) *attempted=last_attempted;
+  if (http_failed) *http_failed=last_http_failed;
+  if (write_failed) *write_failed=last_write_failed;
+}
 static uint8_t response[BUF_CAP + 1U];
 static uint8_t verification[1024];
 
@@ -212,6 +220,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
 }
 int art_sync_run(const probe_config *cfg) {
   int i,attempted=0,saved=0,fail_streak=0,http_failed=0,write_failed=0,stale=0;
+  last_attempted=last_http_failed=last_write_failed=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];
@@ -259,6 +268,9 @@ int art_sync_run(const probe_config *cfg) {
        opening the next one; never halt after the first successful cover. */
     usleep(200000);
   }
+  last_attempted=attempted;
+  last_http_failed=http_failed;
+  last_write_failed=write_failed;
   scr_printf("ART DONE: candidates=%d tried=%d saved=%d\n",
              game_count,attempted,saved);
   scr_printf("ART ERRORS: HTTP=%d PFS_WRITE=%d STALE_PART=%d\n",

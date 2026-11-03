@@ -7,6 +7,7 @@
 #include "cover_runtime.h"
 #include "cover_preview.h"
 #include "lan_art_sync.h"
+#include "art_sync_runtime.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
@@ -519,6 +520,13 @@ static int publish_hdd_cnf(const char *cnf, int len) {
     if (had_live) fileXioRename(DESR_APP_BOOT_PREV, USB_BOOT_CNF);
     return -308;
   }
+  /* Verify the published PFS file, not only the .NEXT staging file.
+     If it differs, do not proceed into OSDMenu/Neutrino. */
+  {
+    char verify[320];
+    int got = read_small_file(USB_BOOT_CNF, verify, sizeof verify);
+    if (got != len || memcmp(verify, cnf, (size_t)len) != 0) return -309;
+  }
   return 0;
 }
 #endif
@@ -568,6 +576,20 @@ static int launch_via_quickboot(void) {
   }
 #endif
 
+#ifdef DESR_HDD_TEST
+  {
+    char iso_path[256];
+    int fd;
+    if (desr_make_iso_path(games[selected],iso_path,sizeof iso_path)<0)
+      return -96;
+    fd=fileXioOpen(iso_path,FIO_O_RDONLY,0);
+    if (fd<0) {
+      snprintf(status,sizeof status,"HDD ISO OPEN FAILED (%d): %.62s",fd,games[selected]);
+      return -97;
+    }
+    if (fileXioClose(fd)<0) return -98;
+  }
+#endif
   scr_clear();
   scr_printf("PSX DVR ISO MANAGER %s\n", DESR_APP_VARIANT);
   scr_printf("ISO: %s  Language: %s\n", games[selected],
@@ -586,6 +608,10 @@ static int launch_via_quickboot(void) {
 #ifdef DESR_HDD_TEST
   /* DIAG Z proven entry: explicit HDD CNF argument, PFS mount kept until
      LoadELFFromFile has read BOOT.ELF into EE RAM. */
+  /* Give hardware testers a readable last screen before OSDMenu resets IOP,
+     as the successful DIAG Z launcher did. */
+  scr_printf("PP.DVRISO on PFS1; OSDMenu owns PFS0.\n");
+  sleep(2);
   rc = LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args);
   scr_clear();
   scr_printf("HDD OSDMenu returned=%d. REBOOT; no IOP calls.\n", rc);
@@ -766,20 +792,38 @@ int main(int argc, char *argv[]) {
           scr_printf("DVR/ISO remain READ-ONLY.\n");
           saved = desr_lan_art_download();
           if (saved > 0) {
-            /* Rebuild exactly the same validated USB index as TRIANGLE.
+            /* Rebuild exactly the same validated index as TRIANGLE.
                If a DVR read fails, previous COVERS.IDX is preserved. */
             matched = desr_covers_refresh(games, count, covers, &identified);
-            if (matched >= 0)
+            if (matched >= 0) {
+#ifdef DESR_HDD_TEST
+              int candidates=0,tried=0,http_failed=0,write_failed=0;
+              art_sync_last_stats(&candidates,&tried,&http_failed,&write_failed);
+              snprintf(status,sizeof(status),
+                       "ART: %d/%d saved, HTTP%d PFS%d IDX%d",
+                       saved,candidates,http_failed,write_failed,matched);
+#else
               snprintf(status,sizeof(status),
                        "ART SYNC: %d saved. INDEX: %d/%d",
                        saved,matched,count);
-            else
+#endif
+            } else
               snprintf(status,sizeof(status),
                        "ART: %d saved; index failed. Press TRIANGLE.",
                        saved);
           } else {
+#ifdef DESR_HDD_TEST
+            {
+              int candidates=0,tried=0,http_failed=0,write_failed=0;
+              art_sync_last_stats(&candidates,&tried,&http_failed,&write_failed);
+              snprintf(status,sizeof(status),
+                       "ART: 0/%d, tried%d HTTP%d PFS%d",
+                       candidates,tried,http_failed,write_failed);
+            }
+#else
             snprintf(status,sizeof(status),
                      "ART SYNC: no new PNG. Check PC server / USB.");
+#endif
           }
           status_visible = 1;
           draw();

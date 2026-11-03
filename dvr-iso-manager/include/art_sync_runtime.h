@@ -13,4 +13,8 @@ int art_sync_prepare(void);
    Returns count saved, or -1 if none was saved. */
 int art_sync_run(const probe_config *cfg);
 
+/* Last batch counters for the menu status, not only transient console text. */
+void art_sync_last_stats(int *candidates, int *attempted,
+                         int *http_failed, int *write_failed);
+
 #endif
