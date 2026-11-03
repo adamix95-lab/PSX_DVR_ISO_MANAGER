@@ -1,4 +1,4 @@
-/* PSX DVR ISO Manager v0.8 — USB launcher, DVR ISO browser and cover sync.
+/* PSX DVR ISO Manager 1.0 USB — USB launcher, DVR ISO browser and cover sync.
  * DVR/ISO data is read-only. Launch configuration and cover cache use USB.
  */
 
@@ -185,7 +185,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
   scr_setXY(69, 1);
-  scr_printf("v0.8");
+  scr_printf("1.0 USB");
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("--------------------------------------------------------------------------");
@@ -279,7 +279,7 @@ static void draw_scan_art_question(int missing) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setXY(2, 1);
-  scr_printf("PSX DVR ISO MANAGER v0.8");
+  scr_printf("PSX DVR ISO MANAGER 1.0 USB");
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
   scr_printf("-------------------------------------------------------");
@@ -428,7 +428,7 @@ static int launch_via_quickboot(void) {
   }
 
   scr_clear();
-  scr_printf("PSX DVR ISO MANAGER v0.8\n");
+  scr_printf("PSX DVR ISO MANAGER 1.0 USB\n");
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");

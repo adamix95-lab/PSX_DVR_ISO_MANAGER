@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.8
+name: Build PSX DVR ISO Manager 1.0 USB (preview)
 on:
   workflow_dispatch:
   push:
@@ -31,6 +31,18 @@ jobs:
           /tmp/test_http_png
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/art_sync.c dvr-iso-manager/tests/net/test_art_sync.c -o /tmp/test_art_sync
           /tmp/test_art_sync
+      - name: Check 1.0 USB identity and unchanged USB paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path("dvr-iso-manager/src/main.c").read_text()
+          assert 'scr_printf("1.0 USB");' in src
+          assert 'PSX DVR ISO MANAGER 1.0 USB' in src
+          assert '#define USB_BOOT_CNF "mass0:/DESR_DVR/BOOT.CNF"' in src
+          assert '#define USB_LAUNCHER "mass0:/DESR_DVR/BOOT.ELF"' in src
+          assert 'fileXioMount("pfs0:", "hdd0:PP.DVRISO"' not in src
+          print("USB 1.0 banner and original USB filesystem paths OK")
+          PY
       - name: Check available image libraries
         run: |
           for p in "$PS2SDK/ports/include/png.h" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" "$GSKIT/include/gsKit.h"; do
@@ -44,7 +56,7 @@ jobs:
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.8
+          name: PSX-DVR-ISO-Manager-v1.0-USB-PREVIEW
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
