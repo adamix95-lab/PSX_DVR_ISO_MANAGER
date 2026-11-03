@@ -40,6 +40,10 @@ static void desr_hdd_show_error(int code, int argc, char *argv[])
     scr_printf("FAILED/RETURNED CODE=%d ARGC=%d\n", code, argc);
     scr_printf("UPSTREAM STAGE=%d (see README stage map)\n",
                (int)desr_hdd_stage);
+    scr_printf("CONFIG LAST: %.46s\n",desr_hdd_last_toml);
+    scr_printf("CONFIG FAIL KIND=%d: %.42s\n",
+               desr_hdd_config_error_kind,desr_hdd_failed_toml);
+    scr_printf("CONFIG REASON: %.45s\n",desr_hdd_toml_reason);
     scr_printf("ARG0: %.60s\n",
                argv && argv[0] ? argv[0] : "(null)");
     scr_printf("ARG1: %.60s\n",

@@ -37,7 +37,10 @@ jobs:
           test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'CONFIG FAIL KIND=%d:' ee/loader/src/main.c
+          grep -Fq 'desr_hdd_failed_toml' ee/loader/src/config.c
           grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
           grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
@@ -61,6 +64,7 @@ jobs:
           assert b"HDD FIX95 ISO argument/path mismatch" in b
           assert b"PSX DVR NEUTRINO 1.0 HDD / FIX2" in b
           assert b"UPSTREAM STAGE=%d" in b
+          assert b"CONFIG FAIL KIND=%d:" in b
           assert b"DIAG_V_NO_GAME.iso" not in b
           print("SYSTEM: ELF32/MIPS, PP.DVRISO only, bytes",len(b))
           PY
@@ -96,7 +100,10 @@ jobs:
           git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
           python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
           python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'CONFIG FAIL KIND=%d:' ee/loader/src/main.c
+          grep -Fq 'desr_hdd_failed_toml' ee/loader/src/config.c
           grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
           grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
           grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
@@ -127,6 +134,7 @@ jobs:
           assert b"HDD FIX95 ISO argument/path mismatch" in loader
           assert b"PSX DVR NEUTRINO 1.0 HDD / FIX2" in loader
           assert b"UPSTREAM STAGE=%d" in loader
+          assert b"CONFIG FAIL KIND=%d:" in loader
           assert b"DIAG_V_NO_GAME.iso" not in loader
           config=Path("dist-english/config/osdlang.toml").read_text()
           assert 'ee_core_lang.elf' in config
