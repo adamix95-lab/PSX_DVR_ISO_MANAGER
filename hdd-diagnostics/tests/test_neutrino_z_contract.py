@@ -50,7 +50,7 @@ class ZRealGame(unittest.TestCase):
             "Z99 GAME HANDOFF BEGIN",
             'ExecPS2((void *)eh->entry',
         ): self.assertIn(t,P)
-        self.assertIn("Y2 ACTUAL SELECT idx=",WF)
+        self.assertIn("patch_y2_fhi_preinit.py",WF)
         self.assertIn("patch_z_real_iso.py",WF)
         self.assertIn("PSX-DVR-HDD-NEUTRINO-Z-REAL-GAME",WF)
         self.assertIn("PSX_DVR_HDD_NEUTRINO_Z_LAUNCH.ELF",CM)
