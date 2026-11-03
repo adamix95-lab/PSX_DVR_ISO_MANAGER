@@ -54,6 +54,9 @@ jobs:
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_Q.ELF
           test -s hdd-diagnostics/config/BOOTQ.CNF
           test -s build-hdd-diag/PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_ARG.ELF
+          test -s build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+          test -s hdd-diagnostics/diag-r/DIAG_R.CNF
       - name: Upload standalone READ-ONLY diagnostic
         uses: actions/upload-artifact@v4
         with:
@@ -210,5 +213,16 @@ jobs:
           path: |
             build-hdd-diag/PSX_DVR_HDD_DIAG_Q.ELF
             hdd-diagnostics/config/BOOTQ.CNF
+            hdd-diagnostics/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload DIAG R real OSDMenu argv probe, dummy-only config
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-DIAG-R-OSDMENU-ARGV-ONLY
+          path: |
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R_ARG.ELF
+            build-hdd-diag/PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
+            hdd-diagnostics/diag-r/DIAG_R.CNF
             hdd-diagnostics/README_PL.md
           if-no-files-found: error
