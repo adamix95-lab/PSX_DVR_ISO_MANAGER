@@ -1,3 +1,21 @@
+## DIAG W — bezpieczny marker początku `main()` (3.11.2026)
+
+**Wynik sprzętowy V2 (PSX DESR-7000):** Po poprawnym `CHECK=0` i X konsola wróciła do XMB **szybko, zdecydowanie krócej niż 45 sekund**, tak jak przy starej próbie `BOOT.ELF`→Neutrino. W nieudanej spakowanej V również wróciła do XMB. Nie mamy zdjęcia ekranu V00 ani telemetrii z wnętrza Neutrino. Zatem **nie wiemy**, czy Neutrino w ogóle weszło do `main()`, czy tylko nie zdążyło narysować ekranu/od razu wróciło. DIAG U nadal jest prawdziwym, fizycznym dowodem działania RO remountu i POSIX otwierania z PFS.
+
+Weryfikacja plików V2 vs U: **obie mają poprawny nagłówek ELF32 MIPS** i prawidłowy pojedynczy segment `LOAD`; w V2 wpis `0x00106958`, U `0x00101708`. Brak więc prostego błędu formatu ELF. Neutrino pcm720 posiada `DISABLE_EXTRA_TIMERS_FUNCTIONS()` i `DISABLE_PATCHED_FUNCTIONS()`, przez co dotychczasowy `sleep(45)` nie jest wiarygodnym wskaźnikiem dotarcia do funkcji. Nie stwierdzono tego jako przyczyny sprzętowo, to dodatkowa niewiadoma.
+
+**DIAG W**: dokładnie ten sam kod testowy Neutrino V/V2 z `pcm720/neutrino:bsd-dvr`, z przypiętego commita, zawsze **niespakowany**, oraz dodatkowy osobny skrypt `patch_w_entry_hold.py` wstrzykujący:
+- bezpośrednio **po** `init_scr()` i `scr_printf("NO ISO OR GAME. READ ONLY.")` komunikat `W00 MAIN REACHED: HOLD 15 SEC` i **`DelayThread(15000000)`**, czyli 15 sekund przed `SifInitRpc`, `fileXioInit`, PFS i jakąkolwiek logiką Neutrino;
+- po zakończeniu oryginalnego testu zamiast `sleep(45)` **`DelayThread(30000000)`** z komunikatem `W90 KERNEL HOLD 30 SEC, PHOTO`.
+
+Wszystkie pozostałe zabezpieczenia V pozostają: ścisłe dozwolone `hdd0:PP.TESTDVR:pfs:`, `-bsd=dvr`, `-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso`, montowanie tylko `PP.TESTDVR` jako `pfs0:` `FIO_MT_RDONLY`, `chdir("pfs0:/")`, wyłącznie odczyt dwóch plików, **bezwzględny stop w V70** przed zmianą trybu IOP, odczytem ISO i uruchomieniem gry. `DIAG_W.CNF` jest osobnym, dokładnie kontrolowanym plikiem z końcowym `arg=-dev9=NICHDD`. Nie nadpisywać `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, `config/`, `modules/` ani wersji USB v0.8.
+
+**Po udanym CI:** skopiować wyłącznie `PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF` i `DIAG_W.CNF` do głównego `hdd0:PP.TESTDVR`. `PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF` uruchomić z UDPFS/wLE. Zdjęcie `CHECK=0`, potem X. Oczekiwane `W00 MAIN REACHED` przez ok. 15 sekund, następnie wyniki `V00...V70` lub `V RESULT LAST_STAGE` oraz `W90...` przez ok. 30 sekund. **Jeśli natychmiast wróci do XMB, zrób od razu próbę bezpośredniego uruchomienia W ELF przez UDPFS/wLE (bez argumentów)** jako oddzielny test: W powinien przynajmniej dojść do `W00` zanim odrzuci błędny `argc`; bez resetu HDD, bez ISO. Wynik pozwoli rozdzielić awarię binarnego Neutrino przed main od oddziaływania OSDMenu.
+
+Uwaga: `DelayThread` korzysta z natywnej usługi jądra PS2, lecz jego zachowanie w danym środowisku wciąż wymaga weryfikacji na sprzęcie. `CHECK=0` zawsze oznacza tylko poprawny preflight launchera. Przy ewentualnym zawieszeniu sfotografować ostatni marker. `main`, stabilne USB v0.8 i systemowe partycje Sony pozostają bez zmian.
+
+---
+
 ## DIAG V2 — identyczny Neutrino V, ale *bez* ps2-packer (3.11.2026)
 
 Na fizycznym DESR-7000 użytkownik otrzymał `CHECK=0` przy uruchomieniu `PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF` i po X wrócił do XMB, bez zgłoszonego zdjęcia ekranu `V ...`. Nie znamy dokładnego czasu trwania ani tego, czy V zdążyło wejść w `main()`; nie można utożsamiać tego z błędem dostępu do `config/`/modułów. Wcześniejsze U potwierdziło fizycznie ich otwieranie po remoncie PFS.
