@@ -1,3 +1,36 @@
+## DIAG Y — backend FHI Neutrino pcm720 po sprzętowym PASS X85 (3.11.2026)
+
+**Potwierdzony tryb testowania X:** Użytkownik uruchomił `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` z UDPFS przez wLE-R3Z, zobaczył `CHECK=0`, nacisnął X; oryginalny OSDMenu uruchomił plik X_LE.ELF z `hdd0:PP.TESTDVR`. Na fizycznej konsoli widoczne były `X73 OSDCNF RESET SYNC OK`, `X75 DVR SCMD COMPLETED`, `X85 LE MODULES DONE / STOP`, `V RESULT=0 LAST_STAGE=85`. **To jest pełne potwierdzenie oryginalnego łańcucha OSDMenu → Neutrino na HDD do fazy LE**, ale bez ISO i gry.
+
+**Cel DIAG Y:** sprawdzić **kolejny etap oryginalnego kodu** z `pcm720/neutrino:bsd-dvr`: `fhi_config_init(&drv.mod)` (wybór FHI backendu), obecność wczytanego `dvrfile_fhi.irx` i jego struktur ustawień, obecność `cdvdman_emu.irx` z ustawieniami. Y nie otwiera żadnego ISO — `-dvd=` zawiera tak jak poprzednio **fikcyjny** `dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso`.
+
+### Sposób działania DIAG Y
+
+- CI używa **tego samego przypiętego commita pcm720** co X, budując efemeryczną kopię Neutrino z `patch_probe.py` → `patch_w_entry_hold.py` → `patch_x_dvr_le.py` → nowym `patch_y_fhi.py`.
+- Zamiast zakończyć na X85, Y przechodzi do oryginalnego `fhi_config_init` i `module_get_settings`, z markerami:
+  - `Y85 LE MODULES READY / FHI NEXT`
+  - `Y86 FHI CONFIG INIT BEGIN`
+  - `Y87 FHI ACTIVE=1 INIT=0` i `Y87 DVR FHI MOD=1 SET=1` (pozytywny stan; kody błędów są raportowane)
+  - `Y90 CDVDMAN SETTINGS=1`
+  - `Y95 DVR FHI+CDVD READY / SAFE STOP` oraz `V RESULT=0 LAST_STAGE=95` (oczekiwany sukces).
+- `patch_y_fhi.py` dodatkowo weryfikuje, że wcześniejsze backendy FHI `fhi_bd`, `mmcefhi`, `udpfs_fhi` nie są aktywne, aby uniknąć fałszywego PASS dla innego sterownika. Błąd pokazuje ostatni marker i kod `V RESULT`.
+- **Twardy stop przed pierwszym `setup_dvd_iso`**: brak otwarcia nawet fikcyjnego ISO, brak odczytu `SYSTEM.CNF` z obrazu, brak startu gry. Na końcu skończona pętla CPU z W utrzymuje wynik na ekranie.
+- Tak jak X, Y **wykonuje prawdziwą sekwencję PSX DVR LE IOP reset / SCmd 0x29 / start modułów**; to jest etap o większym ryzyku niż W i może wymagać ponownego uruchomienia konsoli.
+
+### Instrukcja (dopiero po pomyślnym CI)
+
+1. Utworzone zostaną trzy osobne pliki: `PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF`, `DIAG_Y.CNF`, `PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF`. Na partycję `hdd0:PP.TESTDVR` skopiować **tylko** Y_FHI.ELF i DIAG_Y.CNF, obok istniejących; niczego nie nadpisywać.
+2. Uruchomić Y_LAUNCH.ELF z UDPFS/wLE-R3Z. Na preflight `CHECK=0` sfotografować ekran, potem X uruchomi oryginalny OSDMenu i Y_FHI z HDD.
+3. Sfotografować `Y87`, `Y90`, `Y95`, `V RESULT=... LAST_STAGE=...`. Jeśli zatrzyma się na `X...` lub `Y86`, sfotografować ostatni widoczny etap.
+4. Bezpieczniki: brak zmian w `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, działającym USB v0.8 i prawdziwym ISO; tylko RO mount `PP.TESTDVR` i odczyty z niej w programie. Używane oryginalne sterowniki IOP DVR mogą wykonać wewnętrzne operacje poza kontrolą testu. Warto mieć kopię danych.
+5. `main` oraz stabilne v0.8 są nietknięte. Draft PR #26 pozostaje niepołączony.
+
+### Następna faza
+
+Dopiero po sprzętowym PASS Y95 ma sens test otwierania rzeczywistego obrazu ISO. Do tego będzie potrzebna ścieżka do konkretnego istniejącego ISO w `dvr_pfs0:/ISO/`. Nie zastępujemy fikcyjnej ścieżki prawdziwą w diagnostyce Y, aby nie ryzykować niekontrolowanego uruchomienia gry.
+
+---
+
 ## Uzupełnienie potwierdzenia sprzętowego DIAG X — rzeczywisty łańcuch OSDMenu z UDPFS do HDD (3.11.2026)
 
 Użytkownik **jednoznacznie potwierdził sposób uruchomienia zdjęcia X85**: `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` został uruchomiony **z UDPFS przez wLE-R3Z**, na ekranie był `CHECK=0`, następnie użytkownik nacisnął **X**. Nie uruchamiał bezpośrednio X_LE.ELF z wLE. Tym samym zdjęcie `X85 LE MODULES DONE / STOP`, `V RESULT=0 LAST_STAGE=85` pochodzi **z prawdziwej ścieżki launchera diagnostycznego → oryginalny OSDMenu → X Neutrino na hdd0:PP.TESTDVR**, nie jedynie z bezpośredniego wykonania ELF.
