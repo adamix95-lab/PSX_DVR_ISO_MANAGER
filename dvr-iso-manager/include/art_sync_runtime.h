@@ -22,6 +22,9 @@ int art_sync_probe_all(const probe_config *cfg,
                        const desr_cover_entry covers[], int count);
 void art_sync_probe_stats(int *ok,int *total,int *bad,int *link,
                           int *http,int *missing);
+/* Count initially-good PNG and those recovered by verified re-download.
+   Does not weaken Content-Length/CRC checks. */
+void art_sync_probe_retry_stats(int *recovered,int *bad_attempts,int *first_ok);
 #endif
 
 /* Last batch counters for the menu status, not only transient console text. */

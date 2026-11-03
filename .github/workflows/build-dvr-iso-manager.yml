@@ -129,6 +129,10 @@ jobs:
           assert 'desr_covers_resolve_ids(games,count,probe_all_ids)' in s
           assert 'COVER_SCAN_LOG' in Path("dvr-iso-manager/src/cover_runtime.c").read_text()
           assert 'if (remaining>512U) remaining=512U' in net
+          assert 'DESR_LAN_PROBE_ATTEMPTS 5' in net
+          assert 'if (rc!=-6) break;' in net
+          assert 'RAM DETAIL: FIRST' in net
+          assert 'art_sync_probe_retry_stats' in s
           assert 'art_sync_probe_all' in net
           assert 'RAM DONE' in net
           assert 'hdd_mount_readonly()' in s

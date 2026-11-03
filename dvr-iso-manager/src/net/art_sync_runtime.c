@@ -449,6 +449,15 @@ int art_sync_run(const probe_config *cfg) {
 
 #ifdef DESR_HDD_ART_PROBE
 static int probe_ok,probe_total,probe_bad,probe_link,probe_missing,probe_status,probe_skipped;
+static int probe_recovered,probe_bad_attempts,probe_first_ok;
+/* Test-only: retry only rejected PNG, never HTTP 404/403/socket errors.
+   Each call to download() opens and closes its own TCP connection. */
+#define DESR_LAN_PROBE_ATTEMPTS 5
+void art_sync_probe_retry_stats(int *recovered,int *bad_attempts,int *first_ok) {
+  if (recovered) *recovered=probe_recovered;
+  if (bad_attempts) *bad_attempts=probe_bad_attempts;
+  if (first_ok) *first_ok=probe_first_ok;
+}
 void art_sync_probe_stats(int *ok,int *total,int *bad,int *link,int *http,int *missing) {
   if (ok) *ok=probe_ok;
   if (total) *total=probe_total;
@@ -464,18 +473,36 @@ void art_sync_probe_stats(int *ok,int *total,int *bad,int *link,int *http,int *m
  */
 int art_sync_probe_all(const probe_config *cfg,
                        const desr_cover_entry covers[], int total) {
-  int i, ok=0, bad=0, link=0, missing=0, status=0, skipped=0;
+  int i,ok=0,bad=0,link=0,missing=0,status=0,skipped=0;
+  int recovered=0,bad_attempts=0,first_ok=0;
   if (!cfg || !covers || total<=0 || total>DESR_GAME_CAP) return -1;
   for (i=0;i<total;i++) {
     const uint8_t *img=NULL;
     size_t len=0;
-    int rc;
+    int rc=-1,attempt;
     if (!art_sync_valid_id(covers[i].game_id)) {
       skipped++;
       continue;
     }
     scr_printf("RAM PROBE %d/%d: %s\n",i+1,total,covers[i].game_id);
-    rc=download(cfg,covers[i].game_id,&img,&len);
+    for (attempt=1;attempt<=DESR_LAN_PROBE_ATTEMPTS;attempt++) {
+      rc=download(cfg,covers[i].game_id,&img,&len);
+      if (rc==0) {
+        if (attempt==1) first_ok++;
+        else {
+          recovered++;
+          scr_printf("CRC RECOVERED %s attempt=%d/%d\n",
+                     covers[i].game_id,attempt,DESR_LAN_PROBE_ATTEMPTS);
+        }
+        break;
+      }
+      if (rc!=-6) break; /* Don't hide HTTP 404, TCP or server failures. */
+      bad_attempts++;
+      if (attempt==DESR_LAN_PROBE_ATTEMPTS) break;
+      scr_printf("CRC BAD, retry new TCP socket %d/%d: %s\n",
+                 attempt+1,DESR_LAN_PROBE_ATTEMPTS,covers[i].game_id);
+      usleep(250000);
+    }
     if (rc==0) {
       ok++;
       scr_printf("RAM OK %s: %lu bytes, valid CRC\n",
@@ -489,10 +516,12 @@ int art_sync_probe_all(const probe_config *cfg,
     } else {
       link++;
     }
-    /* Deliberate spacing to avoid mistaking a back-to-back socket reuse
-       race for invalid PNG bytes; no fileXio writes anywhere in this loop. */
+    /* Only EE RAM is written. No fileXio calls in the download loop. */
     usleep(200000);
   }
+  probe_recovered=recovered;
+  probe_bad_attempts=bad_attempts;
+  probe_first_ok=first_ok;
   probe_ok=ok;
   probe_total=total;
   probe_bad=bad;
@@ -500,8 +529,10 @@ int art_sync_probe_all(const probe_config *cfg,
   probe_status=status;
   probe_missing=missing;
   probe_skipped=skipped;
-  scr_printf("RAM DONE %d/%d VALID, BAD%d LINK%d H%d MISS%d SKIP%d\n",
+  scr_printf("RAM DONE %d/%d VALID BAD%d LINK%d H%d MISS%d SKIP%d\n",
              ok,total,bad,link,status,missing,skipped);
+  scr_printf("RAM DETAIL: FIRST%d RECOVERED%d BAD_ATTEMPTS%d\n",
+             first_ok,recovered,bad_attempts);
   scr_printf("NO FILES WRITTEN. PFS1 LEFT READ-ONLY.\n");
   return ok;
 }

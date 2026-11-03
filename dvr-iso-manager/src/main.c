@@ -857,14 +857,16 @@ int main(int argc, char *argv[]) {
         }
         {
           int done=0,total=0,bad=0,link=0,http=0,miss=0;
+          int recovered=0,bad_attempts=0,first_ok=0;
           art_sync_probe_stats(&done,&total,&bad,&link,&http,&miss);
+          art_sync_probe_retry_stats(&recovered,&bad_attempts,&first_ok);
           if (ok<0)
             snprintf(status,sizeof status,
                      "RAM PROBE ERROR %d; no PFS writes performed",ok);
           else
             snprintf(status,sizeof status,
-                     "RAM %d/%d VALID, BAD%d LINK%d H%d MISS%d; RO",
-                     done,total,bad,link,http,miss);
+                     "RAM %d/%d OK BAD%d REC%d LINK%d H%d MISS%d; RO",
+                     done,total,bad,recovered,link,http,miss);
         }
         status_visible=1;
         draw();
