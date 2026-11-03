@@ -3,7 +3,7 @@ include($ENV{PS2SDK}/ps2dev.cmake)
 project(desr_dvr_iso_manager C)
 
 set(SOURCES
-  src/main.c src/iso_utils.c src/cover_index.c src/cover_runtime.c
+  src/main.c src/iso_utils.c src/hdd_boot_config.c src/cover_index.c src/cover_runtime.c
   src/cover_preview.c src/cover_color.c src/cover_report.c src/lan_art_sync.c
   src/net/probe_config.c src/net/probe_png.c
   src/net/art_sync.c src/net/art_sync_runtime.c)
