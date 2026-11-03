@@ -1,3 +1,45 @@
+# DIAG Q — prawdziwy OSDMenu → prawdziwy loader → bezpieczny DIAG F
+
+**Stan:** fizyczny DESR-7000: DIAG P pełny PASS (`RESULT=0 STAGE=64`, `RESET2=1 MOD2=1 PAD2=1`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1`). **Oryginalny BOOT.ELF uruchamiany przez DIAG J po naciśnięciu X wrócił do XMB, bez zaobserwowanego Neutrino.** DIAG Q jest **nieprzetestowany sprzętowo**.
+
+## Dlaczego tylko jeden nowy ELF?
+
+Wcześniejsze testy M–P odtwarzały fragmenty OSDMenu, ale nie jego własny, osadzony loader. Kod upstream `pcm720/OSDMenu` (`launcher/src/handler_quickboot.c`, `launcher/src/handler_pfs.c`, `common/src/loader.c` i `utils/loader/src/loader.c`) pokazuje, że `handleQuickboot()` odczytuje podaną konfigurację, `handlePFS()` przygotowuje ścieżkę `:pfs:`, a następnie rzeczywisty loader montuje partycję i próbuje wykonać docelowy ELF.
+
+DIAG Q używa **istniejącego na PP.TESTDVR oryginalnego `BOOT.ELF`** z DIAG H–J; nie tworzymy jego kopii ani zmienionej wersji. Zamieniamy wyłącznie argument CNF i cel testowy: nie uruchamiamy Neutrino, tylko sprawdzony samodzielny DIAG F, który w DIAG K już wykonał się z HDD.
+
+**Dwa nowe pliki w paczce:** `PSX_DVR_HDD_DIAG_Q.ELF` (launcher uruchamiany przez UDPFS) i **`BOOTQ.CNF`** (tekstowa konfiguracja, do skopiowania na własną `PP.TESTDVR`). DIAG F oraz BOOT.ELF już są na dysku. Żadnych nowych plików ELF na HDD tym razem nie trzeba kopiować.
+
+Zawartość `BOOTQ.CNF` (dokładnie 45 bajtów, LF):
+```text
+boot=PSX_DVR_HDD_DIAG_F.ELF
+arg=-dev9=NICHDD
+```
+
+Flaga `-dev9=NICHDD` poleca upstreamowemu loaderowi **nie wyłączać zasilania HDD/DEV9** przy przekazaniu sterowania. To kontrolowana różnica względem dotychczasowego `BOOT.CNF`, dlatego nawet udany Q nie udowodni, że domyślne zachowanie zasilania jest poprawne w J. Używamy jej jako środka ostrożności podczas pierwszego prawdziwego testu loadera.
+
+## Co robi Q?
+
+1. Uruchamia się z UDPFS przez wLE-R3Z. Korzysta z potwierdzonej sekwencji read-only inicjalizacji APA/PFS/DVR jak DIAG J i montuje wyłącznie `hdd0:PP.TESTDVR` jako `pfs1:` z `FIO_MT_RDONLY`.
+2. **Weryfikuje bajt w bajt** `pfs1:/BOOTQ.CNF`: dokładnie jedna linia `boot=PSX_DVR_HDD_DIAG_F.ELF` i `arg=-dev9=NICHDD`. Brak pliku albo różnica choćby jednego bajtu = ujemny `CHECK` i wyłączone X.
+3. Otwiera tylko do odczytu `pfs1:/BOOT.ELF` (rzeczywisty OSDMenu) i `pfs1:/PSX_DVR_HDD_DIAG_F.ELF` (zweryfikowany wcześniej F), sprawdza dodatni rozmiar i nagłówek ELF. Kontroluje współistnienie `dvr_pfs0:/ISO` i PS2 PFS.
+4. Wyświetla `CHECK`, `MOUNT`, `BOOTQ`, `OSD ELF`, `TARGET F`, `DVR`, `PFS`. START = anulowanie i normalne wyjście do XMB. **Dopiero świadome X przy CHECK=0** wczytuje oryginalne `pfs1:/BOOT.ELF` przez sprawdzoną w DIAG K funkcję EE `LoadELFFromFile`.
+5. Jako jawny argument `argv[1]` OSDMenu dostaje `hdd0:PP.TESTDVR/BOOTQ.CNF`. Jeśli prawdziwy Quickboot, `handlePFS` i osadzony loader działają, powinien wyświetlić się ekran **`PSX DVR HDD DIAG F / EXIT TEST`**, a nie Neutrino/gra.
+
+## Instrukcja testu i bezpieczeństwo
+
+1. Zalecana kopia ważnych danych przed eksperymentem z obcymi sterownikami IOP. Nie zmieniaj danych DVR, partycji Sony ani wpisów XMB.
+2. Z **zielonego CI** pobierz paczkę `PSX-DVR-HDD-DIAG-Q-ORIGINAL-OSDMENU-TO-F`. Sprawdź, że zawiera pliki `PSX_DVR_HDD_DIAG_Q.ELF` i `BOOTQ.CNF`.
+3. Skopiuj na własną `hdd0:/PP.TESTDVR/` przez wLE-R3Z **tylko `BOOTQ.CNF`**. Nie nadpisuj `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf` ani `PSX_DVR_HDD_DIAG_F.ELF` (F już był na HDD od DIAG K).
+4. Uruchom `PSX_DVR_HDD_DIAG_Q.ELF` z UDPFS, nie kopiuj go na HDD.
+5. Na ekranie `PSX DVR HDD DIAG Q / RESULTS` oczekuj `CHECK=0`, `MOUNT=0`, `BOOTQ=45`, dodatnie `OSD ELF` i `TARGET F`; zrób zdjęcie. Przy `CHECK` ujemnym **nie naciskaj X**, przekaż zdjęcie. Q sam blokuje X.
+6. Przy `CHECK=0` świadomie naciśnij **X**. Wyświetli się komunikat `Q BEFORE REAL OSDMENU`. Po nim spodziewamy się **ekranu DIAG F**. Zrób zdjęcie finalnego ekranu; opisz, czy nastąpił powrót do XMB, czarny ekran, czy była wiadomość błędu z OSDMenu.
+7. Jeśli przejdzie do DIAG F, START to zwykłe wyjście (nie powtarzamy osobnego testu START). Jeżeli po X wystąpi zawieszenie, może być wymagany restart konsoli. **Nie resetuj dysku w trakcie możliwego dostępu bez potrzeby.**
+
+**Granice:** Q jest prawdziwym uruchomieniem oryginalnego `BOOT.ELF` i jego dalszego loadera, a nie tylko odczytem — mimo że sam kod Q nie zapisuje HDD i preflight montuje RO, nie możemy gwarantować operacji wewnętrznych OSDMenu. W przeciwieństwie do DIAG P, po X możliwa jest zmiana stanu IOP/DEV9. Testowy CNF wskazuje tylko DIAG F, więc przy poprawnej obsłudze OSDMenu nie powinien uruchamiać żadnej gry. `main`, wydanie v0.8 i poprzednie diagnostyki pozostają bez zmian; PR #26 zostaje Draft.
+
+---
+
 # DIAG Q — rzeczywisty OSDMenu Loader z bezpiecznym celem DIAG F
 
 **Stan wejściowy:** na fizycznym Sony PSX DESR-7000 DIAG P zakończył się `RESULT=0 STAGE=64`, `RESET2=1 MOD2=1 PAD2=1`, `UM1=0 REMOUNT=0 TRYFD=3 UM2=0 PATH=1`. Rozwiązaliśmy inicjalizację, mount i konstrukcję `hdd0:PP.TESTDVR:pfs:/neutrino.elf`, ale w DIAG J oryginalny OSDMenu po naciśnięciu X wracał do XMB i nie uruchomił Neutrino. **DIAG Q nie był jeszcze testowany na fizycznej konsoli.**
