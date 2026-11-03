@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager v0.8
+name: Build PSX DVR ISO Manager 1.0 HDD (read-only preview)
 on:
   workflow_dispatch:
   push:
@@ -49,10 +49,37 @@ jobs:
           cmake -S dvr-iso-manager -B build-dvr-manager
           cmake --build build-dvr-manager -j2
           test -s build-dvr-manager/DVR_ISO_MANAGER.ELF
+      - name: Verify HDD preview read-only guards and dual UI headers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          main=Path("dvr-iso-manager/src/main.c").read_text()
+          paths=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert 'DESR_APP_VARIANT "1.0 HDD"' in paths
+          assert 'DESR_APP_VARIANT "1.0 USB"' in paths
+          assert 'fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY)' in main
+          assert 'if (new_press & (PAD_TRIANGLE))' in main
+          assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in main
+          assert 'HDD preview: CNF / ART writes and launch disabled' in main
+          assert 'hdd0:PP.DVRISO' in paths and 'PP.TESTDVR' not in paths
+          print("HDD preview variant, read-only gate, version banners PASS")
+          PY
+      - name: Build additional HDD read-only preview target
+        run: |
+          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_PREVIEW.ELF -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+      - name: Upload separate 1.0 HDD read-only preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-READONLY-PREVIEW
+          path: |
+            build-dvr-manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+            neutrino-hdd-v1/README_PL.md
+          if-no-files-found: error
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.8
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-USB-BASELINE
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
