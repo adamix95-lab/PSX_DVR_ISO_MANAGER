@@ -604,8 +604,8 @@ static int launch_via_quickboot(void) {
 static void hdd_unmount_owned(void) {
   int rc;
   if (!hdd_mount_owned) return;
-  rc = fileXioUmount("pfs0:");
-  scr_printf("1.0 HDD: OWN PFS0 UMOUNT=%d\n", rc);
+  rc = fileXioUmount("pfs1:");
+  scr_printf("1.0 HDD: OWN PFS1 UMOUNT=%d\n", rc);
   if (rc >= 0) {
     hdd_mount_owned = 0;
 #ifdef DESR_HDD_TEST
@@ -623,10 +623,10 @@ static int hdd_mount_readonly(void) {
   fd = fileXioDopen("pfs0:/");
   if (fd >= 0) {
     fileXioDclose(fd);
-    scr_printf("1.0 HDD: PFS0 ALREADY OCCUPIED; ABORT\n");
+    scr_printf("1.0 HDD: PFS1 ALREADY OCCUPIED; ABORT\n");
     return -210;
   }
-  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY);
+  rc = fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY);
   scr_printf("1.0 HDD: PP.DVRISO RO MOUNT=%d\n", rc);
   if (rc < 0) return rc;
   hdd_mount_owned = 1;
@@ -652,12 +652,12 @@ static int hdd_enable_writes(void) {
   int rc, fd;
   if (hdd_writable) return 0;
   if (!hdd_mount_owned) return -220;
-  rc = fileXioUmount("pfs0:");
+  rc = fileXioUmount("pfs1:");
   if (rc < 0) return -221;
   hdd_mount_owned = 0;
-  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDWR);
+  rc = fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDWR);
   if (rc < 0) {
-    if (fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY) >= 0)
+    if (fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY) >= 0)
       hdd_mount_owned = 1;
     return rc;
   }

@@ -10,7 +10,7 @@
  */
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 #define DESR_APP_VARIANT "1.0 HDD"
-#define DESR_APP_ROOT "pfs0:/"
+#define DESR_APP_ROOT "pfs1:/"
 #define DESR_APP_PARTITION "hdd0:PP.DVRISO"
 #ifdef DESR_HDD_TEST
 #define DESR_APP_READONLY 0

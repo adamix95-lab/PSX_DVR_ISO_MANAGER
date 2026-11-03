@@ -46,8 +46,8 @@ jobs:
           for term in (
               'LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args)',
               'desr_make_hdd_boot_cnf(games[selected], force_english',
-              'fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY)',
-              'fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDWR)',
+              'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY)',
+              'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDWR)',
               'write_verified_file(DESR_APP_BOOT_NEXT, cnf, len)',
               'HDD preview: CNF / ART writes and launch disabled',
               'DESR_HDD_TEST',

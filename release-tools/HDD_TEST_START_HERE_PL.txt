@@ -15,18 +15,18 @@ PLIKI:
   ZIP/PP.DVRISO-FILES/ — skopiuj ZAWARTOSC tego katalogu bezposrednio
   do KATALOGU GLOWNEGO partycji PP.DVRISO, NIE do podfolderu.
   Upewnij sie, ze:
-    pfs0:/DVR_ISO_MANAGER_HDD_TEST.ELF
-    pfs0:/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
-    pfs0:/BOOT.ELF
-    pfs0:/neutrino_hdd.elf
-    pfs0:/neutrino_hdd_lang.elf
-    pfs0:/config/system.toml
-    pfs0:/config/bsd-dvr.toml
-    pfs0:/config/osdlang.toml
-    pfs0:/modules/ee_core.elf
-    pfs0:/modules/ee_core_lang.elf
-    pfs0:/modules/dvrfile_fhi.irx
-    pfs0:/ART/
+    pfs1:/DVR_ISO_MANAGER_HDD_TEST.ELF
+    pfs1:/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+    pfs1:/BOOT.ELF
+    pfs1:/neutrino_hdd.elf
+    pfs1:/neutrino_hdd_lang.elf
+    pfs1:/config/system.toml
+    pfs1:/config/bsd-dvr.toml
+    pfs1:/config/osdlang.toml
+    pfs1:/modules/ee_core.elf
+    pfs1:/modules/ee_core_lang.elf
+    pfs1:/modules/dvrfile_fhi.irx
+    pfs1:/ART/
 
   Nie zmieniaj BOOT.ELF z dzialajacej instalacji diagnostycznej,
   jesli juz tam jest. ZIP zawiera oryginalny OSDMenu z repozytoryjnego
@@ -47,12 +47,12 @@ ETAP 2 — ZAPIS TYLKO NA PP.DVRISO:
   1. Uruchom DVR_ISO_MANAGER_HDD_TEST.ELF.
   2. SELECT przelacza SYSTEM / ENGLISH (ENGLISH ma osobny
      neutrino_hdd_lang.elf, config/osdlang.toml i ee_core_lang.elf).
-  3. KWADRAT zapisuje i sprawdza pfs0:/DVR_TEST.CNF.
+  3. KWADRAT zapisuje i sprawdza pfs1:/DVR_TEST.CNF.
      Odczytaj plik w wLE; zwroc uwage na dokladna nazwe ISO.
   4. TROJKAT skanuje ISO, odczytuje identyfikatory i aktualizuje
-     pfs0:/COVERS.IDX oraz COVER_SCAN.LOG. Gdy brakuje okładek,
+     pfs1:/COVERS.IDX oraz COVER_SCAN.LOG. Gdy brakuje okładek,
      X na osobnym ekranie proponuje pobieranie ich z lokalnego HTTP
-     serwera do pfs0:/ART/ (NET_PROBE.CNF musi zawierac poprawny IP).
+     serwera do pfs1:/ART/ (NET_PROBE.CNF musi zawierac poprawny IP).
   5. X w zwyklym menu:
      - zapisuje i weryfikuje BOOT.NEXT.CNF na PP.DVRISO,
      - zachowuje pierwsza zastana BOOT.CNF jako BOOT_RECOVERY.CNF,
@@ -88,3 +88,8 @@ BEZPIECZENSTWO:
 
 Sfotografuj wynik PREVIEW, potem testu KWADRAT, a na koncu
 uruchomienie gry SYSTEM/ENGLISH. To pozwoli dopracowac v1.0 HDD.
+
+WAZNE / HDD TEST FIX2:
+ Manager montuje teraz PP.DVRISO przez pfs1: (jak DIAG Z),
+ poniewaz OSDMenu i Neutrino potrzebuja wolnego pfs0:.
+ CNF argument pozostaje hdd0:PP.DVRISO/BOOT.CNF.
