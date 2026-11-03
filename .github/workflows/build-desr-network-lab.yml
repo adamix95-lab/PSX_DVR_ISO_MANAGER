@@ -1,0 +1,57 @@
+name: Build PSX DESR LAN A B C isolated tests
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'network-lab/**'
+      - '.github/workflows/build-desr-network-lab.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake
+        run: apk add --no-cache cmake build-base
+      - name: Static invariants and shared parser tests
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("network-lab/src/nettest.c").read_text()
+          h=Path("network-lab/src/settings.h").read_text()
+          cm=Path("network-lab/CMakeLists.txt").read_text()
+          assert h.count('"SLES_')+h.count('"SLUS_')+h.count('"SCUS_')+h.count('"SCES_') == 44
+          assert 'hdd0:PP.NETTEST' in h
+          assert 'PP.DVRISO' not in h and 'PP.TESTDVR' not in h
+          assert 'LAB_RECV_LIMIT 512U' in h
+          assert 'DVR_NETTEST_A.ELF' in cm
+          assert 'DVR_NETTEST_B.ELF' in cm
+          assert 'DVR_NETTEST_C.ELF' in cm
+          assert 'DVR_NETTEST_CLEAN.ELF' in cm
+          assert 'LAB_MODE_A' in s and 'LAB_MODE_B' in s
+          assert 'LAB_MODE_C' in s and 'LAB_MODE_CLEAN' in s
+          assert 'fileXioMount(LAB_MOUNT,LAB_PARTITION' in s
+          assert 'LAB_ART' in s
+          print("Static partition whitelist and 44 game manifest PASS")
+          PY
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/probe_png.c dvr-iso-manager/tests/net/test_probe_png.c -o /tmp/test_png
+          /tmp/test_png
+      - name: Compile all four isolated PS2 ELFs
+        run: |
+          cmake -S network-lab -B build-network-lab
+          cmake --build build-network-lab -- -j2
+          for variant in A B C CLEAN; do
+            test -s "build-network-lab/DVR_NETTEST_${variant}.ELF"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DESR-LAN-ABC-TEST-PACK
+          path: |
+            build-network-lab/DVR_NETTEST_A.ELF
+            build-network-lab/DVR_NETTEST_B.ELF
+            build-network-lab/DVR_NETTEST_C.ELF
+            build-network-lab/DVR_NETTEST_CLEAN.ELF
+            network-lab/README_PL.md
+          if-no-files-found: error
