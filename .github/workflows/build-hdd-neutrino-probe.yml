@@ -91,11 +91,26 @@ jobs:
           cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF -j2
           test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF
           test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_X.CNF
+      - name: Extend X to real DVR FHI and CDVDMAN settings (Y, no ISO)
+        working-directory: neutrino-pinned
+        run: |
+          python3 ../hdd-diagnostics/neutrino-hdd-probe/patch_y_fhi.py ee/loader/src/main.c
+          grep -F 'return 0; /* HARD NO-ISO STOP BEFORE setup_dvd_iso */' ee/loader/src/main.c
+          grep -F 'Y95 DVR FHI+CDVD READY / SAFE STOP' ee/loader/src/main.c
+          make -C ee/loader clean
+          make -C ee/loader all
+          test -s ee/loader/neutrino_unpacked.elf
+          cp ee/loader/neutrino_unpacked.elf ../PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF
+      - name: Build Y original OSDMenu gated launcher
+        run: |
+          cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF
+          test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_Y.CNF
       - name: Check output is ELF32 little-endian MIPS, and exact dummy CNF
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_X_LE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF"):
+          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_X_LE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF"):
               b=Path(name).read_bytes()
               assert b[:6]==b"\x7fELF\x01\x01", name
               assert b[18:20]==b"\x08\x00", name
@@ -127,6 +142,12 @@ jobs:
                      b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
                      b"arg=-dev9=NICHDD\n")
           print("X LE entry",hex(struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_X_LE.ELF").read_bytes(),24)[0]))
+          y=Path("hdd-diagnostics/neutrino-hdd-probe/DIAG_Y.CNF").read_bytes()
+          assert y==(b"boot=PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF\n"
+                     b"arg=-bsd=dvr\n"
+                     b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
+                     b"arg=-dev9=NICHDD\n")
+          print("Y FHI entry",hex(struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF").read_bytes(),24)[0]))
           PY
       - name: Upload V safe Neutrino HDD probe package
         uses: actions/upload-artifact@v4
@@ -169,5 +190,16 @@ jobs:
             PSX_DVR_HDD_NEUTRINO_X_LE.ELF
             build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF
             hdd-diagnostics/neutrino-hdd-probe/DIAG_X.CNF
+            hdd-diagnostics/neutrino-hdd-probe/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload Neutrino Y real FHI backend no-ISO probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-NEUTRINO-Y-FHI-NO-ISO
+          path: |
+            PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF
+            build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF
+            hdd-diagnostics/neutrino-hdd-probe/DIAG_Y.CNF
             hdd-diagnostics/neutrino-hdd-probe/README_PL.md
           if-no-files-found: error
