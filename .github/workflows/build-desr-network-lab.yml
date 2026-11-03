@@ -23,8 +23,8 @@ jobs:
           h=Path("network-lab/src/settings.h").read_text()
           cm=Path("network-lab/CMakeLists.txt").read_text()
           assert h.count('"SLES_')+h.count('"SLUS_')+h.count('"SCUS_')+h.count('"SCES_') == 44
-          assert 'hdd0:PP.NETTEST' in h
-          assert 'PP.DVRISO' not in h and 'PP.TESTDVR' not in h
+          assert '#define LAB_PARTITION "hdd0:PP.NETTEST"' in h
+          assert '"hdd0:PP.DVRISO"' not in h and '"hdd0:PP.TESTDVR"' not in h
           assert 'LAB_RECV_LIMIT 512U' in h
           assert 'foreach(mode A B C CLEAN)' in cm
           assert 'add_executable(DVR_NETTEST_${mode}.ELF' in cm

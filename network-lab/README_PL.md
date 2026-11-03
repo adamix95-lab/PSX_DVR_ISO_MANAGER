@@ -4,8 +4,8 @@ Celem jest rozróżnienie problemu **DEV9** od współpracy **ATA/PFS + Ethernet
 
 | ELF | Ładowane sterowniki DEV9/HDD | Operacje na partycji | Raport |
 |---|---|---|---|
-| `DVR_NETTEST_A.ELF` | `dev9_ns` z projektu DVR, bez ATA/PFS | Żadnych — pobrania do RAM | Na ekranie, 44 pozycje |
-| `DVR_NETTEST_B.ELF` | `ps2dev9` z PS2SDK, bez ATA/PFS | Żadnych — pobrania do RAM | Na ekranie, 44 pozycje |
+| `DVR_NETTEST_A.ELF` | `bdm`, FAT, USB mini + `dev9_ns`, bez ATA/PFS | Żadnych — pobrania do RAM | Na ekranie, 44 pozycje |
+| `DVR_NETTEST_B.ELF` | `bdm`, FAT, USB mini + `ps2dev9`, bez ATA/PFS | Żadnych — pobrania do RAM | Na ekranie, 44 pozycje |
 | `DVR_NETTEST_C.ELF` | `ps2dev9`, `ps2atad`, `ps2hdd`, `ps2fs`, `dvrdrv`, `dvrfile` | Tylko `PP.NETTEST/ART`; weryfikacja zapisu PNG | Na ekranie + `REPORT_C.TXT` |
 | `DVR_NETTEST_CLEAN.ELF` | Stos HDD jak C, **bez inicjalizacji Ethernetu** | Usuwa tylko pliki z 44-elementowej białej listy w `PP.NETTEST/ART`, po potwierdzeniu X | Raport liczby usuniętych / błędów |
 
@@ -35,3 +35,5 @@ Uwaga: A/B bez ATA/PFS nie mogą usuwać plików z HDD, bo właśnie brak tych s
 - Wszystkie warianty mają błędy → szukamy w stosie Ethernet/HTTP/buforowaniu/CRC, a nie tylko w DEV9.
 
 Nie zmieniamy działającego `DVR_ISO_MANAGER_HDD_TEST.ELF`, `neutrino_hdd.elf`, `neutrino_hdd_lang.elf` ani `BOOT.CNF`. Nie podmieniamy modułów w uruchamianym Managerze.
+
+Doprecyzowanie: A/B ładują ten sam zestaw modułów USB/BDM co sprawdzony USB 0.8. Dzięki temu różnica między A a B obejmuje wyłącznie moduł DEV9. Nie oznacza to, że do transferu potrzebny jest pendrive — HTTP nadal odbywa się przez Ethernet.

@@ -31,6 +31,12 @@
 IRX(iomanX); IRX(fileXio);
 IRX(sio2man); IRX(mcman); IRX(mcserv); IRX(freepad);
 IRX(netman); IRX(smap);
+#if defined(LAB_MODE_A) || defined(LAB_MODE_B)
+/* Match the proven USB 0.8 module stack in both A and B;
+   the only change between them is dev9_ns versus ps2dev9. */
+IRX(bdm); IRX(bdmfs_fatfs);
+IRX(usbd_mini); IRX(usbmass_bd_mini);
+#endif
 #ifdef LAB_MODE_A
 IRX(dev9_ns);
 #else
@@ -88,12 +94,8 @@ static int init_drivers(void) {
   sbv_patch_fileio();
   LOAD(iomanX);
   LOAD(fileXio);
-#if defined(LAB_MODE_A)
+#if defined(LAB_MODE_A) || defined(LAB_MODE_B)
   fileXioInit();
-  LOAD(dev9_ns);
-#elif defined(LAB_MODE_B)
-  fileXioInit();
-  LOAD(ps2dev9);
 #else
   LOAD(ps2dev9);
   LOAD(ps2atad);
@@ -108,6 +110,17 @@ static int init_drivers(void) {
   LOAD(mcman);
   LOAD(mcserv);
   LOAD(freepad);
+#if defined(LAB_MODE_A) || defined(LAB_MODE_B)
+  LOAD(bdm);
+  LOAD(bdmfs_fatfs);
+  LOAD(usbd_mini);
+  LOAD(usbmass_bd_mini);
+#if defined(LAB_MODE_A)
+  LOAD(dev9_ns);
+#else
+  LOAD(ps2dev9);
+#endif
+#endif
 #if defined(LAB_MODE_C) || defined(LAB_MODE_CLEAN)
   {
     u32 notice_arg=0;
