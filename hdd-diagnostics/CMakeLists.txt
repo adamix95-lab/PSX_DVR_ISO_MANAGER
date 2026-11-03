@@ -358,3 +358,21 @@ target_link_libraries(PSX_DVR_HDD_DIAG_T_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_T_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG U: original OSDMenu target-entry read-only remount of PP.TESTDVR
+# only AFTER confirming pfs0 is absent and hdd0 is reachable.
+add_executable(PSX_DVR_HDD_DIAG_U_TARGET.ELF
+  src/osdmenu_entry_remount_target.c
+  ${EXIT_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_U_TARGET.ELF
+  pad patches fileXio libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_U_TARGET.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
+
+add_executable(PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
+  src/osdmenu_entry_remount_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_U_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_U_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
