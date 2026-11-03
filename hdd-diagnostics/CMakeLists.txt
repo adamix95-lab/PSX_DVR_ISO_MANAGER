@@ -407,3 +407,13 @@ target_link_libraries(PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG X: fork Neutrino DVR Load Environment transition / module start,
+# with hard stop before FHI ISO operation or any game execution.
+add_executable(PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF
+  neutrino-hdd-probe/osdmenu_neutrino_x_launcher.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
