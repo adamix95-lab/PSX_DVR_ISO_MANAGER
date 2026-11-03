@@ -60,6 +60,44 @@ int probe_png_check(const uint8_t *data, size_t length) {
   }
   return -1;
 }
+#ifdef DESR_HDD_ART_PROBE
+int probe_png_crc_detail(const uint8_t *data,size_t length,char type[5],
+                         size_t *where,uint32_t *expected,uint32_t *actual) {
+  static const uint8_t sig[8]={137,80,78,71,13,10,26,10};
+  size_t at=8,i;
+  if (type) {type[0]='?';type[1]='\0';}
+  if (where) *where=0;
+  if (expected) *expected=0;
+  if (actual) *actual=0;
+  if (!data || length<57 || length>PROBE_PNG_MAX || memcmp(data,sig,8))
+    return -1;
+  while (at<length) {
+    uint32_t bytes,calc=0xFFFFFFFFU,exp;
+    const uint8_t *chunk;
+    if (length-at<12) return -1;
+    bytes=be32(data+at);
+    if (bytes>length-at-12U) return -1;
+    chunk=data+at+4;
+    for(i=0;i<(size_t)bytes+4U;i++) calc=crc_step(calc,chunk[i]);
+    calc ^=0xFFFFFFFFU;
+    exp=be32(chunk+4U+bytes);
+    if (calc!=exp) {
+      if (type) {
+        for(i=0;i<4;i++) type[i]=(char)chunk[i];
+        type[4]='\0';
+      }
+      if (where) *where=at;
+      if (expected) *expected=exp;
+      if (actual) *actual=calc;
+      return 1;
+    }
+    if(!memcmp(chunk,"IEND",4))return 0;
+    at+=12U+(size_t)bytes;
+  }
+  return -1;
+}
+#endif
+
 static int case_prefix(const uint8_t *p, size_t n, const char *word) {
   size_t i, wlen=strlen(word);
   if (wlen>n) return 0;

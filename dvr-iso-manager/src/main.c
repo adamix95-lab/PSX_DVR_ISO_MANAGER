@@ -79,6 +79,9 @@ static int count;
 static int selected;
 static int force_english; /* 0 = SYSTEM, 1 = ENGLISH */
 static desr_cover_entry covers[DESR_GAME_CAP];
+#ifdef DESR_HDD_ART_PROBE
+static desr_cover_entry probe_all_ids[DESR_GAME_CAP];
+#endif
 static char status[120] = "Starting...";
 static int status_visible;
 static int art_prompt; /* X downloads only on the scan confirmation screen. */
@@ -845,7 +848,13 @@ int main(int argc, char *argv[]) {
         scr_printf("PSX DVR HDD LAN RAM PROBE - READ ONLY\n");
         scr_printf("PP.DVRISO remains PFS1 READ-ONLY.\n");
         scr_printf("All indexed games are fetched even if ART exists.\n");
-        ok=desr_lan_art_probe(covers,count);
+        {
+          int ids=desr_covers_resolve_ids(games,count,probe_all_ids);
+          scr_printf("PROBE: resolved %d/%d Game IDs from COVERS.IDX\n",
+                     ids,count);
+          if (ids<0) ok=ids;
+          else ok=desr_lan_art_probe(probe_all_ids,count);
+        }
         {
           int done=0,total=0,bad=0,link=0,http=0,miss=0;
           art_sync_probe_stats(&done,&total,&bad,&link,&http,&miss);

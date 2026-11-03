@@ -214,6 +214,40 @@ int desr_covers_load(char games[][DESR_FILENAME_CAP], int count,
   return parsed;
 }
 
+#ifdef DESR_HDD_ART_PROBE
+int desr_covers_resolve_ids(char games[][DESR_FILENAME_CAP], int count,
+                           desr_cover_entry ids[DESR_GAME_CAP]) {
+  int size, parsed=0, i;
+  char *p,*end;
+  if (!games || !ids || count<0 || count>DESR_GAME_CAP) return -1;
+  desr_covers_clear(ids);
+  size=read_index_file(COVER_IDX);
+  if (size<(int)strlen(DESR_COVER_INDEX_HEADER) ||
+      memcmp(index_buf,DESR_COVER_INDEX_HEADER,
+             strlen(DESR_COVER_INDEX_HEADER))) return -1;
+  p=index_buf+strlen(DESR_COVER_INDEX_HEADER);
+  end=index_buf+size;
+  while (p<end) {
+    char *nl=memchr(p,'\n',(size_t)(end-p));
+    char filename[DESR_FILENAME_CAP];
+    desr_cover_entry entry;
+    if (!nl) break;
+    *nl='\0';
+    if (desr_cover_parse(p,filename,&entry)) {
+      for (i=0;i<count;i++) {
+        if (!strcmp(filename,games[i]) && !ids[i].game_id[0]) {
+          ids[i]=entry;
+          parsed++;
+          break;
+        }
+      }
+    }
+    p=nl+1;
+  }
+  return parsed;
+}
+#endif
+
 static int verify_new_file(const char *data, int size) {
   int fd = fileXioOpen(COVER_NEW, FIO_O_RDONLY, 0), pos = 0, n;
   char chunk[512];

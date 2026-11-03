@@ -269,6 +269,20 @@ static int download(const probe_config *cfg, const char *id,
     scr_printf("HTTP BODY: %lu expected=%lu has_len=%d PNG=%d\n",
                (unsigned long)body_len,(unsigned long)expected,
                known_length,valid_png);
+#ifdef DESR_HDD_ART_PROBE
+    if (content_at>0 && body_len==expected && known_length) {
+      char kind[5];
+      size_t at=0;
+      uint32_t want=0,got=0;
+      int checked=probe_png_crc_detail(response+content_at,body_len,
+                                       kind,&at,&want,&got);
+      scr_printf("PNG CRC DETAIL: rc=%d chunk=%s offset=%lu\n",
+                 checked,kind,(unsigned long)at);
+      if (checked==1)
+        scr_printf("PNG CRC: EXPECT=%08lx ACTUAL=%08lx\n",
+                   (unsigned long)want,(unsigned long)got);
+    }
+#endif
     return -6;
   }
   return 0;
