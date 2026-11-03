@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #define SCAN_LOG DESR_APP_COVER_SCAN_LOG
 #define ART_PATH DESR_APP_ART_ROOT
@@ -104,7 +105,7 @@ static int download(const probe_config *cfg, const char *id,
   char req[180],url[40];
   size_t received=0;
   socklen_t optlen;
-  int sock=-1,n,rc,soerr=0,sent=0;
+  int sock=-1,n,rc,soerr=0,sent=0,stage=0;
   if (art_sync_request_path(url,sizeof(url),id)<0) return -1;
   memset(&addr,0,sizeof(addr));
   addr.sin_family=AF_INET;
@@ -112,9 +113,12 @@ static int download(const probe_config *cfg, const char *id,
   IP4_ADDR(&server_addr,cfg->server[0],cfg->server[1],
            cfg->server[2],cfg->server[3]);
   memcpy(&addr.sin_addr,&server_addr,sizeof(addr.sin_addr));
+  stage=1;
   sock=lwip_socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
   if (sock<0) goto fail;
+  stage=2;
   if (fcntl(sock,F_SETFL,O_NONBLOCK)<0) goto fail;
+  stage=3;
   rc=lwip_connect(sock,(struct sockaddr *)&addr,sizeof(addr));
   if (rc<0 && errno!=EINPROGRESS && errno!=EWOULDBLOCK &&
       errno!=EALREADY) goto fail;
@@ -128,6 +132,7 @@ static int download(const probe_config *cfg, const char *id,
     "GET %s HTTP/1.0\r\nHost: %u.%u.%u.%u\r\nConnection: close\r\n\r\n",
     url,cfg->server[0],cfg->server[1],cfg->server[2],cfg->server[3]);
   if (n<0 || n>=(int)sizeof(req)) goto fail;
+  stage=4;
   while (sent<n) {
     if (!ready(sock,1)) goto fail;
     rc=lwip_send(sock,req+sent,n-sent,0);
@@ -136,6 +141,7 @@ static int download(const probe_config *cfg, const char *id,
     sent+=rc;
   }
   scr_printf("GET %s\n",url);
+  stage=5;
   for (;;) {
     if (!ready(sock,0)) goto fail;
     if (received>=BUF_CAP) goto fail;
@@ -146,11 +152,19 @@ static int download(const probe_config *cfg, const char *id,
     received+=(size_t)rc;
   }
   lwip_close(sock);
-  if (probe_http_extract_png(response,received,png,png_size)<0) return -1;
+  if (probe_http_extract_png(response,received,png,png_size)<0) {
+    scr_printf("HTTP RESPONSE INVALID: bytes=%lu\n",(unsigned long)received);
+    return -6;
+  }
   return 0;
 fail:
+  /* Stage 1=socket, 2=nonblocking, 3=connect, 4=send, 5=receive.
+     errno and stage give a useful diagnosis if the second cover fails. */
+  rc=errno;
   if (sock>=0) lwip_close(sock);
-  return -1;
+  scr_printf("HTTP FAILURE stage=%d errno=%d got=%lu\n",
+             stage,rc,(unsigned long)received);
+  return -stage;
 }
 static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
   char dst[96],tmp[96],jpg[96];
@@ -197,7 +211,7 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
   return 0;
 }
 int art_sync_run(const probe_config *cfg) {
-  int i,attempted=0,saved=0,fail_streak=0;
+  int i,attempted=0,saved=0,fail_streak=0,http_failed=0,write_failed=0,stale=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];
@@ -207,29 +221,48 @@ int art_sync_run(const probe_config *cfg) {
                   jpg,sizeof(jpg))<0) continue;
     if (present(dst)||present(jpg)) continue;
     if (present(tmp)) {
+      stale++;
       scr_printf("SKIP %s: stale .PART\n",games[i].id);
       continue;
     }
     attempted++;
-    scr_printf("GAME %s\n",games[i].id);
-    if (download(cfg,games[i].id,&png,&bytes)<0) {
-      scr_printf("FAIL: HTTP missing or invalid PNG\n");
-      if (++fail_streak>=3) {
-        scr_printf("STOP: 3 consecutive failed downloads.\n");
-        break; /* Avoid dozens of long timeouts when PC is offline. */
+    scr_printf("ART %d/%d: %s\n",attempted,game_count,games[i].id);
+    {
+      int retry, got=-1;
+      /* Two connections at most, each closes cleanly before next request. */
+      for (retry=0;retry<2;retry++) {
+        got=download(cfg,games[i].id,&png,&bytes);
+        if (got==0) break;
+        scr_printf("HTTP retry %d/2: code %d\n",retry+1,got);
+        if (retry==0) usleep(300000);
       }
-      continue;
+      if (got<0) {
+        http_failed++;
+        scr_printf("ART HTTP FAILED: %s\n",games[i].id);
+        if (++fail_streak>=4) {
+          scr_printf("STOP: 4 consecutive HTTP failures; check PC server.\n");
+          break;
+        }
+        continue;
+      }
     }
     fail_streak=0;
     scr_printf("PNG: CRC OK, %lu bytes\n",(unsigned long)bytes);
     if (write_new_art(games[i].id,png,bytes)<0) {
+      write_failed++;
       scr_printf("FAIL: ART staging/verify/rename\n");
       continue;
     }
     scr_printf("SAVED: %s_COV.png\n",games[i].id);
     saved++;
+    /* Let the console TCP stack release the last closed socket before
+       opening the next one; never halt after the first successful cover. */
+    usleep(200000);
   }
-  scr_printf("ART SYNC: %d saved of %d attempted\n",saved,attempted);
+  scr_printf("ART DONE: candidates=%d tried=%d saved=%d\n",
+             game_count,attempted,saved);
+  scr_printf("ART ERRORS: HTTP=%d PFS_WRITE=%d STALE_PART=%d\n",
+             http_failed,write_failed,stale);
   if (saved>0)
     scr_printf("New PNG covers saved in app ART.\n");
   return saved>0 ? saved : -1;
