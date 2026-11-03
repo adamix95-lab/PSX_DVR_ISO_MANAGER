@@ -61,6 +61,25 @@ once('    scr_printf("PSX DVR NEUTRINO Y2 / FHI TEST\\n");',
      '    scr_printf("PSX DVR NEUTRINO Z / ISO LAUNCH\\n");', "Z banner")
 once('    scr_printf("NO ISO OR GAME. READ ONLY.\\n");',
      '    scr_printf("Z TEST: REAL ISO / REAL GAME.\\n");', "visible warning")
+# DIAG Y had an intentionally fixed DUMMY ISO allowlist. Y2P never
+# reached real ISO setup; Z removes that dummy guard while retaining
+# the exact dynamic argv[2] path validation that the launcher verified.
+# In upstream Neutrino, sDVDFile = sys.sDVDMode = argv[2]+5 after
+# parse_cmdline_args(); check it matches exactly rather than accepting
+# an unrelated path or silently skipping safety checks.
+once('''        if (strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso") != 0) {
+            scr_printf("Y95 REJECT UNEXPECTED ISO PATH\n");
+            return -95;
+        }''',
+'''        if (argc != 3 || !argv || !argv[2] ||
+            !z_allowed_iso_arg(argv[2]) ||
+            strcmp(sDVDFile, argv[2] + 5) != 0) {
+            scr_printf("Z95 REJECT ISO ARG / MODE MISMATCH\n");
+            return -95;
+        }
+        scr_printf("Z95 EXACT ISO ARG: %.88s\n", sDVDFile);''',
+"replace leftover Y dummy-only ISO path check")
+
 once('''        if (setup_dvd_iso(sDVDFile, &iso_size, &layer1_lba_start) < 0)
             return -1;''',
 '''        v_stage=96;
@@ -96,12 +115,17 @@ once('    scr_printf("W90 CPU LOOP, PHOTO\\n");' if "W90 CPU LOOP, PHOTO" in s e
      '    scr_printf("Z90 CPU LOOP, PHOTO\\n");', "fallback screen")
 
 for expected in ('z_allowed_iso_arg(argv[2])',
+                 'strcmp(sDVDFile, argv[2] + 5) != 0',
+                 'Z95 EXACT ISO ARG:',
                  'scr_printf("Z96 setup_dvd_iso BEGIN',
                  'scr_printf("Z99 GAME HANDOFF BEGIN',
                  'fileXioMount("pfs0:", "hdd0:PP.TESTDVR", FIO_MT_RDONLY)',
                  'Y2 87 DVR PRE=',
                  'Z95 DVR FHI+CDVD READY, ISO NEXT'):
     if expected not in s: raise SystemExit("DIAG Z REFUSED missing "+expected)
+if 'Y95 REJECT UNEXPECTED ISO PATH' in s or
+   'strcmp(sDVDFile, "dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso")' in s:
+    raise SystemExit("DIAG Z REFUSED leftover dummy-only Y95 gate")
 if "return 0; /* HARD NO-ISO STOP BEFORE setup_dvd_iso */" in s:
     raise SystemExit("DIAG Z REFUSED old stop still present")
 p.write_text(s,encoding="utf-8")
