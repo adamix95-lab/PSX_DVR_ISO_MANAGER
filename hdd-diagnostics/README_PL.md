@@ -1,3 +1,33 @@
+## DIAG T — dostęp do config/modules w chwili wejścia do ELF z OSDMenu
+
+Po kopiowaniu `config/` i `modules/` na `PP.TESTDVR` i przesunięciu `arg=-dev9=NICHDD` na koniec `BOOT.CNF`, użytkownik nadal widzi czarny ekran i powrót do XMB bez dawnego `-19`. To nie dowodzi uruchomienia Neutrino ani zachowania dostępu do HDD.
+
+**Cel T:** przez prawdziwy OSDMenu uruchomić nieszkodliwy `T_TARGET.ELF`, a **przed jakimkolwiek resetem IOP w tym celu testowym** sprawdzić katalog roboczy oraz dostęp do `config/system.toml` i `modules/dvrfile_fhi.irx` (zarówno poprzez `pfs0:/`, jak i ścieżki względne). Nie uruchamiamy Neutrino ani gry. `-dev9=NICHDD` jest w oddzielnym T CNF na ostatniej pozycji, więc OSDMenu powinien je skonsumować i nie przekazywać do T_TARGET. Skan jest wyłącznie do odczytu.
+
+Przygotowane **trzy nowe pliki** (nie nadpisywać starych):
+- `PSX_DVR_HDD_DIAG_T_TARGET.ELF` — skopiować do katalogu głównego `hdd0:PP.TESTDVR` (obok oryginalnego BOOT.ELF);
+- `DIAG_T.CNF` — skopiować do tego samego katalogu, dokładne 107 bajtów, treść:
+```ini
+boot=PSX_DVR_HDD_DIAG_T_TARGET.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_T_NO_GAME.iso
+arg=-dev9=NICHDD
+```
+- `PSX_DVR_HDD_DIAG_T_LAUNCH.ELF` — uruchomić **wyłącznie przez UDPFS w wLE-R3Z**, nie kopiować go na HDD.
+
+T LAUNCH używa sprawdzonego R3 preflight `FIO_MT_RDONLY`: wymaga pliku T CNF o **dokładnej treści**, z wyjątkiem tolerancji tylko ostatniego LF lub NUL (sprzęt R2 tak odczytywał); sprawdza rozmiar i nagłówek T TARGET oraz podstawową konfigurację oryginalnego `BOOT.CNF`, katalog ISO i obecność Neutrino. Na pierwszym ekranie po `CHECK=0` należy **zrobić zdjęcie** i dopiero świadomie nacisnąć **X**. START przerywa test. `CHECK != 0` oznacza brak zgody na start. OSDMenu dostaje **wyłącznie alternatywną `DIAG_T.CNF`**, nie zmienia oryginalnego `BOOT.CNF`.
+
+T TARGET bezpośrednio po przekazaniu sterowania:
+1. Wyświetla `T0 TARGET ENTRY BEFORE IOP RESET`, wywołuje `SifInitRpc(0)`, próbuje `getcwd` i `fileXioInit`.
+2. Próbuje `fileXioDopen("pfs0:/")` i `fileXioDopen("hdd0:")`, następnie RO open na `pfs0:/config/system.toml`, `pfs0:/modules/dvrfile_fhi.irx`, `config/system.toml`, `modules/dvrfile_fhi.irx` i analogiczne POSIX `open(O_RDONLY)`. Każda operacja ma marker BEGIN, więc w przypadku zawieszenia można zidentyfikować fazę na zdjęciu. `fileXioInit` może zawiesić się, jeśli moduł nie przetrwał handoffu; to obserwacja techniczna, nie automatyczny błąd programu.
+3. **Dopiero po zapisaniu wyników do pamięci EE** resetuje IOP w sposób sprawdzony w DIAG R_ARG, ładuje moduły pad i pokazuje końcowy ekran, z START → XMB. Zapisów na HDD nie wykonuje.
+
+**Interpretacja:** `ARGS_OK=1` potwierdza obsługę ostatniego `-dev9=NICHDD` przez OSDMenu. Negatywne wyniki `PFS0`, `RPC REL` i `POSIX` wskazują brak dostępu w danym środowisku, **nie** dowodzą braku skopiowanych plików. Jeśli wejściowe RPC zawiesi się, ostatni marker `T... BEGIN` pomoże zawęzić problem. Sprawdzenie `cwd` może zwrócić `(getcwd failed)` z powodów zależnych od libc.
+
+Ograniczenie: docelowy program sam w końcu resetuje IOP, więc końcowy ekran pokazuje **zachowane wyniki sprzed resetu**, nie stan środowiska po nim. W testach nie wykonujemy żadnego ISO; ścieżka `DIAG_T_NO_GAME.iso` jest fikcyjna. Konfiguracja i moduły po stronie T nie muszą jeszcze działać jak w Neutrino. Reakcje obcych sterowników OSDMenu/IOP pozostają poza kontrolą testu — wykonać kopię ważnych danych. `main`, działający USB v0.8, partycje Sony i rzeczywiste obrazy ISO pozostają nietknięte; zmiany wyłącznie na gałęzi eksperymentalnej, PR #26 Draft.
+
+---
+
 ## Stały kontekst projektu — źródła Neutrino, rozszerzenie DVR i powód używania USB
 
 **Źródła, do których mamy dostęp w GitHub (zawsze sprawdzać oba przed wnioskami o DVR):**
