@@ -1,3 +1,20 @@
+## DIAG R2 — rozpoznanie powtarzalnego RCNF=-344 (3 listopada 2026)
+
+Użytkownik zgłosił **ten sam błąd po ponownym skopiowaniu oryginalnego DIAG_R.CNF**. Na pierwszym zdjęciu: `CHECK=-136 MOUNT=0`, `RCNF=-344`, `ARG ELF BYTES=1525188`; pozostałe preflight APA/DVR/PFS są OK. Kod wskazuje, że `-344` powstaje po udanym odczytaniu 87 bajtów `DIAG_R.CNF`, gdy `memcmp` wykrywa różnicę od wzorca. Nie należy ponawiać ślepo kopiowania ani uznawać problemu za błąd Neutrino.
+
+**Nowy test DIAG R2:** tylko `PSX_DVR_HDD_DIAG_R2_CNF.ELF` uruchamiany z **UDPFS** w wLE-R3Z. **Nic nowego nie kopiować na HDD**. Istniejący `DIAG_R.CNF`, `R_ARG.ELF`, `BOOT.CNF`, `BOOT.ELF`, `DIAG_Q.CNF` pozostają bez zmian. Program uruchamia znaną inicjalizację, montuje wyłącznie własną partycję `PP.TESTDVR` jako `pfs1:` RO, odczytuje `DIAG_R.CNF` i wyświetla:
+
+- `SIZE` (rozmiar z HDD), `EXPECT` (87), `READ` (faktycznie odczytane bajty),
+- `DIFF OFFSET` (pierwsza różnica bajtowa, `-1` oznacza zgodność), `E` (hex oczekiwany), `A` (hex faktyczny),
+- `CR`, `LF`, `NUL` z zawartości, sumy kontrolne (proste sumy bajtów), osiem bajtów HEX wokół różnicy (`E:` i `A:`),
+- `RCNF`, `CHECK`. Jeśli rozmiar i odczyt są OK, ale `DIFF OFFSET` wskazuje niezgodność, porównamy dokładny fragment. Zero-jedynkowy test `memcmp` zastąpiono jawną pętlą porównania bajtów.
+
+**Brak możliwości uruchomienia docelowego ELF:** kod R2 nie zawiera wywołania `LoadELFFromFile` ani innego loadera i zawsze blokuje X, nawet przy `CHECK=0`; START tylko wychodzi do XMB. W razie błędu użytkownik ma wykonać zdjęcie ekranu, nie edytować plików i nie testować osobno START. Nadal nie potwierdzono przekazania argumentów z OSDMenu, bo R nie wyszedł poza precheck.
+
+Nawet gdy kod aplikacyjny używa tylko `FIO_MT_RDONLY`, sterowniki IOP mogą mieć wewnętrzne zachowania; zachować kopię danych. Żadnych zmian w `main`, stabilnym v0.8, systemowych partycjach, ani w pierwotnym DIAG R. PR pozostaje Draft.
+
+---
+
 ## DIAG R — rzeczywisty OSDMenu i przekazanie argumentów, BEZ Neutrino/gry
 
 **Warunek wejściowy:** użytkownik potwierdził, że oryginalny `PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF` z `hdd0:PP.TESTDVR/DIAG_Q.CNF` uruchomił DIAG F. `DIAG_Q.CNF` ma dokładnie 28 bajtów i nie zawiera `-dev9=NICHDD`. W DIAG J uruchamianie Neutrino z `BOOT.CNF` doprowadziło do powrotu do XMB. Nie wiemy jeszcze, czy problem zależy od argumentów, trybu wyłączenia DEV9 czy samego Neutrino.
