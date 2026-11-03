@@ -26,10 +26,8 @@ jobs:
           assert 'hdd0:PP.NETTEST' in h
           assert 'PP.DVRISO' not in h and 'PP.TESTDVR' not in h
           assert 'LAB_RECV_LIMIT 512U' in h
-          assert 'DVR_NETTEST_A.ELF' in cm
-          assert 'DVR_NETTEST_B.ELF' in cm
-          assert 'DVR_NETTEST_C.ELF' in cm
-          assert 'DVR_NETTEST_CLEAN.ELF' in cm
+          assert 'foreach(mode A B C CLEAN)' in cm
+          assert 'add_executable(DVR_NETTEST_${mode}.ELF' in cm
           assert 'LAB_MODE_A' in s and 'LAB_MODE_B' in s
           assert 'LAB_MODE_C' in s and 'LAB_MODE_CLEAN' in s
           assert 'fileXioMount(LAB_MOUNT,LAB_PARTITION' in s
