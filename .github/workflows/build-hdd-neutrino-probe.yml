@@ -123,11 +123,16 @@ jobs:
           cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF -j2
           test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF
           test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_Y2.CNF
+      - name: Build Y2P alternative strict CNF launcher (same Y2 Neutrino)
+        run: |
+          cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF
+          test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_Y2P.CNF
       - name: Check output is ELF32 little-endian MIPS, and exact dummy CNF
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_X_LE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF"):
+          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_W_ENTRY.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_W_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_X_LE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_Y_FHI.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF"):
               b=Path(name).read_bytes()
               assert b[:6]==b"\x7fELF\x01\x01", name
               assert b[18:20]==b"\x08\x00", name
@@ -171,6 +176,12 @@ jobs:
                       b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
                       b"arg=-dev9=NICHDD\n")
           print("Y2 FHI entry",hex(struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF").read_bytes(),24)[0]))
+          pad=Path("hdd-diagnostics/neutrino-hdd-probe/DIAG_Y2P.CNF").read_bytes()
+          assert pad == y2 + b"#PAD\n"
+          assert pad[-5:-1] == b"#PAD"
+          assert pad.count(b"arg=-dev9=NICHDD\n") == 1
+          assert pad.count(b"boot=") == 1
+          print("Y2P padded CNF",len(pad), "bytes, trailing ignored line")
           PY
       - name: Upload V safe Neutrino HDD probe package
         uses: actions/upload-artifact@v4
@@ -235,5 +246,16 @@ jobs:
             PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF
             build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF
             hdd-diagnostics/neutrino-hdd-probe/DIAG_Y2.CNF
+            hdd-diagnostics/neutrino-hdd-probe/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload Y2P padded quickboot CNF and guarded launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-NEUTRINO-Y2P-PADDED-CNF
+          path: |
+            PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF
+            build-hdd-diag/PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF
+            hdd-diagnostics/neutrino-hdd-probe/DIAG_Y2P.CNF
             hdd-diagnostics/neutrino-hdd-probe/README_PL.md
           if-no-files-found: error
