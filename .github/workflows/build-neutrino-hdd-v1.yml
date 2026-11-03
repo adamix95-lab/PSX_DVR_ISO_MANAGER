@@ -1,0 +1,118 @@
+name: Build Neutrino 1.0 HDD SYSTEM + ENGLISH previews
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/v1.0-hdd]
+    paths:
+      - 'neutrino-hdd-v1/**'
+      - 'neutrino-v02/**'
+      - '.github/workflows/build-neutrino-hdd-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  system:
+    name: Unpacked Neutrino HDD SYSTEM
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Checkout pinned PR228 fork
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply isolated PP.DVRISO runtime wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          git diff --check
+          make -C ee/loader all
+          test -s ee/loader/neutrino_unpacked.elf
+          mkdir -p ../dist-system
+          cp ee/loader/neutrino_unpacked.elf ../dist-system/neutrino_hdd.elf
+      - name: Verify HDD SYSTEM MIPS ELF and static partition boundary
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p=Path("dist-system/neutrino_hdd.elf")
+          b=p.read_bytes()
+          assert b[:4]==b'\x7fELF' and b[4:6]==b'\x01\x01'
+          assert struct.unpack_from('<H',b,18)[0]==8
+          assert b"hdd0:PP.DVRISO" in b and b"PP.TESTDVR" not in b
+          print("SYSTEM: ELF32/MIPS, PP.DVRISO only, bytes",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-Neutrino-v1.0-HDD-SYSTEM-PREVIEW
+          path: dist-system/neutrino_hdd.elf
+          if-no-files-found: error
+
+  english:
+    name: Unpacked Neutrino HDD ENGLISH + matching EE core
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Checkout same pinned PR228 fork
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply existing English OSD hook then independent HDD wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          git diff --check
+          make -C ee/ee_core all
+          make -C ee/loader all
+          test -s ee/ee_core/ee_core.elf
+          test -s ee/loader/neutrino_unpacked.elf
+          mkdir -p ../dist-english/modules ../dist-english/config
+          cp ee/loader/neutrino_unpacked.elf ../dist-english/neutrino_hdd_lang.elf
+          cp ee/ee_core/ee_core.elf ../dist-english/modules/ee_core_lang.elf
+          cp ../manager/neutrino-v02/osdlang.toml ../dist-english/config/osdlang.toml
+      - name: Verify English + HDD MIPS artifacts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          for filename in ("dist-english/neutrino_hdd_lang.elf",
+                           "dist-english/modules/ee_core_lang.elf"):
+              b=Path(filename).read_bytes()
+              assert b[:4]==b'\x7fELF' and b[4:6]==b'\x01\x01'
+              assert struct.unpack_from('<H',b,18)[0]==8
+              print("ENGLISH:",filename,len(b))
+          loader=Path("dist-english/neutrino_hdd_lang.elf").read_bytes()
+          assert b"hdd0:PP.DVRISO" in loader and b"PP.TESTDVR" not in loader
+          config=Path("dist-english/config/osdlang.toml").read_text()
+          assert 'ee_core_lang.elf' in config
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-Neutrino-v1.0-HDD-ENGLISH-PREVIEW
+          path: dist-english/
+          if-no-files-found: error
