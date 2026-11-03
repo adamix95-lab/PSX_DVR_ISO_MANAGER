@@ -26,11 +26,12 @@
 static char report[ART_SYNC_REPORT_MAX + 1U];
 static art_sync_item games[ART_SYNC_GAMES_MAX];
 static int game_count;
-static int last_attempted, last_http_failed, last_write_failed;
-void art_sync_last_stats(int *candidates, int *attempted,
+static int last_attempted, last_not_found, last_http_failed, last_write_failed;
+void art_sync_last_stats(int *candidates, int *attempted, int *not_found,
                          int *http_failed, int *write_failed) {
   if (candidates) *candidates=game_count;
   if (attempted) *attempted=last_attempted;
+  if (not_found) *not_found=last_not_found;
   if (http_failed) *http_failed=last_http_failed;
   if (write_failed) *write_failed=last_write_failed;
 }
@@ -160,6 +161,26 @@ static int download(const probe_config *cfg, const char *id,
     received+=(size_t)rc;
   }
   lwip_close(sock);
+#ifdef DESR_HDD_TEST
+  {
+    int http_status = probe_http_status(response,received);
+    /* PC returns 404 when neither OPL nor PSBBN has this Game ID.
+       Missing artwork is NOT a transient socket failure: skip this
+       game, avoid retrying the same permanent 404, continue the queue. */
+    if (http_status==404) {
+      scr_printf("ART ABSENT: %s (PC HTTP 404)\n", id);
+      return -404;
+    }
+    if (http_status==403) {
+      scr_printf("ART BLOCKED: PC HTTP 403; verify console IP\n");
+      return -403;
+    }
+    if (http_status!=200) {
+      scr_printf("ART HTTP STATUS=%d for %s\n",http_status,id);
+      return -7;
+    }
+  }
+#endif
   if (probe_http_extract_png(response,received,png,png_size)<0) {
     /* Diagnose incomplete TCP body vs unavailable image vs corrupt PNG.
        Preserve the strict PNG CRC and Content-Length checks: NEVER write
@@ -260,8 +281,8 @@ static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
   return 0;
 }
 int art_sync_run(const probe_config *cfg) {
-  int i,attempted=0,saved=0,fail_streak=0,http_failed=0,write_failed=0,stale=0;
-  last_attempted=last_http_failed=last_write_failed=0;
+  int i,attempted=0,saved=0,fail_streak=0,not_found=0,http_failed=0,write_failed=0,stale=0;
+  last_attempted=last_not_found=last_http_failed=last_write_failed=0;
   if (!cfg || game_count<1) return -1;
   for (i=0;i<game_count && attempted<ART_SYNC_BATCH_MAX;i++) {
     char dst[96],tmp[96],jpg[96];
@@ -282,9 +303,20 @@ int art_sync_run(const probe_config *cfg) {
       /* Two connections at most, each closes cleanly before next request. */
       for (retry=0;retry<2;retry++) {
         got=download(cfg,games[i].id,&png,&bytes);
-        if (got==0) break;
+        if (got==0 || got==-404 || got==-403) break;
         scr_printf("HTTP retry %d/2: code %d\n",retry+1,got);
         if (retry==0) usleep(300000);
+      }
+      if (got==-404) {
+        not_found++;
+        fail_streak=0;
+        scr_printf("SKIP NOT FOUND: %s; next game\n",games[i].id);
+        continue;
+      }
+      if (got==-403) {
+        http_failed++;
+        scr_printf("STOP HTTP 403: PC rejects console IP; check server settings\n");
+        break;
       }
       if (got<0) {
         http_failed++;
@@ -310,12 +342,13 @@ int art_sync_run(const probe_config *cfg) {
     usleep(200000);
   }
   last_attempted=attempted;
+  last_not_found=not_found;
   last_http_failed=http_failed;
   last_write_failed=write_failed;
   scr_printf("ART DONE: candidates=%d tried=%d saved=%d\n",
              game_count,attempted,saved);
-  scr_printf("ART ERRORS: HTTP=%d PFS_WRITE=%d STALE_PART=%d\n",
-             http_failed,write_failed,stale);
+  scr_printf("ART RESULTS: NOT_FOUND=%d HTTP_FAIL=%d PFS_WRITE=%d STALE_PART=%d\n",
+             not_found,http_failed,write_failed,stale);
   if (saved>0)
     scr_printf("New PNG covers saved in app ART.\n");
   return saved>0 ? saved : -1;

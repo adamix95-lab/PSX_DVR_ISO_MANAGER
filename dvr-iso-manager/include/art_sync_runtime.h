@@ -14,7 +14,7 @@ int art_sync_prepare(void);
 int art_sync_run(const probe_config *cfg);
 
 /* Last batch counters for the menu status, not only transient console text. */
-void art_sync_last_stats(int *candidates, int *attempted,
+void art_sync_last_stats(int *candidates, int *attempted, int *not_found,
                          int *http_failed, int *write_failed);
 
 #endif

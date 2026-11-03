@@ -93,3 +93,10 @@ WAZNE / HDD TEST FIX2:
  Manager montuje teraz PP.DVRISO przez pfs1: (jak DIAG Z),
  poniewaz OSDMenu i Neutrino potrzebuja wolnego pfs0:.
  CNF argument pozostaje hdd0:PP.DVRISO/BOOT.CNF.
+
+ART HTTP 404 (HDD TEST FIX):
+ Jesli PC nie znajdzie Game ID w OPL ani PSBBN, serwer zwroci
+ HTTP 404. Manager zalicza go do NOT_FOUND/MISS, nie ponawia
+ bezcelowo i przechodzi do nastepnej gry. Kody HTTP 403, bledy
+ transportu oraz niepoprawne PNG pozostaja osobnymi bledami.
+ Nie wylaczono walidacji CRC i nie nadpisuje juz istniejacych ART.

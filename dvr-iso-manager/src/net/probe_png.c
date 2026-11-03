@@ -71,6 +71,18 @@ static int case_prefix(const uint8_t *p, size_t n, const char *word) {
   }
   return 1;
 }
+int probe_http_status(const uint8_t *data, size_t length) {
+  int status;
+  if (!data || length<13 || memcmp(data,"HTTP/1.",7) ||
+      (data[7]!='0' && data[7]!='1') || data[8]!=' ' ||
+      data[9]<'1' || data[9]>'5' ||
+      data[10]<'0' || data[10]>'9' ||
+      data[11]<'0' || data[11]>'9' ||
+      data[12]!=' ') return -1;
+  status=(data[9]-'0')*100+(data[10]-'0')*10+(data[11]-'0');
+  return status;
+}
+
 int probe_http_extract_png(const uint8_t *data, size_t length,
                            const uint8_t **png, size_t *png_length) {
   size_t header_end=0, line=0, body_size=0;

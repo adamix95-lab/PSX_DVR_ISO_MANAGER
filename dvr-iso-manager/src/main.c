@@ -866,11 +866,11 @@ int main(int argc, char *argv[]) {
             matched = desr_covers_refresh(games, count, covers, &identified);
             if (matched >= 0) {
 #ifdef DESR_HDD_TEST
-              int candidates=0,tried=0,http_failed=0,write_failed=0;
-              art_sync_last_stats(&candidates,&tried,&http_failed,&write_failed);
+              int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
+              art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
               snprintf(status,sizeof(status),
-                       "ART: %d/%d saved, HTTP%d PFS%d IDX%d",
-                       saved,candidates,http_failed,write_failed,matched);
+                       "ART: %d/%d OK, MISS%d NET%d PFS%d IDX%d",
+                       saved,candidates,not_found,http_failed,write_failed,matched);
 #else
               snprintf(status,sizeof(status),
                        "ART SYNC: %d saved. INDEX: %d/%d",
@@ -883,11 +883,11 @@ int main(int argc, char *argv[]) {
           } else {
 #ifdef DESR_HDD_TEST
             {
-              int candidates=0,tried=0,http_failed=0,write_failed=0;
-              art_sync_last_stats(&candidates,&tried,&http_failed,&write_failed);
+              int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
+              art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
               snprintf(status,sizeof(status),
-                       "ART: 0/%d, tried%d HTTP%d PFS%d",
-                       candidates,tried,http_failed,write_failed);
+                       "ART: 0/%d, try%d MISS%d NET%d PFS%d",
+                       candidates,tried,not_found,http_failed,write_failed);
             }
 #else
             snprintf(status,sizeof(status),
