@@ -284,3 +284,12 @@ target_link_libraries(PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_Q_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG Q: the *existing* original OSDMenu BOOT.ELF handles real Quickboot
+# and its embedded ELF loader. No new HDD target ELF; target is verified F.
+add_executable(PSX_DVR_HDD_DIAG_Q.ELF
+  src/osdmenu_real_loader_f_probe.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_Q.ELF
+  pad patches fileXio cdvd elf-loader libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_Q.ELF PRIVATE -Os -Wall -Wextra -Werror)
