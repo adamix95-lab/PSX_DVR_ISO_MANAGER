@@ -8,6 +8,7 @@
 #include "cover_preview.h"
 #include "lan_art_sync.h"
 #include "art_sync_runtime.h"
+#include "art_sync.h"
 #include <debug.h>
 #include <elf-loader.h>
 #include <errno.h>
