@@ -48,17 +48,22 @@ jobs:
           make -C ee/loader all
           test -s ee/loader/neutrino.elf
           cp ee/loader/neutrino.elf ../PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF
+          test -s ee/loader/neutrino_unpacked.elf
+          cp ee/loader/neutrino_unpacked.elf ../PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF
       - name: Build isolated real OSDMenu launcher
         run: |
           cmake -S hdd-diagnostics -B build-hdd-diag
           cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF -j2
           test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF
+          cmake --build build-hdd-diag --target PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF -j2
+          test -s build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
+          test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF
           test -s hdd-diagnostics/neutrino-hdd-probe/DIAG_V.CNF
       - name: Check output is ELF32 little-endian MIPS, and exact dummy CNF
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF"):
+          for name in ("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF","PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF","build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF"):
               b=Path(name).read_bytes()
               assert b[:6]==b"\x7fELF\x01\x01", name
               assert b[18:20]==b"\x08\x00", name
@@ -68,6 +73,16 @@ jobs:
                        b"arg=-bsd=dvr\n"
                        b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\n"
                        b"arg=-dev9=NICHDD\n")
+          cnf2=Path("hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF").read_bytes()
+          assert cnf2==(b"boot=PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF\\n"
+                        b"arg=-bsd=dvr\\n"
+                        b"arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso\\n"
+                        b"arg=-dev9=NICHDD\\n")
+          import struct
+          e_packed=struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF").read_bytes(),24)[0]
+          e_plain=struct.unpack_from('<I',Path("PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF").read_bytes(),24)[0]
+          assert e_packed != e_plain, (hex(e_packed),hex(e_plain))
+          print("Packed entry",hex(e_packed),"Unpacked entry",hex(e_plain))
           PY
       - name: Upload V safe Neutrino HDD probe package
         uses: actions/upload-artifact@v4
@@ -77,5 +92,16 @@ jobs:
             PSX_DVR_HDD_NEUTRINO_V_PROBE.ELF
             build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V_LAUNCH.ELF
             hdd-diagnostics/neutrino-hdd-probe/DIAG_V.CNF
+            hdd-diagnostics/neutrino-hdd-probe/README_PL.md
+          if-no-files-found: error
+
+      - name: Upload V2 uncompressed Neutrino HDD probe package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-NEUTRINO-V2-UNPACKED-SAFE-PROBE
+          path: |
+            PSX_DVR_HDD_NEUTRINO_V2_UNPACKED.ELF
+            build-hdd-diag/PSX_DVR_HDD_NEUTRINO_V2_LAUNCH.ELF
+            hdd-diagnostics/neutrino-hdd-probe/DIAG_V2.CNF
             hdd-diagnostics/neutrino-hdd-probe/README_PL.md
           if-no-files-found: error
