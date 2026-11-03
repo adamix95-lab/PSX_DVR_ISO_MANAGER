@@ -1,3 +1,18 @@
+## Stały kontekst projektu — źródła Neutrino, rozszerzenie DVR i powód używania USB
+
+**Źródła, do których mamy dostęp w GitHub (zawsze sprawdzać oba przed wnioskami o DVR):**
+- Główny projekt: https://github.com/ps2max32/neutrino
+- Rozszerzenie pcm720, wprowadzenie dodatkowych modułów i obsługi PSX DVR (otwarty PR #228): https://github.com/ps2max32/neutrino/pull/228
+- Gałąź z kodem autora PR: https://github.com/pcm720/neutrino/tree/bsd-dvr
+
+**Ważne doprecyzowanie użytkownika (3.11.2026):** opisujemy pracę pcm720 przede wszystkim jako **dodanie nowych modułów i backendu obsługi DVR do Neutrino**, a nie jako ogólnikowe „patchowanie uruchamiania” lub naprawienie Neutrino. Podczas startu przez OSDLauncher/OSDMenu przekazywany jest kontekst/argumenty wskazujące obsługę DVR oraz obraz ISO, np. `-bsd=dvr` i `-dvd=dvr_pfs0:/ISO/...`. **Działanie z USB było oryginalnym obejściem**: już na początku projektu PSX DVR ISO MANAGER nie udało się uruchomić połączenia OSDLauncher + Neutrino + moduły DVR wyłącznie z HDD. Dlatego został opracowany wariant działający z pamięci masowej USB. Naszym celem jest **usunąć tę zależność od USB**, zachowując wersję stabilną v0.8.
+
+Fizyczny DIAG Q (bez `-dev9=NICHDD`) wykonał benigny DIAG F z HDD przez rzeczywisty OSDMenu, a R3 uruchomił benigny `R_ARG.ELF` i przekazał `ARGC=3 ARGS_OK=1`. Te dowody **nie** potwierdzają, że pełne Neutrino z dodatkowymi modułami DVR może zostać poprawnie zainicjalizowane z HDD; w szczególności należy sprawdzić dostęp do modułów, konfigurację i ścieżki po handoffie, przejście IOP/DEV9 i fazę uruchamiania obrazu ISO. DIAG S nie jest obowiązkowym następnym krokiem; brak kandydata TOML na `pfs1:` sam nie przesądza o błędzie.
+
+**Dalsze prace:** porównywać dokładnie działającą sekwencję z USB i niedziałającą z HDD w OSDLauncher oraz forku pcm720. Nie traktować problemu jako początku od zera: mamy potwierdzone oddzielne segmenty łańcucha (loader i argv), ale nie kompletny start Neutrino. Nie modyfikować `main`, v0.8, Sony systemowych partycji i działających `BOOT.CNF` bez kontrolowanego eksperymentu. PR #26 pozostaje Draft.
+
+---
+
 ## AKTUALIZACJA 2026-11-03 — DIAG S nie jest wymagany, punktem odniesienia jest patch pcm720 (Neutrino PR #228)
 
 Użytkownik potwierdził, że używa **forka Neutrino z PR [ps2max32/neutrino#228](https://github.com/ps2max32/neutrino/pull/228)** autorstwa **pcm720**, a **nie** obecnego niezmodyfikowanego upstream. PR #228 jest otwarty i nie został zmergowany. Poprzednie rozumowanie „Neutrino nie obsługuje DVR” nie dotyczy naszej wersji i nie może być podstawą do diagnozy. **Nie wymagamy uruchomienia DIAG S**; pozostaje opcjonalnym narzędziem do read-only obserwacji (np. PVD ISO), lecz jego sondowanie układu plików `config/*.toml` względem `pfs1:/` nie dowodzi braków konfiguracji, bo rzeczywisty katalog roboczy Neutrino po OSDLauncher jest nieznany.
