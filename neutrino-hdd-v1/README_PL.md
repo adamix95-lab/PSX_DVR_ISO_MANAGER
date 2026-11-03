@@ -4,14 +4,23 @@
 
 Dodatkowy target CI `DVR_ISO_MANAGER_HDD_PREVIEW.ELF` jest kompilowany z **tych samych źródeł menu** co USB 0.8/1.0, z etykietą **1.0 HDD**, zachowanymi 12 tytułami/stronę i podglądem PNG. Ścieżki aplikacji i cache zostały przeniesione na `pfs0:/` = `hdd0:PP.DVRISO`: `ART/`, `COVERS.IDX`, `COVER_SCAN.LOG`, `NET_PROBE.CNF` i inne. Samo `dvr_pfs0:/ISO` nadal pozostaje tylko do odczytu.
 
-To **jeszcze nie finalny Manager**. Po dotychczasowym resecie IOP wykonywany jest próbny montaż `fileXioMount("pfs0:", "hdd0:PP.DVRISO", FIO_MT_RDONLY)`. Jeśli moduły HDD/PFS lub partycja są niedostępne, program tylko wyświetli kod błędu i zakończy test bez zapisu. X, KWADRAT i pobieranie okładek są celowo zablokowane; TRÓJKĄT wykonuje wyłącznie nowy odczyt listy gier, bez zapisania indeksu. To pierwszy etap sprzętowej weryfikacji urządzenia, nie paczka do instalacji XMB.
+To **jeszcze nie finalny Manager**. Podgląd z commita `b8061f1` po resecie IOP ładuje osobno `ps2dev9`, `ps2atad`, `ps2hdd` i `ps2fs` z dokładnymi argumentami DIAG G, następnie `fileXioInit`, moduły kontrolera, `sceCdInit` / `sceCdNoticeGameStart` oraz `dvrdrv` / `dvrfile`. Dopiero potem sprawdza `hdd0:`, brak kolizji `pfs0:`, montuje `PP.DVRISO` z `FIO_MT_RDONLY` i weryfikuje katalog główny PFS oraz `dvr_pfs0:/ISO`. Jeśli moduły HDD/PFS lub partycja są niedostępne, program tylko wyświetli kod błędu i zakończy test bez zapisu. X, KWADRAT i pobieranie okładek są celowo zablokowane; TRÓJKĄT wykonuje wyłącznie nowy odczyt listy gier, bez zapisania indeksu. To pierwszy etap sprzętowej weryfikacji urządzenia, nie paczka do instalacji XMB.
 
-Do testowania tego targetu `PP.DVRISO` musi już istnieć i zawierać odpowiednie pliki; **nie tworzymy ani nie formatujemy partycji automatycznie**. Następnym krokiem będzie bezpieczny test dostępności wymaganych modułów HDD/PFS z IOP, a dopiero po nim zapis CNF/ART.
+Do testowania tego targetu `PP.DVRISO` musi już istnieć i zawierać odpowiednie pliki; **nie tworzymy ani nie formatujemy partycji automatycznie**. Kompilacja obu wariantów (USB jako kontrola regresji, HDD jako read-only preview), testy generatora CNF i statyczne kontrole bezpieczeństwa zakończyły się sukcesem w GitHub Actions: https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/41699032345 . **Nie jest to jeszcze wynik testu na DESR-7000.** Kolejny etap to fizyczne sprawdzenie obu systemów plików bez zapisu, dopiero potem osobny test zapisu CNF/ART.
 
 ---
 
 
 **Stan sprzętowy:** DIAG Z FIX95 uruchomił prawdziwą grę z HDD na DESR-7000 po przejściu przez OSDMenu i pcm720 Neutrino z DVR. Ten sukces dotyczy testowej partycji PP.TESTDVR oraz wejściowego launchera UDPFS. Nowe PP.DVRISO, pełny Manager HDD i instalator XMB **nie są jeszcze przetestowane**.
+
+
+## Kontrolowany pierwszy test na DESR-7000 (bez zapisu)
+
+- Artefakt: [HDD READONLY PREVIEW z udanej kompilacji](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/41699032345) → sekcja **Artifacts**, nie paczka v1.0 do instalacji.
+- Warunek: partycja aplikacji `hdd0:PP.DVRISO` już istnieje i jest prawidłowa. Test **nie tworzy**, nie formatuje i nie naprawia partycji; nie testować na partycjach Sony. Na razie **nie kopiować** żadnych plików na HDD, jeśli nie przygotowano ich wcześniej w kontrolowany sposób.
+- Uruchomić tylko wariant `DVR_ISO_MANAGER_HDD_PREVIEW.ELF`; sprawdzić ekran inicjalizacji modułów, `APA ROOT`, `PP.DVRISO RO MOUNT`, `PFS ROOT` i `DVR ISO`. Oczekiwane: kody nieujemne i `BOTH FILESYSTEMS READABLE (RO)`.
+- W menu: STRZAŁKI/SELECT mogą nawigować; TRÓJKĄT tylko ponownie odczytuje listę ISO; **X/KWADRAT nie uruchamiają gier ani nic nie zapisują**; START kończy program i odmontowuje własny `pfs0:`.
+- Jeśli program zawiesi się lub zwróci błąd, zanotować ostatni komunikat. Nie ponawiać prób zapisu ani nie zmieniać systemowych partycji PSX. Wynik tylko potwierdzi etap odczytu — nie autoryzuje jeszcze włączenia zapisu.
 
 ## Układ nowej partycji hdd0:PP.DVRISO (pfs0:/)
 
@@ -52,7 +61,7 @@ Wspólna poprawka patch_hdd_runtime.py zawiera potwierdzone na sprzęcie fileXio
 
 ## Etapy pozostające do zrobienia przed wydaniem
 
-1. W Managerze HDD zainicjalizować wymagane moduły HDD/PFS i potwierdzić montowanie PP.DVRISO **tylko do odczytu** po jego resecie IOP.
+1. **Kod i CI gotowe; sprzęt PENDING:** uruchomić osobny `DVR_ISO_MANAGER_HDD_PREVIEW.ELF` na DESR-7000 z uprzednio istniejącą `PP.DVRISO`, potwierdzić komunikat `BOTH FILESYSTEMS READABLE (RO)`, listę ISO, odczyt indeksu i okładek oraz START → XMB. Przy błędzie zrobić zdjęcie kodu; nie nadpisywać żadnych plików.
 2. Dopiero po teście odczytu włączyć bezpieczny zapis w PP.DVRISO: CNF z kopią awaryjną i weryfikacją; indeksy okładek i logi.
 3. Przenieść istniejący downloader HTTP na zapis ART na HDD przez plik .PART i kontrolę przed podmianą. Gry i partycje Sony pozostają nietknięte.
 4. Przetestować samodzielne uruchomienie Managera z HDD, SYSTEM i ENGLISH, ponowne wybieranie gier, ART i stabilność.
