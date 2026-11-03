@@ -1,3 +1,36 @@
+## DIAG Y2P — zabezpieczony wariant CNF po `LAST=01` (3.11.2026)
+
+**Rzeczywisty wynik sprzętowy launchera Y2:** użytkownik uruchomił Y2 przez UDPFS/wLE, na pierwszym ekranie:
+```text
+PSX DVR NEUTRINO Y2 / RESULTS
+CHECK=-136 MOUNT=0
+CNF=91 ELF=197396 NEUT=75140
+SYS=1 BSD=1 DVD=1 USB=0
+ISO=3 DVR=3 PFS=3
+Y2CNF=-344 TARGET ELF BYTES=152116
+Y2CNF PREFIX EXACT. LAST=01 NUL=0
+PRECHECK FAILED; X DISABLED
+```
+Tak więc **Neutrino Y2 w ogóle nie został uruchomiony**. Launcher wykrył dokładne dopasowanie pierwszych 108 z 109 bajtów `DIAG_Y2.CNF`, lecz ostatni bajt został odczytany jako `0x01` zamiast `0x0A` (LF). W dawnym R2 ostatni LF bywał odczytywany jako `0x00`. Nie ma dowodu, czy wynika to z transferu, odczytu fileXio czy zapisu na dysku; nie akceptujemy żadnego `0x01` w aktywnych argumentach.
+
+**Osobna konfiguracja Y2P** omija tylko niepewny końcowy bajt poprzez **dodatkową linię bez `=`** na samym końcu, bez zmiany właściwych argumentów:
+```ini
+boot=PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/DIAG_V_NO_GAME.iso
+arg=-dev9=NICHDD
+#PAD
+```
+W `pcm720/OSDMenu` `launcher/src/handler_quickboot.c` parser pobiera linie przez `fgets`, po czym gdy **nie znajduje `=`**, przechodzi do następnej: `if (!valuePtr) continue;`. Oznacza to, że cała dodatkowa linia `#PAD` jest pomijana, a `-dev9=NICHDD` kończy się normalnym LF jeszcze przed tą linią.
+
+**Rozdzielenie ryzyka:** `DIAG_Y2P.CNF` ma 114 bajtów; nowy `PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF` wymaga całych 113 pierwszych bajtów **byte-for-byte**, w tym kompletnego boot=, dummy -dvd, `-dev9=NICHDD\n` oraz `#PAD`. **Wyłącznie ostatni bajt nieaktywnej linii** może mieć wartość `0x0A`, `0x00` lub zaobserwowane `0x01`; każda inna wartość blokuje X. Nie luzujemy porównania argumentów. Współdzielony z Y2 `PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF` pozostaje **identyczny** i zachowuje hard stop przed `setup_dvd_iso`: brak ISO i gry.
+
+**Test po udanym CI:** skopiować do `hdd0:PP.TESTDVR` **tylko nowy `DIAG_Y2P.CNF`** obok istniejącego `PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF` (jeżeli Y2 FHI.ELF nadal jest obecny; nie trzeba kopiować ponownie); uruchomić osobny `PSX_DVR_HDD_NEUTRINO_Y2P_LAUNCH.ELF` z UDPFS/wLE. Weryfikacja, czy `CHECK=0` i `Y2PCNF=114`; tylko wtedy X. Zrobić zdjęcie `Y2 PRE`, `Y2 ACTUAL SELECT`, `Y2 95` i końcowego `V RESULT/LAST_STAGE`. `LAST=01` tym razem może być bezpiecznie zaakceptowany wyłącznie w pomijanej linii. Jeśli inna wartość, nie naciskać X i zgłosić wynik. Oryginalne BOOT.CNF/BOOT.ELF, Neutrino, ISO, USB v0.8, partycje Sony i stabilny main bez zmian; PR #26 Draft.
+
+**Plan po sukcesie Y2P:** dopiero gdy sprzętowo zweryfikujemy `Y2 ACTUAL SELECT idx=3 dvrfile_fhi.irx`, `Y2 95` i `V RESULT=0 LAST_STAGE=95`, przygotować osobny bezpiecznie bramkowany build uruchamiający rzeczywiste ISO; nie zmieniać fikcyjnego -dvd w diagnostyce Y2P. Przed uruchomieniem gry użytkownik powinien wskazać rzeczywistą nazwę ISO w `dvr_pfs0:/ISO/` bądź bezpiecznie ją pobrać z jego własnego `BOOT.CNF`.
+
+---
+
 ## DIAG Y — rzeczywisty wynik sprzętowy Y88 i wyjaśnienie błędu; DIAG Y2 (3.11.2026)
 
 Użytkownik uruchomił Y normalną ścieżką **wLE-R3Z/UDPFS → Y_LAUNCH.ELF → CHECK=0 → X → oryginalny OSDMenu → Y_FHI.ELF z PP.TESTDVR**. Zdjęcie:
