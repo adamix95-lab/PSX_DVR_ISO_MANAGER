@@ -311,3 +311,13 @@ target_link_libraries(PSX_DVR_HDD_DIAG_R_LAUNCH.ELF
   pad patches fileXio cdvd elf-loader libdebug.a)
 target_compile_options(PSX_DVR_HDD_DIAG_R_LAUNCH.ELF PRIVATE
   -Os -Wall -Wextra -Werror)
+
+# DIAG R2: instrument exact byte differences in DIAG_R.CNF.
+# This standalone read-only probe has no LoadELFFromFile path at all.
+add_executable(PSX_DVR_HDD_DIAG_R2_CNF.ELF
+  src/osdmenu_r2_cnf_byte_probe.c
+  ${G_DIAG_EMBEDDED})
+target_link_libraries(PSX_DVR_HDD_DIAG_R2_CNF.ELF
+  pad patches fileXio cdvd libdebug.a)
+target_compile_options(PSX_DVR_HDD_DIAG_R2_CNF.ELF PRIVATE
+  -Os -Wall -Wextra -Werror)
