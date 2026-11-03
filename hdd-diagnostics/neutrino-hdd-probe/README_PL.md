@@ -1,3 +1,32 @@
+## DIAG Y — rzeczywisty wynik sprzętowy Y88 i wyjaśnienie błędu; DIAG Y2 (3.11.2026)
+
+Użytkownik uruchomił Y normalną ścieżką **wLE-R3Z/UDPFS → Y_LAUNCH.ELF → CHECK=0 → X → oryginalny OSDMenu → Y_FHI.ELF z PP.TESTDVR**. Zdjęcie:
+
+```text
+Y85 LE MODULES READY / FHI NEXT
+Y86 FHI CONFIG INIT BEGIN
+Y87 FHI ACTIVE=1 INIT=0
+Y87 DVR FHI MOD=1 SET=0
+Y88 ERROR DVR FHI MISSING
+V RESULT=-88 LAST_STAGE=88
+NO GAME/ISO EXECUTED.
+```
+
+**Wyjaśnienie w kodzie pcm720:** `ee/loader/src/fhi_config.c` `fhi_config_init()` iteruje po `fhi_bd.irx`, `mmcefhi.irx`, `udpfs_fhi.irx`, `dvrfile_fhi.irx`, wywołuje `module_get_settings()`, a następnie **`memset(s,0,sizeof(settings))` zeruje cały bufor wybranego modułu, również `MODULE_SETTINGS_MAGIC`**. Wcześniejszy DIAG Y wywołał `module_get_settings(dvrfile_fhi)` **po inicjalizacji** i zobaczył `SET=0` — może to być skutek prawidłowej inicjalizacji właśnie modułu DVR! W takim przypadku Y88 jest **fałszywym alarmem diagnostyki**, a nie uszkodzeniem modułu. Jednak `FHI ACTIVE=1` samo nie wskazuje, który backend wybrano. W `iop/dvrfile/src/dvrfile_fhi.c` fork pcm720 rzeczywiście zawiera `struct fhi_fileid fhi = {MODULE_SETTINGS_MAGIC}`. Nie podmieniamy żadnych modułów na dysku na ślepo.
+
+**DIAG Y2** używa dokładnie tego samego Neutrino w wariancie X→Y, z osobnym `patch_y2_fhi_preinit.py`:
+- **PRZED `fhi_config_init`** zapisuje wynik `module_get_settings` każdego z czterech backendów, czy w ogóle znajduje się na liście modułów, rozmiar modułu i to, który **pierwszy** posiada oczekiwany magic.
+- W prawdziwym `fhi_config_init()` wstrzykuje `Y2 ACTUAL SELECT idx=... <nazwa>`, więc odnotuje faktyczny wybór (0: `fhi_bd`, 1: `mmcefhi`, 2: `udpfs_fhi`, **3: `dvrfile_fhi`**).
+- Po inicjalizacji pokaże `Y2 87 DVR PRE=... POST=... CHOSEN=...`. `POST=0` po poprawnym wyborze `dvrfile_fhi` jest **oczekiwane** — init wyzerował magic. Twardy błąd `Y2 88 WRONG FHI BACKEND` pojawi się tylko, jeśli nie wybrano DVR lub FHI nie jest aktywne.
+- Następnie oryginalny kod sprawdzi `cdvdman_emu.irx` (`Y90`), a test zakończy się przy `Y2 95 DVR FHI+CDVD READY / SAFE STOP` z `V RESULT=0 LAST_STAGE=95`.
+- Dalej **bezwzględny STOP przed `setup_dvd_iso`**. Żaden obraz ISO nie jest otwierany, nic się nie zapisuje, gry nie startują. Rzeczywiste przełączanie IOP/SCmd/LE pozostaje takie samo jak fizycznie sprawdzony X85; moduły zewnętrzne mogą mimo to mieć własne skutki uboczne.
+
+**Instrukcja:** na `PP.TESTDVR` skopiować obok poprzednich plików **wyłącznie** `PSX_DVR_HDD_NEUTRINO_Y2_FHI.ELF` i `DIAG_Y2.CNF`; `PSX_DVR_HDD_NEUTRINO_Y2_LAUNCH.ELF` uruchomić poprzez UDPFS i wLE-R3Z. Przy `CHECK=0` sfotografować ekran, nacisnąć X. Zrobić zdjęcie `Y2 PRE`, `Y2 ACTUAL SELECT` i `V RESULT/LAST_STAGE`. Przy zatrzymaniu sfotografować ostatnią linię. Nie nadpisywać oryginalnego `BOOT.CNF`, `BOOT.ELF`, `neutrino.elf`, `config/`, `modules/`, działającego USB v0.8 ani partycji Sony.
+
+**Decyzja o następnym etapie:** użytkownik chce **po fizycznym PASS Y2** przejść do uruchomienia rzeczywistego ISO. Najpierw musi pojawić się `Y2 ACTUAL SELECT idx=3 dvrfile_fhi.irx`, `Y2 95`, `V RESULT=0 LAST_STAGE=95`. Sama zielona kompilacja lub `CHECK=0` nie wystarczają. W następnym, *osobnym* i kontrolowanym buildzie dopiero użyjemy prawdziwej ścieżki ISO z `BOOT.CNF` i sprawdzimy przejście do gry. Nie dopuścić automatycznego startu gry w diagnostyce Y2.
+
+---
+
 ## DIAG Y — backend FHI Neutrino pcm720 po sprzętowym PASS X85 (3.11.2026)
 
 **Potwierdzony tryb testowania X:** Użytkownik uruchomił `PSX_DVR_HDD_NEUTRINO_X_LAUNCH.ELF` z UDPFS przez wLE-R3Z, zobaczył `CHECK=0`, nacisnął X; oryginalny OSDMenu uruchomił plik X_LE.ELF z `hdd0:PP.TESTDVR`. Na fizycznej konsoli widoczne były `X73 OSDCNF RESET SYNC OK`, `X75 DVR SCMD COMPLETED`, `X85 LE MODULES DONE / STOP`, `V RESULT=0 LAST_STAGE=85`. **To jest pełne potwierdzenie oryginalnego łańcucha OSDMenu → Neutrino na HDD do fazy LE**, ale bez ISO i gry.
