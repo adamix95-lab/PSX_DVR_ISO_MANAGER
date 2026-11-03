@@ -62,6 +62,18 @@ jobs:
           assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in main
           assert 'HDD preview: CNF / ART writes and launch disabled' in main
           assert 'hdd0:PP.DVRISO' in paths and 'PP.TESTDVR' not in paths
+          cmake=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          assert 'foreach(name ps2dev9 ps2atad ps2hdd ps2fs)' in cmake
+          assert 'EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES}' in cmake
+          for snippet in ('LOAD(ps2dev9);', 'LOAD(ps2atad);',
+                          'hdd_arguments, sizeof(hdd_arguments)',
+                          'pfs_arguments, sizeof(pfs_arguments)',
+                          'sceCdInit(SCECdINoD)',
+                          'fileXioDopen("hdd0:")',
+                          'fileXioDopen(DVR_FOLDER)',
+                          'hdd_mount_owned = 1;',
+                          'hdd_unmount_owned();'):
+              assert snippet in main, snippet
           print("HDD preview variant, read-only gate, version banners PASS")
           PY
       - name: Build additional HDD read-only preview target

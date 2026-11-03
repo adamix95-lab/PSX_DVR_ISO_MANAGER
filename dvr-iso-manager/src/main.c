@@ -54,6 +54,18 @@ IRX(usbmass_bd_mini);
 IRX(dev9_ns);
 IRX(dvrdrv);
 IRX(dvrfile);
+#ifdef DESR_HDD_PREVIEW
+IRX(ps2dev9);
+IRX(ps2atad);
+IRX(ps2hdd);
+IRX(ps2fs);
+/* These module argument vectors match the proven DESR-7000 DIAG G. */
+static const char hdd_arguments[] = "-o\0" "4\0" "-n\0" "20";
+static const char pfs_arguments[] = "-m\0" "4\0" "-o\0" "10\0" "-n\0" "40";
+typedef char hdd_args_len_check[(sizeof(hdd_arguments) == 11) ? 1 : -1];
+typedef char pfs_args_len_check[(sizeof(pfs_arguments) == 17) ? 1 : -1];
+static int hdd_mount_owned;
+#endif
 
 static char games[DESR_GAME_CAP][DESR_FILENAME_CAP];
 static int count;
@@ -82,8 +94,26 @@ static int load_irx(const char *label, void *irx, unsigned size) {
   return 0;
 }
 
+#ifdef DESR_HDD_PREVIEW
+static int load_irx_args(const char *label, void *irx, unsigned size,
+                         const char *args, unsigned arg_size) {
+  int rv = -999, id;
+  scr_printf("Loading %-18s ", label);
+  id = SifExecModuleBuffer(irx, size, arg_size, (void *)args, &rv);
+  if (id < 0 || rv < 0) {
+    scr_printf("FAIL id=%d rv=%d\n", id, rv);
+    return id < 0 ? id : rv;
+  }
+  scr_printf("OK id=%d rv=%d\n", id, rv);
+  return 0;
+}
+#endif
+
 static int init_drivers(void) {
   int r;
+#ifdef DESR_HDD_PREVIEW
+  u32 notice_arg = 0;
+#endif
   scr_printf("Resetting IOP (no disk writes)...\n");
   while (!SifIopReset("", 0)) { }
   while (!SifIopSync()) { }
@@ -95,27 +125,57 @@ static int init_drivers(void) {
 #define LOAD(name) do { r = load_irx(#name, name##_irx, size_##name##_irx); if (r < 0) return r; } while (0)
   LOAD(iomanX);
   LOAD(fileXio);
+#ifdef DESR_HDD_PREVIEW
+  /* Same APA/PFS driver order as DIAG G. No USB or dev9_ns modules. */
+  LOAD(ps2dev9);
+  LOAD(ps2atad);
+  r = load_irx_args("ps2hdd", ps2hdd_irx, size_ps2hdd_irx,
+                    hdd_arguments, sizeof(hdd_arguments));
+  if (r < 0) return r;
+  r = load_irx_args("ps2fs", ps2fs_irx, size_ps2fs_irx,
+                    pfs_arguments, sizeof(pfs_arguments));
+  if (r < 0) return r;
+  r = fileXioInit();
+  scr_printf("HDD fileXioInit=%d\n", r);
+  if (r < 0) return r;
+#else
+  /* Preserve the tested USB v0.8 initialization order. */
   fileXioInit();
+#endif
   LOAD(sio2man);
   LOAD(mcman);
   LOAD(mcserv);
   LOAD(freepad);
+#ifndef DESR_HDD_PREVIEW
   /* usbmass_bd requires BDM; FAT filesystem handles mass0: USB access. */
   LOAD(bdm);
   LOAD(bdmfs_fatfs);
   LOAD(usbd_mini);
   LOAD(usbmass_bd_mini);
   LOAD(dev9_ns);
+#else
+  /* DIAG G initializes CDVD and notice before DVR modules. */
+  r = sceCdInit(SCECdINoD);
+  scr_printf("HDD sceCdInit=%d\n", r);
+  if (r <= 0) return -201;
+  dvr_notice_game_start = sceCdNoticeGameStart(0, &notice_arg);
+  scr_printf("HDD sceCdNoticeGameStart=%d\n", dvr_notice_game_start);
+  if (dvr_notice_game_start < 0) return -202;
+  usleep(500000);
+#endif
   LOAD(dvrdrv);
   LOAD(dvrfile);
 #undef LOAD
+#ifndef DESR_HDD_PREVIEW
   /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
   dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
   scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
   /* Let USB/DVR devices register. */
   sleep(2);
+#endif
   return 0;
 }
+
 
 static int name_compare(const void *a, const void *b) {
   const char *x = (const char *)a, *y = (const char *)b;
@@ -446,6 +506,50 @@ static int launch_via_quickboot(void) {
   return -95;
 }
 
+#ifdef DESR_HDD_PREVIEW
+/* Operates only on the owner-created application partition. No disk writes. */
+static void hdd_unmount_owned(void) {
+  int rc;
+  if (!hdd_mount_owned) return;
+  rc = fileXioUmount("pfs0:");
+  scr_printf("1.0 HDD: OWN PFS0 UMOUNT=%d\n", rc);
+  if (rc >= 0) hdd_mount_owned = 0;
+}
+static int hdd_mount_readonly(void) {
+  int fd, rc;
+  fd = fileXioDopen("hdd0:");
+  scr_printf("1.0 HDD: APA ROOT=%d\n", fd);
+  if (fd < 0) return fd;
+  fileXioDclose(fd);
+
+  fd = fileXioDopen("pfs0:/");
+  if (fd >= 0) {
+    fileXioDclose(fd);
+    scr_printf("1.0 HDD: PFS0 ALREADY OCCUPIED; ABORT\n");
+    return -210;
+  }
+  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY);
+  scr_printf("1.0 HDD: PP.DVRISO RO MOUNT=%d\n", rc);
+  if (rc < 0) return rc;
+  hdd_mount_owned = 1;
+  fd = fileXioDopen(DESR_APP_ROOT);
+  scr_printf("1.0 HDD: PFS ROOT=%d\n", fd);
+  if (fd < 0) {
+    hdd_unmount_owned();
+    return fd;
+  }
+  fileXioDclose(fd);
+  fd = fileXioDopen(DVR_FOLDER);
+  scr_printf("1.0 HDD: DVR ISO=%d\n", fd);
+  if (fd < 0) {
+    hdd_unmount_owned();
+    return fd;
+  }
+  fileXioDclose(fd);
+  return 0;
+}
+#endif
+
 int main(int argc, char *argv[]) {
   int rc, bits, new_press;
   struct padButtonStatus btn;
@@ -464,22 +568,23 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 #ifdef DESR_HDD_PREVIEW
-  /* First hardware gate for the future HDD Manager. This preview has no
-     write path: PP.DVRISO is only mounted read-only, and every key handler
-     that could save CNF/ART/IDX is explicitly disabled below. */
-  rc = fileXioMount("pfs0:", DESR_APP_PARTITION, FIO_MT_RDONLY);
+  /* Read-only preflight, before loading ISO list or artwork. */
+  rc = hdd_mount_readonly();
   if (rc < 0) {
-    scr_printf("1.0 HDD: PP.DVRISO READ-ONLY MOUNT FAILED %d\n", rc);
-    scr_printf("No writes made. START after reboot/restore.\n");
+    scr_printf("1.0 HDD: READ-ONLY PREFLIGHT FAILED %d\n", rc);
+    scr_printf("PP.DVRISO must exist; no auto-create or writes.\n");
     sleep(60);
     return 3;
   }
-  scr_printf("1.0 HDD: PP.DVRISO READ-ONLY MOUNT OK\n");
+  scr_printf("1.0 HDD: BOTH FILESYSTEMS READABLE (RO)\n");
 #endif
   scan_dvr();
   desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_printf("\nUnable to initialize gamepad\n");
+#ifdef DESR_HDD_PREVIEW
+    hdd_unmount_owned();
+#endif
     sleep(60);
     return 2;
   }
@@ -662,5 +767,8 @@ int main(int argc, char *argv[]) {
   }
   padPortClose(0, 0);
   padEnd();
+#ifdef DESR_HDD_PREVIEW
+  hdd_unmount_owned();
+#endif
   return 0;
 }
