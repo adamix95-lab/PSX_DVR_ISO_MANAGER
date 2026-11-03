@@ -326,7 +326,7 @@ done:
     scr_printf("OSDMENU: pfs1:/BOOT.ELF\n");
     scr_printf("CNF: hdd0:PP.TESTDVR/BOOTQ.CNF\n");
     scr_printf("F ONLY. NEVER BOOT GAME.\n");
-    scr_printf("Q BEFORE LoadELFFromFile\n");
+    scr_printf("Q BEFORE REAL OSDMENU\n");
     sleep(2);
     padPortClose(0, 0);
     padEnd();
