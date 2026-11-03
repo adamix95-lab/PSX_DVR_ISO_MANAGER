@@ -8,7 +8,6 @@
 #include <debug.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <io_common.h>
 #include <iopcontrol.h>
 #include <libpad.h>
 #include <loadfile.h>
@@ -20,6 +19,7 @@
 #include <unistd.h>
 
 #define NEWLIB_PORT_AWARE
+#include <io_common.h>
 #include <fileXio_rpc.h>
 
 #define IRX(name) \
