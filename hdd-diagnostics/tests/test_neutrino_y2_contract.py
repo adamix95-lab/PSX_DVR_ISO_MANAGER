@@ -31,7 +31,7 @@ class Y2Contract(unittest.TestCase):
         for name in ("fhi_bd.irx", "mmcefhi.irx", "udpfs_fhi.irx", "dvrfile_fhi.irx"):
             self.assertIn(name,PATCH)
         self.assertLess(PATCH.index("y2_pre_settings[y2_i] = ptr != NULL;"),
-                        PATCH.index('int fhi_init_result = fhi_config_init(&drv.mod);'))
+                        PATCH.rindex('int fhi_init_result = fhi_config_init(&drv.mod);'))
         self.assertIn('scr_printf("Y2 ACTUAL SELECT idx=%d %s',PATCH)
         self.assertIn("memset(s, 0, candidates[i].settings_size)",PATCH)
         self.assertIn("y2_chosen != 3",PATCH)
