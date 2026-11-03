@@ -7,6 +7,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <stdint.h>
+#include "runtime_storage.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -19,7 +20,7 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#define LAN_CFG "mass0:/DESR_DVR/NET_PROBE.CNF"
+#define LAN_CFG DESR_APP_NET_CFG
 #define LAN_CFG_CAP 512
 
 extern unsigned char netman_irx[] __attribute__((aligned(16)));
