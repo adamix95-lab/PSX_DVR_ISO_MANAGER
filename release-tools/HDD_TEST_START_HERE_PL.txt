@@ -1,0 +1,90 @@
+PSX DVR ISO MANAGER 1.0 HDD — WERSJA TESTOWA, NIE INSTALATOR XMB
+================================================================
+
+UWAGA: najpierw wykonaj kopie waznych danych. To eksperymentalna wersja
+dla PSX DESR-7000, a nie wydanie stabilne. NIE tworzy ani nie formatuje
+automatycznie partycji. NIE instaluj do systemowych partycji Sony.
+
+Wymagania:
+  * Juz istniejaca, wlasna partycja aplikacji: hdd0:PP.DVRISO
+  * Obrazy gier nadal w: dvr_pfs0:/ISO/
+  * Mozliwosc uruchomienia ELF przez wLE/UDPFS lub inny istniejacy
+    bezpieczny sposob (NIE instalowac tego jako XMB na tym etapie).
+
+PLIKI:
+  ZIP/PP.DVRISO-FILES/ — skopiuj ZAWARTOSC tego katalogu bezposrednio
+  do KATALOGU GLOWNEGO partycji PP.DVRISO, NIE do podfolderu.
+  Upewnij sie, ze:
+    pfs0:/DVR_ISO_MANAGER_HDD_TEST.ELF
+    pfs0:/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+    pfs0:/BOOT.ELF
+    pfs0:/neutrino_hdd.elf
+    pfs0:/neutrino_hdd_lang.elf
+    pfs0:/config/system.toml
+    pfs0:/config/bsd-dvr.toml
+    pfs0:/config/osdlang.toml
+    pfs0:/modules/ee_core.elf
+    pfs0:/modules/ee_core_lang.elf
+    pfs0:/modules/dvrfile_fhi.irx
+    pfs0:/ART/
+
+  Nie zmieniaj BOOT.ELF z dzialajacej instalacji diagnostycznej,
+  jesli juz tam jest. ZIP zawiera oryginalny OSDMenu z repozytoryjnego
+  wydania v0.3. Jesli PP.DVRISO ma juz pliki, zrob kopie przed zmianami.
+  ZIP celowo nie zawiera BOOT.CNF — Manager wygeneruje go po X.
+
+ETAP 1 — BEZPIECZNE SPRAWDZENIE:
+  1. Uruchom DVR_ISO_MANAGER_HDD_PREVIEW.ELF.
+  2. Oczekiwane: "BOTH FILESYSTEMS READABLE (RO)", lista gier,
+     wyglad 1.0 HDD, 12 gier/strone, okładki jesli w ART.
+  3. Sprawdz UP/DOWN, LEFT/RIGHT, SELECT oraz TRIANGLE.
+  4. X i KWADRAT sa celowo zablokowane w PREVIEW.
+  5. START powinien zamknac program i odmontowac jego pfs0:.
+  Przy bledzie lub zawieszeniu sfotografuj ostatni komunikat.
+  NIE przechodz do ETAPU 2, jesli ETAP 1 nie przejdzie.
+
+ETAP 2 — ZAPIS TYLKO NA PP.DVRISO:
+  1. Uruchom DVR_ISO_MANAGER_HDD_TEST.ELF.
+  2. SELECT przelacza SYSTEM / ENGLISH (ENGLISH ma osobny
+     neutrino_hdd_lang.elf, config/osdlang.toml i ee_core_lang.elf).
+  3. KWADRAT zapisuje i sprawdza pfs0:/DVR_TEST.CNF.
+     Odczytaj plik w wLE; zwroc uwage na dokladna nazwe ISO.
+  4. TROJKAT skanuje ISO, odczytuje identyfikatory i aktualizuje
+     pfs0:/COVERS.IDX oraz COVER_SCAN.LOG. Gdy brakuje okładek,
+     X na osobnym ekranie proponuje pobieranie ich z lokalnego HTTP
+     serwera do pfs0:/ART/ (NET_PROBE.CNF musi zawierac poprawny IP).
+  5. X w zwyklym menu:
+     - zapisuje i weryfikuje BOOT.NEXT.CNF na PP.DVRISO,
+     - zachowuje pierwsza zastana BOOT.CNF jako BOOT_RECOVERY.CNF,
+     - zachowuje poprzedni aktywny CNF jako BOOT.PREV.CNF,
+     - zmienia BOOT.CNF i uruchamia oryginalny BOOT.ELF z jawnym
+       argumentem hdd0:PP.DVRISO/BOOT.CNF (jak dzialajacy DIAG Z).
+  6. Dla SYSTEM CNF wskazuje neutrino_hdd.elf, dla ENGLISH
+     neutrino_hdd_lang.elf, arg=-cfg=osdlang i arg=-osdlang=en.
+     Obydwa: arg=-bsd=dvr, prawdziwe -dvd=dvr_pfs0:/ISO/NAZWA,
+     -dev9=NICHDD jako ostatni arg oraz #PAD na samym koncu.
+  7. Jesli po nacisnieciu X program/OSDMenu zwroci blad, zanotuj
+     dokladny kod, NIE resetuj/formatuj zadnych partycji w ciemno.
+
+PRZED PIERWSZYM X:
+  Sprawdz, czy nazwa ISO w DVR odpowiada DOKLADNIE zapisowi (np.
+  MGS 2.ISO z wielkimi literami, a nie MGS 2.iso). To byl warunek
+  sprzetowego sukcesu FIX95. Neutrino HDD zawiera porownanie
+  realnej sciezki wybranej gry po odczycie konfiguracji.
+  Pierwszy test wykonaj najlepiej w SYSTEM, potem ENGLISH.
+
+BEZPIECZENSTWO:
+  * Do pierwszego nacisniecia X/KWADRAT/TROJKAT HDD TEST montuje
+    PP.DVRISO w RO. Zapis RW jest wlaczany dopiero na polecenie.
+  * Kod Managera NIE zapisuje ani nie zmienia dvr_pfs0:/ISO i
+    systemowych partycji Sony; oryginalne IRX/firmware maja wlasne
+    zachowanie. Gra moze samodzielnie zapisac save na Memory Card.
+  * Przy przerwanym zapisie BOOT.NEXT.CNF zostaje jako diagnostyka.
+    Nie kasuj go bez kopii. BOOT_RECOVERY.CNF nie jest automatycznie
+    nadpisywany, gdy juz istnieje.
+  * Wersje USB 0.8, main i diagnostyczny Draft PR #26 sa oddzielne.
+  * HDD TEST + oba Neutrino z PP.DVRISO nie sa jeszcze potwierdzone
+    na fizycznej konsoli; CI = tylko kompilacja i testy statyczne.
+
+Sfotografuj wynik PREVIEW, potem testu KWADRAT, a na koncu
+uruchomienie gry SYSTEM/ENGLISH. To pozwoli dopracowac v1.0 HDD.
