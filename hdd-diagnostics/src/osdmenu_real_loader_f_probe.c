@@ -290,10 +290,10 @@ int main(void)
     scr_printf("Q25 NOTICE=%d arg=%u\n", rv, notice_arg);
     if (rv < 0) { result = rv; goto done; }
     usleep(500000);
-    LOAD(dvrdrv, "J DVRDRV");
-    LOAD(dvrfile, "J DVRFILE");
-    iso_code = directory("J DVR ISO", "dvr_pfs0:/ISO");
-    pfs_code = directory("J PFS AGAIN", PFS_MOUNTPOINT "/");
+    LOAD(dvrdrv, "Q DVRDRV");
+    LOAD(dvrfile, "Q DVRFILE");
+    iso_code = directory("Q DVR ISO", "dvr_pfs0:/ISO");
+    pfs_code = directory("Q PFS AGAIN", PFS_MOUNTPOINT "/");
     result = -136;
     if (iso_code >= 0 && pfs_code >= 0 &&
         boot_cnf == (int)(sizeof(expected_q_cnf) - 1) &&
@@ -325,7 +325,7 @@ done:
     scr_printf("OSDMENU: pfs1:/BOOT.ELF\n");
     scr_printf("CNF: hdd0:PP.TESTDVR/BOOTQ.CNF\n");
     scr_printf("F ONLY. NEVER BOOT GAME.\n");
-    scr_printf("J BEFORE LoadELFFromFile\n");
+    scr_printf("Q BEFORE LoadELFFromFile\n");
     sleep(2);
     padPortClose(0, 0);
     padEnd();
@@ -334,7 +334,7 @@ done:
     /* If the loader returns, IOP state is not guaranteed; avoid further
      * HDD, pad or IOP RPC calls. Report exact error and request reboot. */
     scr_clear();
-    scr_printf("J CHAINLOAD RETURNED=%d\n", rv);
+    scr_printf("Q CHAINLOAD RETURNED=%d\n", rv);
     scr_printf("NO MORE IOP CALLS. PHOTO / REBOOT.\n");
     for (;;) sleep(1);
     return 1;
