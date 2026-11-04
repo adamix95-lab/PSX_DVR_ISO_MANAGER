@@ -100,3 +100,39 @@ jobs:
           name: DESR-NATIVE-QUIT-${{ matrix.storage }}-${{ matrix.language }}-UNTESTED
           path: dist/
           if-no-files-found: error
+
+  test-managers:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build additional Managers with the original launch mechanism
+        run: |
+          apk add --no-cache cmake build-base python3
+          python3 neutrino-desr-quit/patch_test_manager.py dvr-iso-manager
+          cmake -S dvr-iso-manager -B build-quit
+          cmake --build build-quit --target DVR_ISO_MANAGER.ELF DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          mkdir -p dist/USB dist/HDD
+          cp build-quit/DVR_ISO_MANAGER.ELF dist/USB/DVR_ISO_MANAGER_USB_QUIT.ELF
+          cp build-quit/DVR_ISO_MANAGER_HDD_TEST.ELF dist/HDD/DVR_ISO_MANAGER_HDD_QUIT.ELF
+          cp neutrino-desr-quit/README_PL.md dist/
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          for p in Path('dist').rglob('*.ELF'):
+              b=p.read_bytes()
+              assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',b,18)[0]==8
+              assert b'QUIT TEST' in b
+              if '/HDD/' in str(p):
+                  assert b'boot=neutrino_hdd_quit.elf' in b
+                  assert b'boot=neutrino_hdd_quit_lang.elf' in b
+                  assert b'hdd0:PP.DVRISO/BOOT.CNF' in b
+              else:
+                  assert b'neutrino_quit.elf' in b and b'neutrino_quit_lang.elf' in b
+              print(p,len(b),'ELF32/MIPS test Manager verified')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-NATIVE-QUIT-test-managers-UNTESTED
+          path: dist/
+          if-no-files-found: error
