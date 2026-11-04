@@ -1,0 +1,102 @@
+name: Build isolated native DESR QUIT GAME
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/neutrino-desr-igr]
+    paths:
+      - 'neutrino-desr-quit/**'
+      - '.github/workflows/build-neutrino-desr-quit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [usb, hdd]
+        language: [system, english]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply only native QUIT fix over the verified runtime
+        shell: bash
+        env:
+          STORAGE: ${{ matrix.storage }}
+          LANGUAGE: ${{ matrix.language }}
+        run: |
+          set -euo pipefail
+          cc -std=c99 -Wall -Wextra -Werror manager/neutrino-desr-quit/tests/test_command.c -o /tmp/desr-quit-command-test
+          /tmp/desr-quit-command-test
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          if [ "$LANGUAGE" = english ]; then
+            git -C neutrino apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          fi
+          if [ "$STORAGE" = hdd ]; then
+            python3 manager/neutrino-hdd-v1/patch_hdd_runtime.py neutrino/ee/loader/src/main.c
+            python3 manager/neutrino-hdd-v1/patch_hdd_stages.py neutrino/ee/loader/src/main.c
+            python3 manager/neutrino-hdd-v1/patch_hdd_config_trace.py neutrino/ee/loader/src/main.c neutrino/ee/loader/src/config.c
+            python3 manager/neutrino-hdd-v1/patch_hdd_error_screen.py neutrino/ee/loader/src/main.c neutrino/ee/loader/Makefile
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path('neutrino/ee/loader/src/main.c')
+          s=p.read_text()
+          for old,new in [('hdd0:PP.DVRISO:pfs:/neutrino_hdd.elf','hdd0:PP.DVRISO:pfs:/neutrino_hdd_quit.elf'),
+                          ('hdd0:PP.DVRISO:pfs:/neutrino_hdd_lang.elf','hdd0:PP.DVRISO:pfs:/neutrino_hdd_quit_lang.elf')]:
+              assert s.count(old)==1
+              s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          fi
+          python3 manager/neutrino-desr-quit/patch_native_quit.py neutrino/ee/loader/src/main.c
+          git -C neutrino diff --check
+      - name: Compile all four loader variants and verify language core still builds
+        shell: bash
+        env:
+          STORAGE: ${{ matrix.storage }}
+          LANGUAGE: ${{ matrix.language }}
+        run: |
+          set -euo pipefail
+          if [ "$LANGUAGE" = english ]; then
+            make -C neutrino/ee/ee_core all
+          fi
+          make -C neutrino/ee/loader all
+          mkdir -p dist
+          suffix=""
+          if [ "$LANGUAGE" = english ]; then suffix="_lang"; fi
+          prefix="neutrino"
+          if [ "$STORAGE" = hdd ]; then prefix="neutrino_hdd"; fi
+          cp neutrino/ee/loader/neutrino_unpacked.elf "dist/${prefix}_quit${suffix}.elf"
+          cp manager/neutrino-desr-quit/README_PL.md dist/
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          for p in Path('dist').glob('*.elf'):
+              b=p.read_bytes()
+              assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from('<H',b,18)[0]==8
+              assert b'DESR QUIT: mode=1 bytes=1' in b
+              assert b'QuickBoot before EE' in b
+              assert b'ROM before LE' in b
+              if 'hdd_' in p.name:
+                  assert b'HDD FIX95 ISO argument/path mismatch' in b
+                  assert b'hdd0:PP.DVRISO:pfs:/neutrino_hdd_quit.elf' in b
+                  assert b'PP.TESTDVR' not in b
+              print(p, len(b), 'ELF32/MIPS verified')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-NATIVE-QUIT-${{ matrix.storage }}-${{ matrix.language }}-UNTESTED
+          path: dist/
+          if-no-files-found: error
