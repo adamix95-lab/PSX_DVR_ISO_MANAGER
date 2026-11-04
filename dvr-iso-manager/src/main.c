@@ -141,7 +141,13 @@ static int init_drivers(void) {
   LOAD(fileXio);
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   /* Same APA/PFS driver order as DIAG G. No USB or dev9_ns modules. */
+#ifdef DESR_HDD_NETFIX
+  /* One DEV9 provider only. This is the exact PSX-capable module already
+     used by USB; its no-shutdown option does not remove ATA/DVR DMA. */
+  LOAD(dev9_ns);
+#else
   LOAD(ps2dev9);
+#endif
   LOAD(ps2atad);
   r = load_irx_args("ps2hdd", ps2hdd_irx, size_ps2hdd_irx,
                     hdd_arguments, sizeof(hdd_arguments));

@@ -1,0 +1,83 @@
+name: Build isolated HDD cover network repair
+on:
+  push:
+    branches: [fix/hdd-cover-network-integrity]
+    paths:
+      - 'hdd-netfix/**'
+      - 'dvr-iso-manager/**'
+      - '.github/workflows/build-hdd-netfix.yml'
+  workflow_dispatch:
+    inputs:
+      rx_pio:
+        description: 'Fallback only after the normal NETFIX result: disable SMAP RX DMA'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Install build utilities
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - name: Verify USB DEV9 binary and exercise patched RX ownership
+        run: |
+          cd manager
+          echo '5cdd4539464a2fe92d95d93692239c2bc80b9a99f0d7644d18ae66b756c68201  dvr-iso-manager/modules/dev9_ns.irx' | sha256sum -c -
+          PS2SDK_SOURCE="$GITHUB_WORKSPACE/sdk-source" python3 -m unittest discover -s hdd-netfix -p 'test_*.py' -v
+      - name: Patch pinned SDK and rebuild matching EE and IOP components
+        env:
+          RX_PIO: ${{ inputs.rx_pio || false }}
+        run: |
+          if [ "$RX_PIO" = true ]; then
+            python3 manager/hdd-netfix/patch_sdk.py sdk-source --rx-pio
+          else
+            python3 manager/hdd-netfix/patch_sdk.py sdk-source
+          fi
+          export PS2SDKSRC="$GITHUB_WORKSPACE/sdk-source"
+          make -C sdk-source -j2 SUBDIRS='tools common iop ee' install
+          mkdir -p manager/dist
+          {
+            echo "Manager commit: $GITHUB_SHA"
+            echo 'SDK commit: d41ea62946e53d9a0c8788bb9eb8c8faf488b559'
+            echo "SMAP RX PIO fallback: $RX_PIO"
+            echo 'NETMAN RX: isolated uncached bounce frames; IP/TCP checksums: enabled'
+            echo 'DEV9: exact USB dev9_ns, single loaded provider'
+            mips64r5900el-ps2-elf-gcc --version
+            sha256sum "$PS2SDK/ee/lib/libps2ip.a" "$PS2SDK/ee/lib/libnetman.a"
+            sha256sum "$PS2SDK/iop/irx/netman.irx" "$PS2SDK/iop/irx/smap.irx"
+            sha256sum "$PS2SDK/iop/irx/ps2atad.irx" "$PS2SDK/iop/irx/ps2hdd.irx" "$PS2SDK/iop/irx/ps2fs.irx"
+          } > "$PS2SDK/HDD_NETFIX_BUILD.txt"
+          cp "$PS2SDK/HDD_NETFIX_BUILD.txt" manager/dist/BUILD_INFO.txt
+          git -C sdk-source diff > manager/dist/SDK_CHANGES.patch
+      - name: Run Manager host checks
+        run: |
+          cd manager
+          sh hdd-netfix/check_host.sh
+      - name: Build separate NETFIX Manager
+        run: |
+          cd manager
+          cmake -S dvr-iso-manager -B build-netfix -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-netfix --target DVR_ISO_MANAGER_HDD_NETFIX.ELF -j2
+          test -s build-netfix/DVR_ISO_MANAGER_HDD_NETFIX.ELF
+          cp build-netfix/DVR_ISO_MANAGER_HDD_NETFIX.ELF dist/
+          cp build-netfix/HDD_NETFIX.map dist/
+          cp hdd-netfix/README_PL.md dist/
+          cd dist
+          sha256sum DVR_ISO_MANAGER_HDD_NETFIX.ELF > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-HDD-NETFIX-${{ inputs.rx_pio && 'PIO' || 'DMA' }}
+          path: manager/dist/
+          if-no-files-found: error

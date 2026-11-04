@@ -67,3 +67,18 @@ target_compile_definitions(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE DESR_HDD_PR
 target_include_directories(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
 target_link_libraries(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
 target_compile_options(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE -Os -Wall -Wextra)
+
+# Explicitly opt in: the older USB/HDD targets and bundled modules stay intact.
+# The dedicated workflow rebuilds PS2SDK with the matching RX/cache patch first.
+option(DESR_BUILD_HDD_NETFIX "Build the isolated HDD network repair" OFF)
+if(DESR_BUILD_HDD_NETFIX)
+  if(NOT EXISTS "$ENV{PS2SDK}/HDD_NETFIX_BUILD.txt")
+    message(FATAL_ERROR "NETFIX requires its patched, pinned SDK; use build-hdd-netfix.yml")
+  endif()
+  add_executable(DVR_ISO_MANAGER_HDD_NETFIX.ELF EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES})
+  target_compile_definitions(DVR_ISO_MANAGER_HDD_NETFIX.ELF PRIVATE DESR_HDD_TEST=1 DESR_HDD_NETFIX=1)
+  target_include_directories(DVR_ISO_MANAGER_HDD_NETFIX.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
+  target_link_libraries(DVR_ISO_MANAGER_HDD_NETFIX.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+  target_compile_options(DVR_ISO_MANAGER_HDD_NETFIX.ELF PRIVATE -Os -Wall -Wextra)
+  target_link_options(DVR_ISO_MANAGER_HDD_NETFIX.ELF PRIVATE "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/HDD_NETFIX.map")
+endif()

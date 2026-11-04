@@ -193,11 +193,9 @@ static int download(const probe_config *cfg, const char *id,
     {
       size_t remaining=BUF_CAP-received;
 #ifdef DESR_HDD_ART_PROBE
-      /* PS2SDK ps2ips RPC uses an IOP staging buffer BUFF_SIZE=1024
-         with only 32 bytes slack, although the DMA base can be offset
-         by up to 64. Request <=512 per recv as a controlled probe for
-         the known large-recv buffer-overrun/corrupted-PNG symptom.
-         DO NOT apply to the proven USB/HDD game launcher builds yet. */
+      /* Historical timing probe only. This program links EE-side ps2ip,
+         not the ps2ips RPC socket client; its 1024-byte staging-buffer
+         theory does not apply here. NETFIX uses the normal recv size. */
       if (remaining>512U) remaining=512U;
 #endif
       rc=lwip_recv(sock,response+received,(int)remaining,0);
