@@ -140,7 +140,7 @@ static int init_drivers(void) {
   LOAD(iomanX);
   LOAD(fileXio);
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
-  /* Same APA/PFS driver order as DIAG G. No USB or dev9_ns modules. */
+  /* Same APA/PFS driver order as DIAG G; NETFIX selects the USB DEV9. */
 #ifdef DESR_HDD_NETFIX
   /* One DEV9 provider only. This is the exact PSX-capable module already
      used by USB; its no-shutdown option does not remove ATA/DVR DMA. */
@@ -266,7 +266,11 @@ static void draw(void) {
 
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
+#ifdef DESR_HDD_NETFIX
+  scr_setXY(62, 1);
+#else
   scr_setXY(69, 1);
+#endif
   scr_printf("%s", DESR_APP_VARIANT);
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);

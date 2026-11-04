@@ -46,7 +46,7 @@ jobs:
             python3 manager/hdd-netfix/patch_sdk.py sdk-source
           fi
           export PS2SDKSRC="$GITHUB_WORKSPACE/sdk-source"
-          make -C sdk-source -j2 SUBDIRS='tools common iop ee' install
+          make -C sdk-source -j2 install
           mkdir -p manager/dist
           {
             echo "Manager commit: $GITHUB_SHA"
