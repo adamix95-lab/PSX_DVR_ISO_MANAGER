@@ -35,7 +35,8 @@ Ta próba nie zawiera wcześniejszego prototypu przechwytywania pada z LUNA.
 
 ## Pliki testowe i wymagania
 
-To są cztery dodatkowe loadery, bez nowych modułów ani Managera:
+Paczka zawiera cztery dodatkowe loadery i dwa osobne Managery testowe.
+Nie trzeba zmieniać nazw oryginalnych ELF-ów ani wgrywać nowych modułów:
 
 | Miejsce startu Managera | Język | Loader testowy |
 | --- | --- | --- |
@@ -51,24 +52,29 @@ ENGLISH używa istniejącego, sprawdzonego `config/osdlang.toml` oraz
 
 ## Test na DESR
 
-1. Wgraj wybrane loadery obok oryginalnych, na USB do dotychczasowego katalogu
-   `DESR_DVR`, a na HDD do katalogu głównego `PP.DVRISO`. Nie zmieniaj nazw
-   oryginalnych ELF-ów ani modułów.
-2. Zachowaj kopię dotychczasowego `BOOT.CNF`. Wybierz grę normalnie w Managerze,
-   aby jego sprawny mechanizm wygenerował konfigurację. Jeśli gra wystartuje,
-   zakończ ją dotychczasowym sposobem. Następnie zmień w wygenerowanym `BOOT.CNF`
-   tylko wiersz `boot=` na odpowiednią nazwę z tabeli. Zachowaj nazwę ISO,
-   kolejność i treść `arg=`, tryb języka oraz końcowy `#PAD`.
-3. Uruchom dotychczasowy OSDLauncher `BOOT.ELF` przez wLE z tego samego katalogu.
-   Launcher ma użyć zmienionego `BOOT.CNF`. Nie wybieraj ponownie gry w Managerze,
-   bo odtworzy on konfigurację wskazującą oryginalne Neutrino.
+1. Dla USB skopiuj trzy pliki z `USB/` do dotychczasowego `mass0:/DESR_DVR/`.
+   Dla HDD skopiuj trzy pliki z `HDD/` do katalogu głównego `PP.DVRISO`.
+   Pozostaw oryginalne Managery, Neutrino, `BOOT.ELF`, `config/` i `modules/`.
+2. W wLE uruchom `DVR_ISO_MANAGER_USB_QUIT.ELF` albo
+   `DVR_ISO_MANAGER_HDD_QUIT.ELF`. Nagłówek musi zawierać `QUIT TEST`.
+3. Wybierz grę, ustaw SYSTEM lub ENGLISH jak zwykle i naciśnij X. Testowy
+   Manager korzysta z dotychczasowej ścieżki OSDMenu/FIX95, w tym jawnego
+   argumentu `hdd0:PP.DVRISO/BOOT.CNF` na HDD. Zmienia jedynie nazwy loaderów
+   wpisywanych do normalnego `BOOT.CNF`. Nie edytuj konfiguracji ręcznie.
 4. Po pełnym uruchomieniu gry naciśnij raz fizyczny QUIT GAME. Nie naciskaj go
    podczas zapisywania stanu gry na karcie pamięci. Oczekiwany wynik: XMB.
 5. Podaj grę, USB/HDD, SYSTEM/ENGLISH, czy gra wystartowała, oraz wynik QUIT:
    XMB / brak reakcji / czarny ekran / inne. Jeśli loader pokaże błąd `-97`,
    sfotografuj również `DESR QUIT: ... rpc=... status=...`.
-6. Przywróć kopię `BOOT.CNF`; kolejny normalny wybór gry w Managerze również
-   odtworzy oryginalny wpis `boot=`. Pliki testowe można potem usunąć.
+6. Aby wrócić do sprawnej wersji, uruchom oryginalny Manager i wybierz grę X.
+   Odtworzy on `BOOT.CNF` z nazwą oryginalnego Neutrino. Same testowe pliki
+   można później usunąć. Do tego czasu samodzielny `BOOT.ELF` będzie korzystał
+   z ostatniego wpisu w `BOOT.CNF`, czyli może nadal wskazywać loader testowy.
+
+Dodatkowe Managery są budowane z bazy gałęzi HDD, z jedyną zmianą nazw
+Neutrino oraz nagłówka `QUIT TEST`. Nie zawierają poprawki HDD NETFIX; test
+QUIT nie sprawdza pobierania okładek. Jak normalny Manager, mogą aktualizować
+indeks i zapisywać `BOOT.CNF`; to nie są aplikacje tylko do odczytu.
 
 Nie trzeba pilota ani kombinacji przycisków pada. Jeśli tryb `1` zostanie
 zaakceptowany, lecz fizyczny przycisk nadal nie zadziała, kolejnym etapem będzie
@@ -85,4 +91,6 @@ To nie emuluje sprzętowego QUIT ani powrotu do XMB.
 Workflow `build-neutrino-desr-quit.yml` buduje cztery loadery w
 `ps2max/dev:v20260228`, sprawdza ELF32/MIPS, komunikaty i zachowanie FIX95,
 a dla ENGLISH kompiluje również niezmieniony core językowy jako kontrolę.
+Osobne zadanie buduje oba testowe Managery i sprawdza nowe cele `boot=`
+oraz zachowanie jawnego argumentu CNF dla HDD.
 Wynik konkretnego uruchomienia CI należy sprawdzić przed użyciem artefaktów.
