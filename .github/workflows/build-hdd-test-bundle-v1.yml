@@ -5,6 +5,7 @@ on:
     branches: [feature/v1.0-hdd]
     paths:
       - 'dvr-iso-manager/**'
+      - 'hdd-netfix/**'
       - 'neutrino-hdd-v1/**'
       - 'neutrino-v02/**'
       - 'release-tools/build_hdd_bundle_v1.py'
@@ -21,21 +22,31 @@ jobs:
     container: ghcr.io/ps2homebrew/ps2homebrew:main
     steps:
       - uses: actions/checkout@v4
-      - run: apk add --no-cache cmake build-base
+      - run: apk add --no-cache cmake build-base python3 bash git patch
       - name: Host-test SYSTEM/ENGLISH HDD CNF, #PAD and ISO case
         run: |
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include \
             dvr-iso-manager/src/iso_utils.c dvr-iso-manager/src/hdd_boot_config.c \
             dvr-iso-manager/tests/test_hdd_boot_config.c -o /tmp/test_hdd_boot_config
           /tmp/test_hdd_boot_config
-      - name: Compile both HDD targets
+      - name: Compile read-only HDD preview
         run: |
           cmake -S dvr-iso-manager -B build-hdd-v1
           cmake --build build-hdd-v1 --target DVR_ISO_MANAGER_HDD_PREVIEW.ELF -j2
-          cmake --build build-hdd-v1 --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
           mkdir -p dist
           cp build-hdd-v1/DVR_ISO_MANAGER_HDD_PREVIEW.ELF dist/
-          cp build-hdd-v1/DVR_ISO_MANAGER_HDD_TEST.ELF dist/
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build the patched SDK for interactive HDD
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Compile interactive HDD Manager with NETFIX
+        run: |
+          cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF dist/
           test -s dist/DVR_ISO_MANAGER_HDD_TEST.ELF
       - name: Verify separate RO and opt-in HDD TEST source
         run: |

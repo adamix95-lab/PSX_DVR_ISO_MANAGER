@@ -68,6 +68,9 @@ static int network_init(const probe_config *cfg) {
   int link=0,i;
   if (network_started) return 0;
   scr_printf("Starting NETMAN + SMAP (no extra DEV9)\n");
+#ifdef DESR_HDD_NETFIX
+  scr_printf("NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum\n");
+#endif
   if (load_network_irx("netman",netman_irx,size_netman_irx)<0 ||
       load_network_irx("smap",smap_irx,size_smap_irx)<0) return -1;
 
