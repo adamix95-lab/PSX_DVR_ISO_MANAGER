@@ -112,8 +112,17 @@ def build(args: argparse.Namespace) -> None:
     # The interactive Manager MUST reference BOTH binaries on its own
     # pfs1: mount. OSDMenu/Neutrino themselves later use pfs0:.
     test_manager = payload["DVR_ISO_MANAGER_HDD_TEST.ELF"]
-    if b"1.0 HDD NETFIX" not in test_manager:
-        raise ValueError("HDD TEST Manager must include NETFIX")
+    # The patched SDK and DESR_HDD_NETFIX compile target are required
+    # by CI. Release UI deliberately has no developer network banner.
+    for required in (b"1.0 HDD", b"ART SYNC: %d saved. INDEX: %d/%d"):
+        if required not in test_manager:
+            raise ValueError(f"Missing release UI text: {required!r}")
+    for forbidden in (b"1.0 HDD NETFIX", b"BAD ID %.11s",
+                      b"HTTP DETAIL:", b"ART RESULTS: NOT_FOUND=",
+                      b"HTTP BAD:", b"HTTP BODY:", b"HTTP FAILURE stage=",
+                      b"NETFIX: USB DEV9"):
+        if forbidden in test_manager:
+            raise ValueError(f"Debug text in HDD release ELF: {forbidden!r}")
     for required_path in (
             b"pfs1:/neutrino_hdd.elf",
             b"pfs1:/neutrino_hdd_lang.elf"):
