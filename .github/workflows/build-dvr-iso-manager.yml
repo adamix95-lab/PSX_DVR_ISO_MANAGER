@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'dvr-iso-manager/**'
+      - 'hdd-netfix/**'
       - '.github/workflows/build-dvr-iso-manager.yml'
 permissions:
   contents: read
@@ -14,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install CMake
-        run: apk add --no-cache cmake build-base
+        run: apk add --no-cache cmake build-base python3 bash git patch
       - name: Host-side validation
         run: |
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/iso_utils.c dvr-iso-manager/tests/test_iso_utils.c -o /tmp/test_cnf
@@ -105,16 +106,6 @@ jobs:
           assert '"pfs0:/neutrino_hdd' not in storage
           print('HDD TEST PFS1 + separate READONLY preview guards PASS')
           PY
-      - name: Build HDD TEST interactive target
-        run: |
-          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
-          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_TEST.ELF
-      - name: Upload standalone 1.0 HDD TEST
-        uses: actions/upload-artifact@v4
-        with:
-          name: PSX-DVR-ISO-Manager-v1.0-HDD-TEST-ELF
-          path: build-dvr-manager/DVR_ISO_MANAGER_HDD_TEST.ELF
-          if-no-files-found: error
       - name: Build HDD LAN RAM-only diagnostic
         run: |
           cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF -j2
@@ -160,3 +151,22 @@ jobs:
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build the patched SDK for interactive HDD
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build HDD TEST interactive target with NETFIX
+        run: |
+          cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          test -s build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
+      - name: Upload standalone 1.0 HDD TEST
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-TEST-ELF
+          path: build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
+          if-no-files-found: error

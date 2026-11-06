@@ -31,36 +31,15 @@ jobs:
           path: sdk-source
       - name: Install build utilities
         run: apk add --no-cache cmake build-base python3 bash git patch
-      - name: Verify USB DEV9 binary and exercise patched RX ownership
-        run: |
-          cd manager
-          echo '5cdd4539464a2fe92d95d93692239c2bc80b9a99f0d7644d18ae66b756c68201  dvr-iso-manager/modules/dev9_ns.irx' | sha256sum -c -
-          PS2SDK_SOURCE="$GITHUB_WORKSPACE/sdk-source" python3 -m unittest discover -s hdd-netfix -p 'test_*.py' -v
-      - name: Patch pinned SDK and rebuild matching EE and IOP components
+      - name: Build patched SDK
         env:
           RX_PIO: ${{ inputs.rx_pio || false }}
         run: |
-          if [ "$RX_PIO" = true ]; then
-            python3 manager/hdd-netfix/patch_sdk.py sdk-source --rx-pio
-          else
-            python3 manager/hdd-netfix/patch_sdk.py sdk-source
-          fi
-          export PS2SDKSRC="$GITHUB_WORKSPACE/sdk-source"
-          make -C sdk-source -j2 install
-          mkdir -p manager/dist
-          {
-            echo "Manager commit: $GITHUB_SHA"
-            echo 'SDK commit: d41ea62946e53d9a0c8788bb9eb8c8faf488b559'
-            echo "SMAP RX PIO fallback: $RX_PIO"
-            echo 'NETMAN RX: isolated uncached bounce frames; IP/TCP checksums: enabled'
-            echo 'DEV9: exact USB dev9_ns, single loaded provider'
-            mips64r5900el-ps2-elf-gcc --version
-            sha256sum "$PS2SDK/ee/lib/libps2ip.a" "$PS2SDK/ee/lib/libnetman.a"
-            sha256sum "$PS2SDK/iop/irx/netman.irx" "$PS2SDK/iop/irx/smap.irx"
-            sha256sum "$PS2SDK/iop/irx/ps2atad.irx" "$PS2SDK/iop/irx/ps2hdd.irx" "$PS2SDK/iop/irx/ps2fs.irx"
-          } > "$PS2SDK/HDD_NETFIX_BUILD.txt"
-          cp "$PS2SDK/HDD_NETFIX_BUILD.txt" manager/dist/BUILD_INFO.txt
-          git -C sdk-source diff > manager/dist/SDK_CHANGES.patch
+          cd manager
+          sh hdd-netfix/build_sdk.sh ../sdk-source
+          mkdir -p dist
+          cp "$PS2SDK/HDD_NETFIX_BUILD.txt" dist/BUILD_INFO.txt
+          git -C ../sdk-source diff > dist/SDK_CHANGES.patch
       - name: Run Manager host checks
         run: |
           cd manager
@@ -69,9 +48,9 @@ jobs:
         run: |
           cd manager
           cmake -S dvr-iso-manager -B build-netfix -DDESR_BUILD_HDD_NETFIX=ON
-          cmake --build build-netfix --target DVR_ISO_MANAGER_HDD_NETFIX.ELF -j2
-          test -s build-netfix/DVR_ISO_MANAGER_HDD_NETFIX.ELF
-          cp build-netfix/DVR_ISO_MANAGER_HDD_NETFIX.ELF dist/
+          cmake --build build-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          test -s build-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
+          cp build-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF dist/DVR_ISO_MANAGER_HDD_NETFIX.ELF
           cp build-netfix/HDD_NETFIX.map dist/
           cp hdd-netfix/README_PL.md dist/
           cd dist

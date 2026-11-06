@@ -1,11 +1,13 @@
-# Osobne rozwinięcie: HDD NETFIX
+# HDD NETFIX w PSX DVR ISO Manager 1.0 HDD
 
-Gałąź: `fix/hdd-cover-network-integrity`, baza HDD:
-`d9595b41ad07f2ab0334177ef5c02b4b15e57f2c`.
+Test na DESR potwierdził zapis 26 okładek w pierwszej próbie.
+Kolejna próba zakończyła się pobraniem 44 okładek w dwóch seriach (40 + 4).
+Sprawdzono wariant DMA z gałęzi `fix/hdd-cover-network-integrity`.
 
-To próba naprawy pobierania okładek, jeszcze bez potwierdzenia na DESR.
-Nie zastępuje wydania USB ani dotychczasowej gałęzi HDD. Nie zmienia
-OSDLaunchera, Neutrino, wymuszania języka ani formatu CNF. Nie używa ELF-ów A/B/C.
+Standardowy interaktywny build HDD zawiera tę poprawkę w pliku
+`DVR_ISO_MANAGER_HDD_TEST.ELF`. Skrypt `hdd-netfix/build_sdk.sh`
+przygotowuje przypięty SDK dla tego buildu. Workflow diagnostyczny
+nadal udostępnia ten sam wariant pod nazwą `DVR_ISO_MANAGER_HDD_NETFIX.ELF`.
 
 ## Ustalenia i kolejność prac
 
@@ -24,8 +26,8 @@ OSDLaunchera, Neutrino, wymuszania języka ani formatu CNF. Nie używa ELF-ów A
    wywoływał `sceSifWriteBackDCache`. Ta funkcja wykonuje zapis ORAZ
    unieważnienie cache. Brudna linia cache może więc nadpisać dane DMA;
    zależy to od wcześniejszego użycia i wyrównania bufora. Źródła NETMAN
-   nie przygotowują payloadu przed przekazaniem go IOP. To konkretny
-   mechanizm zgodny z objawem, nadal wymagający weryfikacji sprzętowej.
+   nie przygotowują payloadu przed przekazaniem go IOP. Ten mechanizm
+   pasuje do objawu, ale test sprzętowy weryfikuje cały zestaw zmian.
 5. Zamiast ryzykownej zmiany cache współdzielonych pbufów NETFIX używa
    oddzielnych, wyrównanych do 64 B buforów DMA (64 x 1536 B = 96 KiB).
    Przed pierwszym użyciem usuwa ich stare linie cache, a później czyta
@@ -65,9 +67,6 @@ i zapisuje CNF według dotychczasowej logiki HDD.
 
 Zanotuj liczbę brakujących okładek przed pobieraniem oraz wyniki
 `saved`, `BAD_PNG`, `LINK`, `STATUS`, `PFS_WRITE`, `STALE_PART`.
-Poprawna kompilacja i test hosta nie potwierdzają jeszcze naprawy na PSX.
-Dla pełnego potwierdzenia potrzebne są poprawne CRC wszystkich dostępnych
-PNG oraz poprawny zapis/odczyt na PFS; HTTP 404 należy liczyć osobno.
 
 ## Sprawdzenie bez konsoli
 
