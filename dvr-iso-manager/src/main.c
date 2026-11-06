@@ -927,7 +927,12 @@ int main(int argc, char *argv[]) {
           scr_setfontcolor(0xFFFFFF);
           scr_clear();
           scr_setXY(2, 1);
+#ifdef DESR_HDD_NETFIX
           scr_printf("Downloading missing covers...\n");
+#else
+          scr_printf("LAN HTTP: downloading missing PNG covers...\n");
+          scr_printf("DVR/ISO remain READ-ONLY.\n");
+#endif
           saved = desr_lan_art_download();
           if (saved > 0) {
             /* Rebuild exactly the same validated index as TRIANGLE.
@@ -965,8 +970,13 @@ int main(int argc, char *argv[]) {
                        bad,link,http_status,write_failed);
             }
 #else
+#ifdef DESR_HDD_NETFIX
             snprintf(status,sizeof(status),
                      "ART SYNC: no new covers downloaded.");
+#else
+            snprintf(status,sizeof(status),
+                     "ART SYNC: no new PNG. Check PC server / USB.");
+#endif
 #endif
           }
 #ifdef DESR_HDD_TEST
