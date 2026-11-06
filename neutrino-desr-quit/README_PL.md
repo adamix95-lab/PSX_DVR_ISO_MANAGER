@@ -1,7 +1,9 @@
 # Fizyczny QUIT GAME — osobna próba naprawy Neutrino DVR
 
-Stan: poprawka źródłowa i kompilacje są weryfikowane osobno; działanie przycisku
-w grze wymaga testu na prawdziwym DESR. Nie jest to potwierdzona naprawa sprzętowa.
+Stan po teście na DESR-7000: w wariancie USB wybór gry przyciskiem X
+kończy się czarnym ekranem. Gra nie wystartowała, więc próba nie dotarła
+do sprawdzenia przycisku QUIT GAME. Wynik HDD pozostaje nieznany.
+Eksperyment zostaje na tej gałęzi do dalszej pracy.
 
 Gałąź: `feature/neutrino-desr-igr`. Baza Neutrino:
 `aa8d80a1a0b5323cb407c814c0568c3489597c1c` (pcm720 DVR PR228).
