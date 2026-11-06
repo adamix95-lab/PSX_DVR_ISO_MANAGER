@@ -341,8 +341,8 @@ static void draw(void) {
   }
 
   if (status_visible) {
-#ifdef DESR_HDD_TEST
-    /* End-of-batch error evidence survives console scrollback. */
+#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+    /* Keep the original detailed result in standalone diagnostic builds. */
     if (!strncmp(status,"ART ",4)) {
       char bad_id[ART_SYNC_ID_CAP];
       unsigned long received=0,expected=0;
@@ -358,7 +358,28 @@ static void draw(void) {
     }
 #endif
     scr_setXY(2, 22);
+#ifdef DESR_HDD_NETFIX
+    /* Presentation only: the tested LAN/CRC/PFS code and status generation
+       are unchanged. "ART N/..." contains the saved-cover count. */
+    if (!strncmp(status,"ART ",4)) {
+      const char *p = status + 4;
+      unsigned downloaded = 0;
+      int digits = 0;
+      while (*p >= '0' && *p <= '9' && digits < 6) {
+        downloaded = downloaded * 10 + (unsigned)(*p - '0');
+        ++p;
+        ++digits;
+      }
+      if (digits && *p == '/')
+        scr_printf("ART SYNC: %u covers downloaded",downloaded);
+      else
+        scr_printf("%.54s", status);
+    } else {
+      scr_printf("%.54s", status);
+    }
+#else
     scr_printf("%.54s", status); /* keep status left of the cover */
+#endif
   }
   /* Footer divider stops BEFORE the cover (x=434), which occupies
      y=64..191. Avoid overwriting bottom pixels of the PNG. */
