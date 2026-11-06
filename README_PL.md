@@ -2,9 +2,21 @@
 
 [English](README.md)
 
+## HDD 1.0 — gałąź rozwojowa przetestowana na konsoli
+
+**Status: PASS na fizycznym Sony PSX DESR-7000 (6 listopada 2026), ale stabilne wydanie v1.0 nie zostało jeszcze opublikowane.** Całą paczkę skopiowano na własną partycję aplikacji `hdd0:PP.DVRISO`. Potwierdzono pobranie **44/44 okładek w dwóch seriach (40 + 4)**, uruchomienie **dwóch gier z DVR HDD** — w tym jednej z wymuszonym angielskim — oraz uproszczony komunikat z liczbą okładek na liście gier. Nie oznacza to przetestowania uruchamiania wszystkich 44 gier ani gotowego instalatora XMB.
+
+Plik użytkownika to **`DVR_ISO_MANAGER_HDD.ELF`** (bez Preview). Zawiera **NETFIX dla HDD**, integrację OSDMenu/Neutrino FIX95 i przełączanie SYSTEM/ENGLISH. Gry nadal są w `dvr_pfs0:/ISO/`; aplikacja, konfiguracje, indeksy i `ART/` znajdują się na `PP.DVRISO`.
+
+**Dla programistów:** [pełna dokumentacja techniczna HDD 1.0: przyczyny problemów, wrapper PFS Neutrino, FIX95, NETFIX, autorstwo i wyniki testów](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md). [Zweryfikowana kompilacja](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678) · [Gałąź HDD](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/v1.0-hdd).
+
+Publiczna wersja **USB 0.8** jest oddzielnym wariantem, opisanym poniżej.
+
+---
+
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. Wersja **0.8** zawiera stronicowaną listę gier, podgląd okładek PNG oraz automatyczne uzupełnianie brakujących grafik przez aplikację na komputerze Windows.
 
-**Test na sprzęcie:** Sony PSX DESR-7000, **40 gier ISO** na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**. **Limit 128 gier wynika z kodu źródłowego (`DESR_GAME_CAP = 128`), a nie z testów sprzętowych. Biblioteka większa niż 40 gier, w tym pozycje 41–128, nie została jeszcze zweryfikowana na konsoli.**
+**Test wersji USB v0.8 na sprzęcie:** Sony PSX DESR-7000, **40 gier ISO** na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**. **Limit 128 gier wynika z kodu źródłowego (`DESR_GAME_CAP = 128`), a nie z testów sprzętowych. Biblioteka większa niż 40 gier, w tym pozycje 41–128, nie została jeszcze zweryfikowana **w wydaniu USB v0.8**.**
 
 ## Możliwości programu
 

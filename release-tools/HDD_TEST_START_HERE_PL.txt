@@ -1,44 +1,74 @@
-PSX DVR ISO MANAGER 1.0 HDD — ROLLBACK TO WORKING NETFIX
-=========================================================
+PSX DVR ISO MANAGER 1.0 HDD — INSTRUKCJA I STAN TESTOW
+===========================================================
 
-Ta paczka przywraca kod dzialajacej wczesniej wersji NETFIX
-(zrodla z commita 5921b996) i usuwa nieudana probe czyszczenia UI.
-Zamiast pliku HDD_TEST.ELF dostarczany jest jeden:
-    DVR_ISO_MANAGER_HDD.ELF
-HDD_PREVIEW nie jest dostarczany.
+STAN (6.11.2026):
+  ZWERYFIKOWANY NA PRAWDZIWYM SONY PSX DESR-7000!
+  * Pelna paczka HDD skopiowana na PP.DVRISO: OK
+  * Okladki pobrane do ART: 44/44 (dwie sesje: 40 + 4)
+  * Dwie gry uruchomione z DVR HDD: OK
+  * Wymuszony jezyk ENGLISH dla jednej z tych gier: OK
+  * Uproszczony komunikat o liczbie okladek na liscie: OK
 
-UWAGA: Jest to build do ostatniego testu na prawdziwym DESR-7000.
-Kompilacja CI nie gwarantuje dzialania na konsoli. Nie jest to
-instalator XMB. Nie tworzy partycji ani nie formatuje dysku.
+Nie przetestowano uruchamiania WSZYSTKICH 44 gier ani innych modeli
+DESR. Nie ma gotowego automatycznego instalatora do XMB.
+HDD v1.0 jest kandydatem do przyszlego wydania, nie oficjalnym release.
 
-Zalecana aktualizacja istniejacej instalacji:
-  1. Skopiuj STARY, obecnie dzialajacy Manager w bezpieczne miejsce.
-  2. Skopiuj tylko DVR_ISO_MANAGER_HDD.ELF do korzenia PP.DVRISO.
-  3. Uruchom NOWY PLIK bezposrednio z wLaunchELF.
-  4. Dopiero po probie uruchomienia gry i pobrania okladek aktualizuj
-     skrot/instalator XMB, jezeli uzywa on starej nazwy pliku ELF.
-  5. Nie usuwaj ani nie nadpisuj dzialajacych juz BOOT.CNF, BOOT.ELF,
-     neutrino_hdd.elf, neutrino_hdd_lang.elf, config/, modules/, ART/.
+ZAWARTOSC:
+  PP.DVRISO-FILES/DVR_ISO_MANAGER_HDD.ELF
+  PP.DVRISO-FILES/BOOT.ELF              (OSDMenu)
+  PP.DVRISO-FILES/neutrino_hdd.elf       (SYSTEM)
+  PP.DVRISO-FILES/neutrino_hdd_lang.elf  (ENGLISH)
+  PP.DVRISO-FILES/config/
+  PP.DVRISO-FILES/modules/
+  PP.DVRISO-FILES/ART/                  (pusty na czystej instalacji)
+  PP.DVRISO-FILES/NET_PROBE.CNF
 
-Nowa instalacja (na PFS partycji hdd0:PP.DVRISO):
-  Skopiuj ZAWARTOSC katalogu PP.DVRISO-FILES do korzenia PP.DVRISO.
-  ISO pozostaja na osobnej partycji Sony: dvr_pfs0:/ISO/.
-  Katalog ART na tej partycji sluzy do przechowywania okladek.
-  BOOT.CNF nie znajduje sie w nowej paczce i powstaje po wyborze gry.
+  W PACZCE NIE MA HDD_PREVIEW ANI HDD_TEST.ELF.
+  Nie ma tez BOOT.CNF - aplikacja generuje go po wyborze gry.
 
-Sterowanie:
-  X w menu gry           uruchomienie przez OSDMenu / Neutrino HDD
-  SELECT                 SYSTEM / ENGLISH
-  TROJKAT                ponowne skanowanie i indeksowanie gier
-  X po ekranie skanowania  pobranie brakujacych okladek z PC
-  START                  wyjscie do XMB
-  LEFT / RIGHT           strony listy gier
+INSTALACJA / AKTUALIZACJA:
+  1. Zrob kopie calej dzialajacej instalacji PP.DVRISO.
+  2. Przy aktualizacji podmien przede wszystkim sam
+     DVR_ISO_MANAGER_HDD.ELF, jesli reszta juz dziala.
+     Zachowaj swoje BOOT.CNF, BOOT_RECOVERY.CNF, config/,
+     modules/, ART/, COVERS.IDX, COVER_SCAN.LOG i NET_PROBE.CNF.
+  3. Dla nowej, WLASNEJ partycji aplikacji hdd0:PP.DVRISO
+     skopiuj zawartosc PP.DVRISO-FILES do jej korzenia.
+     NIE kopiuj zewnetrznego folderu paczki jako podfolder.
+  4. Uruchom ELF przez wLaunchELF z poprawnie zamontowanej partycji.
+     Skrot/instalator XMB jest osobnym, niepotwierdzonym zadaniem.
+  5. Gry musza juz istniec w: dvr_pfs0:/ISO/.
+  6. W celu pobrania ART uruchom PC ART Server i ustaw LAN
+     w pliku NET_PROBE.CNF.
 
-W tej wersji przywrocono wczesniejsza diagnostyke HTTP/CRC na ekranie.
-Nie wylaczono NETFIX ani rygorystycznego sprawdzania PNG i zapisu do PFS.
-Ewentualne uproszczenie komunikatow nalezy przetestowac PO
-potwierdzeniu na fizycznej konsoli, ze rollback dziala.
+STEROWANIE:
+  GORA/DOL       wybor gry
+  LEWO/PRAWO     strony, maksymalnie 12 gier na stronie
+  SELECT         SYSTEM / ENGLISH
+  TROJKAT        skanowanie gier, aktualizacja indeksu
+  X po skanie    potwierdz pobieranie brakujacych okladek
+  O po skanie    pomin pobieranie
+  X na liscie    zapisz/zweryfikuj BOOT.CNF i uruchom gre
+  KWADRAT        test konfiguracji DVR_TEST.CNF
+  START          wyjscie z aplikacji
 
-Dzialanie gier SYSTEM/ENGLISH wymaga zachowania kompatybilnych plikow
-config/ i modules/ i dwoch dzialajacych wersji Neutrino HDD.
-Przed kopiowaniem wykonaj kopie danych i nie dotykaj partycji systemowych Sony.
+DLACZEGO DWA POBRANIA (40 + 4)?
+  Limit kolejki pobierania to 40 obrazow na sesje, nie limit biblioteki.
+  Po pierwszej serii wykonaj ponownie skan, aby pobrac pozostale.
+
+BEZPIECZENSTWO:
+  * Manager czyta dvr_pfs0:/ISO/ i nie modyfikuje obrazow gier.
+  * ART/ oraz CNF/indeksy zapisywane sa na oddzielnym PP.DVRISO.
+  * Program nie tworzy ani nie formatuje partycji Sony.
+  * NETFIX/PNG CRC i bezpieczny zapis .PART sa nadal aktywne.
+  * SYSTEM i ENGLISH wymagaja zgodnego kompletu config/ i modules/.
+  * Komunikaty diagnostyczne przy pobieraniu moga nadal byc widoczne;
+    na gotowej liscie gier pojawia sie tylko liczba okladek.
+
+DOKUMENTACJA TECHNICZNA:
+  docs/HDD_1_0_TECHNICAL_PL.md
+  docs/HDD_1_0_TECHNICAL_EN.md
+
+KOD: feature/v1.0-hdd
+Sprzetowo przetestowana wersja: commit 4ef4aba3
+GitHub Actions: https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678

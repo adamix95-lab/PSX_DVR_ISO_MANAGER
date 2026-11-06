@@ -1,11 +1,13 @@
 # HDD NETFIX w PSX DVR ISO Manager 1.0 HDD
 
+> **AKTUALIZACJA — 2026-11-06: potwierdzony test sprzętowy HDD 1.0.** Pełny pakiet z NETFIX oraz uproszczonym ekranem wyniku pobrał **44/44 okładek (40 + 4)** na DESR-7000 i uruchomił dwie gry, w tym jedną po angielsku. Plik użytkownika ma teraz nazwę **`DVR_ISO_MANAGER_HDD.ELF`**; `DVR_ISO_MANAGER_HDD_TEST.ELF` pozostał tylko historyczną nazwą wewnętrznego celu kompilacji. [Pełna dokumentacja PL](../docs/HDD_1_0_TECHNICAL_PL.md) · [English](../docs/HDD_1_0_TECHNICAL_EN.md).
+
 Test na DESR potwierdził zapis 26 okładek w pierwszej próbie.
 Kolejna próba zakończyła się pobraniem 44 okładek w dwóch seriach (40 + 4).
 Sprawdzono wariant DMA z gałęzi `fix/hdd-cover-network-integrity`.
 
-Standardowy interaktywny build HDD zawiera tę poprawkę w pliku
-`DVR_ISO_MANAGER_HDD_TEST.ELF`. Skrypt `hdd-netfix/build_sdk.sh`
+Standardowy interaktywny build HDD zawiera tę poprawkę w pliku użytkownika
+`DVR_ISO_MANAGER_HDD.ELF` (wewnętrzny target kompilacji nadal ma sufiks `_TEST`). Skrypt `hdd-netfix/build_sdk.sh`
 przygotowuje przypięty SDK dla tego buildu. Workflow diagnostyczny
 nadal udostępnia ten sam wariant pod nazwą `DVR_ISO_MANAGER_HDD_NETFIX.ELF`.
 

@@ -1,3 +1,9 @@
+> **AKTUALIZACJA — 2026-11-06: HDD 1.0 przetestowany na DESR-7000.** Pełna paczka na `PP.DVRISO` uruchamia gry, pobrała 44 okładki (40 + 4), a jedna z dwóch sprawdzonych gier działała z wymuszonym angielskim. **Aktualna dokumentacja architektury i FIX95:** [PL](../docs/HDD_1_0_TECHNICAL_PL.md) · [EN](../docs/HDD_1_0_TECHNICAL_EN.md).
+>
+> **Uwaga: cały poniższy tekst jest archiwalnym dziennikiem eksperymentów** PREVIEW, DIAG Z i STAGES, zawiera dawne ścieżki i informacje o niezakończonych wówczas testach. Nie należy traktować go jako obecnej instrukcji instalacji. W finalnym pakiecie jest jeden `DVR_ISO_MANAGER_HDD.ELF`, bez PREVIEW, a Manager używa `pfs1:/`; Neutrino ponownie montuje aplikację jako `pfs0:/`.
+
+---
+
 # PSX DVR ISO MANAGER 1.0 HDD — plan integracji (jeszcze nie wydanie)
 
 ## Obecny podgląd interfejsu 1.0 HDD — tylko odczyt
