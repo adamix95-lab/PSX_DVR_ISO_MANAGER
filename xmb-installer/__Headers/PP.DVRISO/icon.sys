@@ -1,0 +1,18 @@
+PS2X
+title0=PSX DVR ISO MANAGER
+title1=HDD 1.0
+bgcola=0
+bgcol0=0,0,0
+bgcol1=0,0,0
+bgcol2=0,0,0
+bgcol3=0,0,0
+lightdir0=1.0,-1.0,1.0
+lightdir1=-1.0,1.0,-1.0
+lightdir2=0.0,0.0,0.0
+lightcolamb=64,64,64
+lightcol0=64,64,64
+lightcol1=16,16,16
+lightcol2=0,0,0
+uninstallmes0=Remove PSX DVR ISO MANAGER
+uninstallmes1=
+uninstallmes2=
