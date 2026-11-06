@@ -91,7 +91,7 @@ static unsigned char padbuf[256] __attribute__((aligned(64)));
 static unsigned prev_buttons;
 static int dvr_probe_hdd = -999, dvr_probe_root = -999;
 static int dvr_notice_game_start = -999;
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
 static int hdd_at_boot_system = -999, hdd_at_boot_osd = -999;
 static int hdd_at_boot_root = -999;
 #endif
@@ -266,7 +266,11 @@ static void draw(void) {
 
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
+#ifdef DESR_HDD_NETFIX
+  scr_setXY(62, 1);
+#else
   scr_setXY(69, 1);
+#endif
   scr_printf("%s", DESR_APP_VARIANT);
   scr_setfontcolor(0x787878);
   scr_setXY(2, 3);
@@ -337,8 +341,8 @@ static void draw(void) {
   }
 
   if (status_visible) {
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
-    /* Diagnostic-only details are hidden in the HDD 1.0 release UI. */
+#ifdef DESR_HDD_TEST
+    /* End-of-batch error evidence survives console scrollback. */
     if (!strncmp(status,"ART ",4)) {
       char bad_id[ART_SYNC_ID_CAP];
       unsigned long received=0,expected=0;
@@ -426,7 +430,7 @@ static int usb_ready(void) {
 }
 
 
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
 /* Save read-only PFS diagnostics before the network driver is loaded.
  * Error -19 is ENODEV: pfsX open failed due to inaccessible mount/unit.
  * Do not write or auto-remount when the mount has unexpectedly vanished.
@@ -626,12 +630,9 @@ static int launch_via_quickboot(void) {
   if (len <= 0) return -90;
   rc = usb_ready();
   if (rc < 0) {
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
     hdd_show_launch_diagnostic(force_english ? "ENGLISH RUNTIME" : "SYSTEM RUNTIME", rc);
     snprintf(status, sizeof(status), "HDD runtime open error %d (see diagnostics)", rc);
-#elif defined(DESR_HDD_TEST)
-    snprintf(status, sizeof(status), "Cannot open Neutrino (%s)",
-             force_english ? "ENGLISH" : "SYSTEM");
 #else
     snprintf(status, sizeof(status), "Missing USB runtime (lang %s): %d",
              force_english ? "EN" : "SYSTEM", rc);
@@ -640,7 +641,7 @@ static int launch_via_quickboot(void) {
   }
   rc = check_usb_file(USB_LAUNCHER);
   if (rc < 0) {
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
     hdd_show_launch_diagnostic("OSDMENU BOOT.ELF", rc);
 #endif
     snprintf(status, sizeof(status), "Missing OSDMenu BOOT.ELF: %d", rc);
@@ -820,7 +821,7 @@ int main(int argc, char *argv[]) {
   }
   scr_printf("1.0 HDD: BOTH FILESYSTEMS READABLE (RO)\n");
 #endif
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
   hdd_at_boot_root=hdd_probe_dir(DESR_APP_ROOT);
   hdd_at_boot_system=check_usb_file(USB_NEUTRINO);
   hdd_at_boot_osd=check_usb_file(USB_LAUNCHER);
@@ -927,19 +928,15 @@ int main(int argc, char *argv[]) {
           scr_setfontcolor(0xFFFFFF);
           scr_clear();
           scr_setXY(2, 1);
-#ifdef DESR_HDD_NETFIX
-          scr_printf("Downloading missing covers...\n");
-#else
           scr_printf("LAN HTTP: downloading missing PNG covers...\n");
           scr_printf("DVR/ISO remain READ-ONLY.\n");
-#endif
           saved = desr_lan_art_download();
           if (saved > 0) {
             /* Rebuild exactly the same validated index as TRIANGLE.
                If a DVR read fails, previous COVERS.IDX is preserved. */
             matched = desr_covers_refresh(games, count, covers, &identified);
             if (matched >= 0) {
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
               int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
               art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
               int bad=0,link=0,http_status=0;
@@ -958,7 +955,7 @@ int main(int argc, char *argv[]) {
                        "ART: %d saved; index failed. Press TRIANGLE.",
                        saved);
           } else {
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
             {
               int candidates=0,tried=0,not_found=0,http_failed=0,write_failed=0;
               art_sync_last_stats(&candidates,&tried,&not_found,&http_failed,&write_failed);
@@ -970,13 +967,8 @@ int main(int argc, char *argv[]) {
                        bad,link,http_status,write_failed);
             }
 #else
-#ifdef DESR_HDD_NETFIX
-            snprintf(status,sizeof(status),
-                     "ART SYNC: no new covers downloaded.");
-#else
             snprintf(status,sizeof(status),
                      "ART SYNC: no new PNG. Check PC server / USB.");
-#endif
 #endif
           }
 #ifdef DESR_HDD_TEST
@@ -984,7 +976,8 @@ int main(int argc, char *argv[]) {
             int sys_after=check_usb_file(USB_NEUTRINO);
             if (sys_after<0) {
               snprintf(status,sizeof status,
-                       "ART SYNC: HDD storage unavailable. Restart Manager.");
+                       "ART finished; HDD runtime error %d. Restart, test X first",
+                       sys_after);
             }
           }
 #endif

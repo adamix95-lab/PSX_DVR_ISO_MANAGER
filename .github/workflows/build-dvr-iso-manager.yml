@@ -159,27 +159,15 @@ jobs:
           path: sdk-source
       - name: Build the patched SDK for interactive HDD
         run: sh hdd-netfix/build_sdk.sh sdk-source
-      - name: Build HDD TEST interactive target with NETFIX
+      - name: Build HDD interactive target with proven NETFIX
         run: |
           cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
           cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
           test -s build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
-          python3 - <<'PY'
-          from pathlib import Path
-          elf=Path("build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF").read_bytes()
-          for marker in (b"1.0 HDD",b"ART SYNC: %d saved. INDEX: %d/%d",
-                         b"pfs1:/neutrino_hdd.elf",b"pfs1:/neutrino_hdd_lang.elf"):
-              assert marker in elf, f"Missing HDD release marker: {marker!r}"
-          for marker in (b"1.0 HDD NETFIX",b"BAD ID %.11s",
-                         b"HTTP DETAIL:",b"ART RESULTS: NOT_FOUND=",
-                         b"HTTP BAD:",b"HTTP BODY:",b"HTTP FAILURE stage=",
-                         b"NETFIX: USB DEV9"):
-              assert marker not in elf, f"Debug text leaked: {marker!r}"
-          print("HDD release UI: USB-style download summary, no debug strings")
-          PY
-      - name: Upload standalone 1.0 HDD TEST
+          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF build-hdd-netfix/DVR_ISO_MANAGER_HDD.ELF
+      - name: Upload standalone 1.0 HDD
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v1.0-HDD-TEST-ELF
-          path: build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-ELF
+          path: build-hdd-netfix/DVR_ISO_MANAGER_HDD.ELF
           if-no-files-found: error

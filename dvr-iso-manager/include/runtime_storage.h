@@ -9,7 +9,9 @@
  * a separate Sony DVR file store and is never writable by the Manager.
  */
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
-#ifdef DESR_HDD_ART_PROBE
+#ifdef DESR_HDD_NETFIX
+#define DESR_APP_VARIANT "1.0 HDD NETFIX"
+#elif defined(DESR_HDD_ART_PROBE)
 #define DESR_APP_VARIANT "1.0 HDD LAN PROBE RO"
 #else
 #define DESR_APP_VARIANT "1.0 HDD"

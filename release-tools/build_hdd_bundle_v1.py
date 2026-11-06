@@ -15,7 +15,7 @@ import zipfile
 
 from build_usb_bundle_v08 import inspect_legacy, FOLDER as LEGACY_BASE
 
-ROOT = "PSX-DVR-ISO-Manager-v1.0-HDD-TEST/"
+ROOT = "PSX-DVR-ISO-Manager-v1.0-HDD/"
 APP = ROOT + "PP.DVRISO-FILES/"
 LIMIT = 80 * 1024 * 1024
 
@@ -70,8 +70,7 @@ def build(args: argparse.Namespace) -> None:
     payload = {k: v for k, v in retained.items()
                if k not in REMOVE_LEGACY and not k.endswith(".PART")}
     payload.update({
-        "DVR_ISO_MANAGER_HDD_TEST.ELF": read_elf(args.manager, 100_000),
-        "DVR_ISO_MANAGER_HDD_PREVIEW.ELF": read_elf(args.preview, 100_000),
+        "DVR_ISO_MANAGER_HDD.ELF": read_elf(args.manager, 100_000),
         "neutrino_hdd.elf": read_elf(args.system, 50_000),
         "neutrino_hdd_lang.elf": read_elf(args.english, 50_000),
         "modules/ee_core_lang.elf": read_elf(args.core),
@@ -101,28 +100,17 @@ def build(args: argparse.Namespace) -> None:
             raise ValueError(f"Unsafe partition target: {name}")
         if b"HDD FIX95 ISO argument/path mismatch" not in b:
             raise ValueError(f"FIX95 protection missing: {name}")
-    for name in ("DVR_ISO_MANAGER_HDD_TEST.ELF", "DVR_ISO_MANAGER_HDD_PREVIEW.ELF"):
-        if b"hdd0:PP.DVRISO" not in payload[name] or b"PP.TESTDVR" in payload[name]:
-            raise ValueError(f"Wrong Manager partition: {name}")
-        # The READONLY preview deliberately removes all launch code, so
-        # it may not contain any Neutrino path strings after optimization.
-        if (b"pfs0:/neutrino_hdd.elf" in payload[name] or
-                b"pfs0:/neutrino_hdd_lang.elf" in payload[name]):
-            raise ValueError(f"Old incorrect Neutrino PFS0 path: {name}")
+    manager_file = "DVR_ISO_MANAGER_HDD.ELF"
+    if b"hdd0:PP.DVRISO" not in payload[manager_file] or b"PP.TESTDVR" in payload[manager_file]:
+        raise ValueError("Wrong Manager partition")
+    if (b"pfs0:/neutrino_hdd.elf" in payload[manager_file] or
+            b"pfs0:/neutrino_hdd_lang.elf" in payload[manager_file]):
+        raise ValueError("Wrong Neutrino PFS0 path")
     # The interactive Manager MUST reference BOTH binaries on its own
     # pfs1: mount. OSDMenu/Neutrino themselves later use pfs0:.
-    test_manager = payload["DVR_ISO_MANAGER_HDD_TEST.ELF"]
-    # The patched SDK and DESR_HDD_NETFIX compile target are required
-    # by CI. Release UI deliberately has no developer network banner.
-    for required in (b"1.0 HDD", b"ART SYNC: %d saved. INDEX: %d/%d"):
-        if required not in test_manager:
-            raise ValueError(f"Missing release UI text: {required!r}")
-    for forbidden in (b"1.0 HDD NETFIX", b"BAD ID %.11s",
-                      b"HTTP DETAIL:", b"ART RESULTS: NOT_FOUND=",
-                      b"HTTP BAD:", b"HTTP BODY:", b"HTTP FAILURE stage=",
-                      b"NETFIX: USB DEV9"):
-        if forbidden in test_manager:
-            raise ValueError(f"Debug text in HDD release ELF: {forbidden!r}")
+    test_manager = payload[manager_file]
+    if b"1.0 HDD NETFIX" not in test_manager:
+        raise ValueError("Rollback Manager must include validated NETFIX")
     for required_path in (
             b"pfs1:/neutrino_hdd.elf",
             b"pfs1:/neutrino_hdd_lang.elf"):
@@ -151,7 +139,7 @@ def build(args: argparse.Namespace) -> None:
         for key, value in members.items():
             if z.read(key) != value:
                 raise ValueError(f"Data mismatch: {key}")
-    print("PASS: HDD app package, BOOT.ELF, dual FIX95 loaders, config, EE core, ART")
+    print("PASS: one HDD Manager + NETFIX rollback; no preview; BOOT.ELF and dual FIX95")
     print("PAYLOAD FILES:", len(payload))
     print("BOOT.CNF: deliberately absent; generated after X on PP.DVRISO")
     print("ZIP:", args.output)
@@ -160,7 +148,7 @@ def build(args: argparse.Namespace) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    for item in ("legacy", "manager", "preview", "system", "english",
+    for item in ("legacy", "manager", "system", "english",
                  "core", "osdlang", "network", "readme", "output"):
         p.add_argument("--" + item, type=Path, required=True)
     try:

@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager 1.0 HDD complete TEST ZIP
+name: Build PSX DVR ISO Manager 1.0 HDD full package
 on:
   workflow_dispatch:
   push:
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   manager:
-    name: Build separate HDD TEST and HDD READONLY PREVIEW
+    name: Build interactive HDD Manager with proven NETFIX
     runs-on: ubuntu-latest
     container: ghcr.io/ps2homebrew/ps2homebrew:main
     steps:
@@ -29,12 +29,6 @@ jobs:
             dvr-iso-manager/src/iso_utils.c dvr-iso-manager/src/hdd_boot_config.c \
             dvr-iso-manager/tests/test_hdd_boot_config.c -o /tmp/test_hdd_boot_config
           /tmp/test_hdd_boot_config
-      - name: Compile read-only HDD preview
-        run: |
-          cmake -S dvr-iso-manager -B build-hdd-v1
-          cmake --build build-hdd-v1 --target DVR_ISO_MANAGER_HDD_PREVIEW.ELF -j2
-          mkdir -p dist
-          cp build-hdd-v1/DVR_ISO_MANAGER_HDD_PREVIEW.ELF dist/
       - uses: actions/checkout@v4
         with:
           repository: ps2dev/ps2sdk
@@ -46,9 +40,10 @@ jobs:
         run: |
           cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
           cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
-          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF dist/
-          test -s dist/DVR_ISO_MANAGER_HDD_TEST.ELF
-      - name: Verify separate RO and opt-in HDD TEST source
+          mkdir -p dist
+          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF dist/DVR_ISO_MANAGER_HDD.ELF
+          test -s dist/DVR_ISO_MANAGER_HDD.ELF
+      - name: Verify HDD NETFIX and boot paths (no preview delivered)
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -167,7 +162,7 @@ jobs:
           if-no-files-found: error
 
   package:
-    name: Assemble single HDD TEST ZIP with original OSDMenu and modules
+    name: Assemble v1.0 HDD ZIP with original OSDMenu and modules
     needs: [manager, system, english]
     runs-on: ubuntu-latest
     steps:
@@ -192,22 +187,33 @@ jobs:
           gh release download v0.3.0 --repo "$GITHUB_REPOSITORY" \
             --pattern 'PSX.DVR.ISO.MANAGER.03.zip' --dir payload/legacy
           test -s payload/legacy/PSX.DVR.ISO.MANAGER.03.zip
-      - name: Build verified, no-autoinstaller HDD test ZIP
+      - name: Build verified HDD 1.0 package (no preview)
         run: |
           python3 release-tools/build_hdd_bundle_v1.py \
             --legacy payload/legacy/PSX.DVR.ISO.MANAGER.03.zip \
-            --manager payload/manager/DVR_ISO_MANAGER_HDD_TEST.ELF \
-            --preview payload/manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF \
+            --manager payload/manager/DVR_ISO_MANAGER_HDD.ELF \
             --system payload/system/neutrino_hdd.elf \
             --english payload/english/neutrino_hdd_lang.elf \
             --core payload/english/modules/ee_core_lang.elf \
             --osdlang payload/english/config/osdlang.toml \
             --network release-tools/NET_PROBE.CNF \
             --readme release-tools/HDD_TEST_START_HERE_PL.txt \
-            --output dist/PSX-DVR-ISO-Manager-1.0-HDD-TEST.zip
-          test -s dist/PSX-DVR-ISO-Manager-1.0-HDD-TEST.zip
+            --output dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
+          test -s dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          p=Path("dist/PSX-DVR-ISO-Manager-1.0-HDD.zip")
+          with zipfile.ZipFile(p) as z:
+              names=z.namelist()
+              assert z.testzip() is None
+              assert sum(n.endswith("/DVR_ISO_MANAGER_HDD.ELF") for n in names)==1
+              assert not any("PREVIEW" in n or n.endswith("HDD_TEST.ELF") for n in names)
+              assert any(n.endswith("/ART/") for n in names)
+          print("One v1.0 HDD Manager, no preview, ART folder retained")
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v1.0-HDD-COMPLETE-TEST
-          path: dist/PSX-DVR-ISO-Manager-1.0-HDD-TEST.zip
+          name: PSX-DVR-ISO-Manager-v1.0-HDD
+          path: dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
           if-no-files-found: error

@@ -172,9 +172,7 @@ static int download(const probe_config *cfg, const char *id,
     if (rc<=0) goto fail;
     sent+=rc;
   }
-#ifndef DESR_HDD_NETFIX
   scr_printf("GET %s\n",url);
-#endif
   stage=5;
   for (;;) {
     if (!ready(sock,0)) {
@@ -184,9 +182,7 @@ static int download(const probe_config *cfg, const char *id,
          malformed response is still an error, never written to HDD. */
       if (received>0 &&
           probe_http_extract_png(response,received,png,png_size)==0) {
-#ifndef DESR_HDD_NETFIX
         scr_printf("HTTP full PNG received before FIN\n");
-#endif
         lwip_close(sock);
         return 0;
       }
@@ -217,27 +213,20 @@ static int download(const probe_config *cfg, const char *id,
        Missing artwork is NOT a transient socket failure: skip this
        game, avoid retrying the same permanent 404, continue the queue. */
     if (http_status==404) {
-#ifndef DESR_HDD_NETFIX
       scr_printf("ART ABSENT: %s (PC HTTP 404)\n", id);
-#endif
       return -404;
     }
     if (http_status==403) {
-#ifndef DESR_HDD_NETFIX
       scr_printf("ART BLOCKED: PC HTTP 403; verify console IP\n");
-#endif
       return -403;
     }
     if (http_status!=200) {
-#ifndef DESR_HDD_NETFIX
       scr_printf("ART HTTP STATUS=%d for %s\n",http_status,id);
-#endif
       return -7;
     }
   }
 #endif
   if (probe_http_extract_png(response,received,png,png_size)<0) {
-#ifndef DESR_HDD_NETFIX
     /* Diagnose incomplete TCP body vs unavailable image vs corrupt PNG.
        Preserve the strict PNG CRC and Content-Length checks: NEVER write
        a file merely because HTTP had status 200. */
@@ -275,7 +264,7 @@ static int download(const probe_config *cfg, const char *id,
       body_len=received-content_at;
       valid_png=probe_png_check(response+content_at,body_len);
     }
-#if defined(DESR_HDD_TEST) && !defined(DESR_HDD_NETFIX)
+#ifdef DESR_HDD_TEST
     snprintf(last_bad_id,sizeof last_bad_id,"%s",id);
     last_bad_body=(unsigned long)body_len;
     last_bad_expected=(unsigned long)expected;
@@ -284,13 +273,11 @@ static int download(const probe_config *cfg, const char *id,
                     : body_len>expected ? 2 : 3;
     scr_printf("HTTP BAD GAME %s reason=%d\n",id,last_bad_reason);
 #endif
-#ifndef DESR_HDD_NETFIX
     scr_printf("HTTP BAD: %.26s total=%lu\n",
                firstline,(unsigned long)received);
     scr_printf("HTTP BODY: %lu expected=%lu has_len=%d PNG=%d\n",
                (unsigned long)body_len,(unsigned long)expected,
                known_length,valid_png);
-#endif
 #ifdef DESR_HDD_ART_PROBE
     if (content_at>0 && body_len==expected && known_length) {
       char kind[5];
@@ -305,7 +292,6 @@ static int download(const probe_config *cfg, const char *id,
                    (unsigned long)want,(unsigned long)got);
     }
 #endif
-#endif /* !DESR_HDD_NETFIX */
     return -6;
   }
   return 0;
@@ -314,10 +300,8 @@ fail:
      errno and stage give a useful diagnosis if the second cover fails. */
   rc=errno;
   if (sock>=0) lwip_close(sock);
-#ifndef DESR_HDD_NETFIX
   scr_printf("HTTP FAILURE stage=%d errno=%d got=%lu\n",
              stage,rc,(unsigned long)received);
-#endif
   return -stage;
 }
 static int write_new_art(const char *id, const uint8_t *bytes, size_t count) {
@@ -381,42 +365,30 @@ int art_sync_run(const probe_config *cfg) {
     if (present(dst)||present(jpg)) continue;
     if (present(tmp)) {
       stale++;
-#ifndef DESR_HDD_NETFIX
       scr_printf("SKIP %s: stale .PART\n",games[i].id);
-#endif
       continue;
     }
     attempted++;
-#ifdef DESR_HDD_NETFIX
-    scr_printf("Downloading cover %d/%d...\n",attempted,game_count);
-#else
     scr_printf("ART %d/%d: %s\n",attempted,game_count,games[i].id);
-#endif
     {
       int retry, got=-1;
       /* Two connections at most, each closes cleanly before next request. */
       for (retry=0;retry<2;retry++) {
         got=download(cfg,games[i].id,&png,&bytes);
         if (got==0 || got==-404 || got==-403) break;
-#ifndef DESR_HDD_NETFIX
         scr_printf("HTTP retry %d/2: code %d\n",retry+1,got);
-#endif
         if (retry==0) usleep(300000);
       }
       if (got==-404) {
         not_found++;
         fail_streak=0;
-#ifndef DESR_HDD_NETFIX
         scr_printf("SKIP NOT FOUND: %s; next game\n",games[i].id);
-#endif
         continue;
       }
       if (got==-403) {
         http_failed++;
         last_http_status_fail++;
-#ifndef DESR_HDD_NETFIX
         scr_printf("STOP HTTP 403: PC rejects console IP; check server settings\n");
-#endif
         break;
       }
       if (got<0) {
@@ -429,40 +401,28 @@ int art_sync_run(const probe_config *cfg) {
         if (got==-6) {
           last_bad_payload++;
           fail_streak=0;
-#ifndef DESR_HDD_NETFIX
           scr_printf("SKIP BAD HTTP/PNG for %s; next game\n", games[i].id);
-#endif
           continue;
         }
         if (got==-7) last_http_status_fail++;
         else last_transport_fail++;
 #endif
-#ifndef DESR_HDD_NETFIX
         scr_printf("ART HTTP FAILED: %s code=%d\n",games[i].id,got);
-#endif
         if (++fail_streak>=4) {
-#ifndef DESR_HDD_NETFIX
           scr_printf("STOP: 4 consecutive network/server failures.\n");
-#endif
           break;
         }
         continue;
       }
     }
     fail_streak=0;
-#ifndef DESR_HDD_NETFIX
     scr_printf("PNG: CRC OK, %lu bytes\n",(unsigned long)bytes);
-#endif
     if (write_new_art(games[i].id,png,bytes)<0) {
       write_failed++;
-#ifndef DESR_HDD_NETFIX
       scr_printf("FAIL: ART staging/verify/rename\n");
-#endif
       continue;
     }
-#ifndef DESR_HDD_NETFIX
     scr_printf("SAVED: %s_COV.png\n",games[i].id);
-#endif
     saved++;
     /* Let the console TCP stack release the last closed socket before
        opening the next one; never halt after the first successful cover. */
@@ -472,7 +432,6 @@ int art_sync_run(const probe_config *cfg) {
   last_not_found=not_found;
   last_http_failed=http_failed;
   last_write_failed=write_failed;
-#ifndef DESR_HDD_NETFIX
   scr_printf("ART DONE: candidates=%d tried=%d saved=%d\n",
              game_count,attempted,saved);
   scr_printf("ART RESULTS: NOT_FOUND=%d HTTP_FAIL=%d PFS_WRITE=%d STALE_PART=%d\n",
@@ -483,7 +442,6 @@ int art_sync_run(const probe_config *cfg) {
 #endif
   if (saved>0)
     scr_printf("New PNG covers saved in app ART.\n");
-#endif
   return saved>0 ? saved : -1;
 }
 
