@@ -9,7 +9,7 @@
 | Edition | Status on Sony PSX DESR-7000 | Installation |
 | --- | --- | --- |
 | **1.0 HDD** | **PASS:** 44/44 covers (40 + 4), two games including forced ENGLISH, XMB opens the Manager, clean `1.0 HDD` title | Existing APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
-| **1.0 USB** | **Binary built, not independently hardware-tested.** USB v0.8 baseline passed 40/40 covers and REZ in English | FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
+| **1.0 USB** | **PASS — tested on Sony PSX DESR-7000 (2026-11-07):** USB 1.0 works on real hardware. The earlier USB v0.8 tests separately confirmed 40/40 covers and REZ in English | FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
 **Release files (prepared, not yet published):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, and optional `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. The current [v0.8 Windows ART Server](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) remains compatible.
 
@@ -136,7 +136,7 @@ The repository includes the PS2SDK/CMake Manager build with integrated LAN artwo
 
 ## Known limitation and contributions
 
-Launching the Manager directly from the console XMB using the internal HDD remains unresolved (previous path-resolution error `-19`). Running the ELF from USB or UDPFS with the required files on USB is the supported route.
+**Historical USB v0.8 note:** the earlier XMB/HDD launch attempt failed with path-resolution error `-19`. The **separate HDD 1.0 variant** now launches from XMB; this earlier limitation does not apply to the USB installation procedure documented here.
 
 Contributions, issue reports and pull requests are welcome, particularly from developers working with Sony PSX DESR, PS2SDK and DVR hardware.
 
