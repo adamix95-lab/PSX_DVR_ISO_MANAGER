@@ -49,7 +49,7 @@ def verify(dir_name: pathlib.Path) -> None:
 
     with zipfile.ZipFile(dir_name / 'PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip') as z:
         manager = one(z, '/DVR_ISO_MANAGER_HDD.ELF')
-        assert manager.startswith(b'\\x7fELF') and sha(manager) == HDD_MANAGER_SHA
+        assert manager.startswith(b'\x7fELF') and sha(manager) == HDD_MANAGER_SHA
         assert b'1.0 HDD' in manager and b'1.0 HDD NETFIX' not in manager
         assert b'NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum' in manager
         assert b'hdd0:PP.DVRISO' in manager and b'pfs1:/neutrino_hdd.elf' in manager
@@ -60,7 +60,7 @@ def verify(dir_name: pathlib.Path) -> None:
 
     with zipfile.ZipFile(dir_name / 'PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip') as z:
         m = one(z, '/DVR_ISO_MANAGER.ELF')
-        assert m.startswith(b'\\x7fELF')
+        assert m.startswith(b'\x7fELF')
         assert b'1.0 USB' in m and b'mass0:/DESR_DVR/' in m
         assert b'hdd0:PP.DVRISO' not in m
         assert any(n.endswith('/DESR_DVR/BOOT.ELF') for n in z.namelist())
@@ -76,7 +76,7 @@ def verify(dir_name: pathlib.Path) -> None:
         assert b'PSX DVR ISO MANAGER' in one(z, '/info.sys')
         for name, (width, height) in [('jkt_002.png', (76, 108)), ('jkt_001.png', (256, 256))]:
             image = one(z, '/' + name)
-            assert image.startswith(b'\\x89PNG\\r\\n\\x1a\\n')
+            assert image.startswith(b'\x89PNG\r\n\x1a\n')
             w, h = struct.unpack_from('>II', image, 16)
             assert (w, h) == (width, height)
             assert (image[24], image[25]) == (8, 3), (name, image[24:26])
