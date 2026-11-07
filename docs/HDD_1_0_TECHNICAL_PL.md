@@ -1,5 +1,7 @@
 # PSX DVR ISO Manager 1.0 HDD — architektura, poprawki, wyniki testów
 
+> **Aktualizacja 7.11.2026:** HDD 1.0 został uruchomiony również z XMB (wpis PDIM, iniekcja nagłówka przez wLaunchELF_R3Z) na prawdziwym DESR-7000. Po usunięciu wyłącznie dopisku NETFIX w interfejsie Manager nadal działa. HDD jest kandydatem do wydania; osobny ELF USB 1.0 jest zbudowany, ale nie ma jeszcze własnego testu sprzętowego. [Opis wydania](RELEASE_NOTES_v1.0.0_PL.md) · [Lista przed publikacją](../release-tools/v1_0/RELEASE_CHECKLIST.md). Nie oznacza to pełnej kompatybilności wszystkich gier i modeli.
+
 [English technical documentation](HDD_1_0_TECHNICAL_EN.md) · [README po polsku](../README_PL.md) · [kod Managera](../dvr-iso-manager/) · [poprawka Neutrino](../neutrino-hdd-v1/) · [HDD NETFIX](../hdd-netfix/)
 
 > **Stan na 2026-11-06:** kandydat HDD **przetestowany na fizycznym Sony PSX DESR-7000**, ale **nieopublikowany jeszcze jako stabilne wydanie v1.0**. Szczegóły weryfikacji poniżej. Obecna gałąź: `feature/v1.0-hdd`; przetestowany commit: `4ef4aba3a6347b3462a117890f992b13af0d38d3`. [Kompilacja zweryfikowanej paczki](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678).

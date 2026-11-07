@@ -2,17 +2,24 @@
 
 [Polski / Polish](README_PL.md)
 
-## HDD 1.0 — hardware-tested development branch
+## v1.0.0 — HDD + USB
 
-**Status: PASS on a physical Sony PSX DESR-7000 (November 6, 2026); not yet a public stable v1.0 release.** The complete HDD package was installed on the dedicated `hdd0:PP.DVRISO` application partition. The user downloaded **44/44 covers in two batches (40 + 4)**, launched **two games from DVR HDD**, including **one with forced English**, and confirmed the simplified artwork result on the game list. This validates the tested build, **not** all 44 games or an automatic XMB installer.
+**HDD is the primary development target; USB remains supported.** Both variants browse and launch PS2 ISO games stored on the Sony PSX DVR partition. The HDD build is hardware-tested, including the **XMB Games → PSX DVR ISO MANAGER** launcher with the metallic PDIM HDD/DVD cover. The official v1.0.0 GitHub Release is being prepared; this branch does not publish it automatically.
 
-The user-facing application is **`DVR_ISO_MANAGER_HDD.ELF`** (no Preview ELF). It includes the **NETMAN/DEV9 HDD NETFIX**, HDD-aware OSDMenu/Neutrino FIX95 integration, and SYSTEM/ENGLISH selection. Game ISOs remain at `dvr_pfs0:/ISO/`; application files, configs, cover indexes and `ART/` remain on `PP.DVRISO`.
+| Edition | Status on Sony PSX DESR-7000 | Installation |
+| --- | --- | --- |
+| **1.0 HDD** | **PASS:** 44/44 covers (40 + 4), two games including forced ENGLISH, XMB opens the Manager, clean `1.0 HDD` title | Existing APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
+| **1.0 USB** | **Binary built, not independently hardware-tested.** USB v0.8 baseline passed 40/40 covers and REZ in English | FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
-**For developers:** [Complete HDD 1.0 architecture, root causes, Neutrino PFS wrapper, FIX95, NETFIX, credits and test matrix (English)](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md). See the [validated build](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678) and [HDD branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/v1.0-hdd).
+**Release files (prepared, not yet published):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, and optional `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. The current [v0.8 Windows ART Server](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) remains compatible.
 
-**USB v0.8** is the currently published release, documented below. Its USB files and launch workflow are separate from the HDD 1.0 candidate.
+**Start here:** [Release notes (English)](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Polski](docs/RELEASE_NOTES_v1.0.0_PL.md) · [HDD technical details (English)](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md) · [Publication checklist](release-tools/v1_0/RELEASE_CHECKLIST.md).
+
+**Safety:** The application never formats a disk or writes game ISO files. The separate optional **APA-header injection** for XMB modifies partition metadata: make a recoverable backup first and select **only PP.DVRISO** in wLaunchELF_R3Z. Never select Format/Create/Expand or inject all partitions. A working XMB entry does not need reinjection when the Manager ELF changes.
 
 ---
+
+## USB v0.8 — previous release documentation
 
 **PSX DVR ISO Manager** lists and launches PS2 ISO games from the DVR partition of a Sony PSX DESR console. Version **0.8** adds a 12-game paged menu, cover previews and on-demand cover downloads via a companion Windows PC application.
 

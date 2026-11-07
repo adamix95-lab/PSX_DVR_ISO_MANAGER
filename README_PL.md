@@ -1,18 +1,25 @@
-# PSX DVR ISO Manager v0.8
+# PSX DVR ISO MANAGER
 
 [English](README.md)
 
-## HDD 1.0 — gałąź rozwojowa przetestowana na konsoli
+## v1.0.0 — HDD + USB
 
-**Status: PASS na fizycznym Sony PSX DESR-7000 (6 listopada 2026), ale stabilne wydanie v1.0 nie zostało jeszcze opublikowane.** Całą paczkę skopiowano na własną partycję aplikacji `hdd0:PP.DVRISO`. Potwierdzono pobranie **44/44 okładek w dwóch seriach (40 + 4)**, uruchomienie **dwóch gier z DVR HDD** — w tym jednej z wymuszonym angielskim — oraz uproszczony komunikat z liczbą okładek na liście gier. Nie oznacza to przetestowania uruchamiania wszystkich 44 gier ani gotowego instalatora XMB.
+**Główną wersją rozwojową jest HDD; USB pozostaje obsługiwane.** Oba warianty przeglądają i uruchamiają gry PS2 ISO zapisane na partycji DVR konsoli Sony PSX. Wariant HDD został sprawdzony na konsoli, łącznie ze startem **XMB → PSX DVR ISO MANAGER** i ikoną PDIM (dysk HDD + DVD). Oficjalne GitHub Release v1.0.0 jest w przygotowaniu — ta gałąź nie publikuje go automatycznie.
 
-Plik użytkownika to **`DVR_ISO_MANAGER_HDD.ELF`** (bez Preview). Zawiera **NETFIX dla HDD**, integrację OSDMenu/Neutrino FIX95 i przełączanie SYSTEM/ENGLISH. Gry nadal są w `dvr_pfs0:/ISO/`; aplikacja, konfiguracje, indeksy i `ART/` znajdują się na `PP.DVRISO`.
+| Wariant | Wynik na Sony PSX DESR-7000 | Instalacja |
+| --- | --- | --- |
+| **1.0 HDD** | **PASS:** 44/44 okładki (40 + 4), dwie uruchomione gry, w tym wymuszony angielski; działa start Managera z XMB i nagłówek `1.0 HDD` | Istniejąca partycja APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
+| **1.0 USB** | **ELF zbudowany; nieprzetestowany oddzielnie na sprzęcie.** Baza USB v0.8: 40/40 okładek i REZ po angielsku | Pendrive FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
-**Dla programistów:** [pełna dokumentacja techniczna HDD 1.0: przyczyny problemów, wrapper PFS Neutrino, FIX95, NETFIX, autorstwo i wyniki testów](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md). [Zweryfikowana kompilacja](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678) · [Gałąź HDD](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/v1.0-hdd).
+**Pliki przygotowane do wydania (jeszcze nie opublikowane):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, opcjonalny `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. Aktualny [ART Server dla Windows z v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) nadal jest wykorzystywany.
 
-Publiczna wersja **USB 0.8** jest oddzielnym wariantem, opisanym poniżej.
+**Dokumentacja:** [Opis wydania PL](docs/RELEASE_NOTES_v1.0.0_PL.md) · [English](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Techniczny opis HDD PL](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md) · [Lista czynności do publikacji](release-tools/v1_0/RELEASE_CHECKLIST.md).
+
+**Bezpieczeństwo:** Manager nie formatuje dysku ani nie zapisuje obrazów ISO. Opcjonalna iniekcja **nagłówka APA dla XMB** modyfikuje metadane partycji — wcześniej wykonaj kopię możliwą do przywrócenia; w wLaunchELF_R3Z wybierz **tylko PP.DVRISO**. Nie wybieraj Format/Create/Expand ani operacji na wszystkich partycjach. Po działającej instalacji XMB podmiana samego ELF-a nie wymaga ponownej iniekcji.
 
 ---
+
+## USB v0.8 — archiwalna dokumentacja poprzedniego wydania
 
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. Wersja **0.8** zawiera stronicowaną listę gier, podgląd okładek PNG oraz automatyczne uzupełnianie brakujących grafik przez aplikację na komputerze Windows.
 
