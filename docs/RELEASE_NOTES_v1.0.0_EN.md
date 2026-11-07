@@ -25,4 +25,4 @@ HDD 1.0 / XMB → Manager: **PASS on DESR-7000**. USB **v0.8** baseline: **PASS*
 
 ## Development and credits
 
-See [HDD architecture and FIX95/NETFIX technical documentation](docs/HDD_1_0_TECHNICAL_EN.md) ([Polski](docs/HDD_1_0_TECHNICAL_PL.md)). Original Neutrino and DVD emulation by upstream contributors; DVR FHI originated in pcm720's [PR #228](https://github.com/ps2max32/neutrino/pull/228). Existing OSDMenu, PS2SDK, wLaunchELF_R3Z and hdl-dump remain credited to their respective developers. GPLv2 template source and license are included with the XMB ZIP. These components are not newly authored by this project.
+See [HDD architecture and FIX95/NETFIX technical documentation](HDD_1_0_TECHNICAL_EN.md) ([Polski](HDD_1_0_TECHNICAL_PL.md)). Original Neutrino and DVD emulation by upstream contributors; DVR FHI originated in pcm720's [PR #228](https://github.com/ps2max32/neutrino/pull/228). Existing OSDMenu, PS2SDK, wLaunchELF_R3Z and hdl-dump remain credited to their respective developers. GPLv2 template source and license are included with the XMB ZIP. These components are not newly authored by this project.
