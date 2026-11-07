@@ -21,7 +21,7 @@ The Windows [ART Server v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGE
 
 ## Hardware test coverage and limitations
 
-HDD 1.0 / XMB → Manager: **PASS on DESR-7000**. USB **v0.8** baseline: **PASS** for 40/40 covers and REZ in English; the **new USB 1.0 binary has not been independently hardware-tested**. Not all 44 game ISOs, all DESR models, and not a one-click XMB installer have been verified. Native QUIT is an unmerged experiment.
+HDD 1.0 / XMB → Manager: **PASS on DESR-7000**. **USB 1.0: PASS — confirmed working on DESR-7000 on 2026-11-07.** The separate USB **v0.8** baseline previously confirmed 40/40 covers and REZ in English; those detailed results are **not claimed as new v1.0 tests**. Compatibility with all 44 game ISOs, all DESR models, and a one-click XMB installer has not been verified. Native QUIT is an unmerged experiment.
 
 ## Development and credits
 
