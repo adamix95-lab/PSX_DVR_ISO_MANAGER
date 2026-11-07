@@ -11,6 +11,7 @@
 #include <png.h>
 #include <setjmp.h>
 #include <stdint.h>
+#include "runtime_storage.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -109,7 +110,7 @@ int desr_cover_preview_png(const char *game_id, const char *ext) {
   if (!desr_valid_game_id(game_id) || !ext || strcmp(ext, "png"))
     return 0;
   n = snprintf(path, sizeof(path),
-               "mass0:/DESR_DVR/ART/%s_COV.png", game_id);
+               DESR_APP_ART_ROOT "%s_COV.png", game_id);
   if (n < 0 || n >= (int)sizeof(path)) return 0;
   fd = fileXioOpen(path, FIO_O_RDONLY, 0);
   if (fd < 0) return 0;

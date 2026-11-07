@@ -7,6 +7,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <stdint.h>
+#include "runtime_storage.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -19,7 +20,7 @@
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#define LAN_CFG "mass0:/DESR_DVR/NET_PROBE.CNF"
+#define LAN_CFG DESR_APP_NET_CFG
 #define LAN_CFG_CAP 512
 
 extern unsigned char netman_irx[] __attribute__((aligned(16)));
@@ -29,6 +30,8 @@ extern uint32_t size_smap_irx;
 
 static char lan_config[LAN_CFG_CAP + 1];
 static int network_started;
+
+int desr_lan_art_started(void) { return network_started; }
 
 int desr_lan_art_missing(void) {
   return art_sync_prepare();
@@ -65,6 +68,9 @@ static int network_init(const probe_config *cfg) {
   int link=0,i;
   if (network_started) return 0;
   scr_printf("Starting NETMAN + SMAP (no extra DEV9)\n");
+#ifdef DESR_HDD_NETFIX
+  scr_printf("NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum\n");
+#endif
   if (load_network_irx("netman",netman_irx,size_netman_irx)<0 ||
       load_network_irx("smap",smap_irx,size_smap_irx)<0) return -1;
 
@@ -96,3 +102,13 @@ int desr_lan_art_download(void) {
   if (network_init(&cfg)<0) return -1;
   return art_sync_run(&cfg);
 }
+
+#ifdef DESR_HDD_ART_PROBE
+int desr_lan_art_probe(const desr_cover_entry covers[], int count) {
+  probe_config cfg;
+  if (!covers || count<=0) return -1;
+  if (config_read(&cfg)<0) return -1;
+  if (network_init(&cfg)<0) return -1;
+  return art_sync_probe_all(&cfg,covers,count);
+}
+#endif

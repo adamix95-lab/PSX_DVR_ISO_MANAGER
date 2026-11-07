@@ -11,4 +11,13 @@ int desr_lan_art_missing(void);
    Never touches DVR partitions, BOOT.CNF or existing art. */
 int desr_lan_art_download(void);
 
+#ifdef DESR_HDD_ART_PROBE
+#include "cover_index.h"
+/* Never opens any PFS file for writing; validates images in EE RAM. */
+int desr_lan_art_probe(const desr_cover_entry covers[], int count);
+#endif
+
+/* True after NETMAN/SMAP + PS2IP start, for read-only HDD diagnostics. */
+int desr_lan_art_started(void);
+
 #endif

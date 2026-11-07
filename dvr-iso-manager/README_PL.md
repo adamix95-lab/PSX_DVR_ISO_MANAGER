@@ -4,6 +4,8 @@
 
 ## Stan wydania
 
+> **HDD 1.0 — test sprzętowy zaliczony (2026-11-06):** [pełny opis techniczny po polsku](../docs/HDD_1_0_TECHNICAL_PL.md) i [English](../docs/HDD_1_0_TECHNICAL_EN.md). Na DESR-7000 potwierdzono pełną paczkę z `PP.DVRISO`, 44 okładki (40 + 4), dwie uruchomione gry i jeden start z wymuszonym angielskim. Ta sekcja opisuje przede wszystkim osobne, publiczne **USB v0.8**; HDD 1.0 jest jeszcze kandydatem do wydania.
+
 **v0.8 działa na fizycznym Sony PSX DESR-7000.** Użytkownik przetestował 40 ISO na partycji DVR, usunął okładki oraz indeksy i pobrał ponownie 40/40 grafik z aplikacją Windows; wszystkie są widoczne. Sprawdzono też anulowanie i ponowne uruchomienie pobierania bez restartowania Managera oraz uruchomienie REZ w języku angielskim.
 
 **Nie zostało osobno potwierdzone**, czy podczas tego testu zadziałało zapasowe źródło PSBBN (główne archiwum OPL mogło dostarczyć wszystkie pliki).

@@ -2,9 +2,21 @@
 
 [Polski / Polish](README_PL.md)
 
+## HDD 1.0 — hardware-tested development branch
+
+**Status: PASS on a physical Sony PSX DESR-7000 (November 6, 2026); not yet a public stable v1.0 release.** The complete HDD package was installed on the dedicated `hdd0:PP.DVRISO` application partition. The user downloaded **44/44 covers in two batches (40 + 4)**, launched **two games from DVR HDD**, including **one with forced English**, and confirmed the simplified artwork result on the game list. This validates the tested build, **not** all 44 games or an automatic XMB installer.
+
+The user-facing application is **`DVR_ISO_MANAGER_HDD.ELF`** (no Preview ELF). It includes the **NETMAN/DEV9 HDD NETFIX**, HDD-aware OSDMenu/Neutrino FIX95 integration, and SYSTEM/ENGLISH selection. Game ISOs remain at `dvr_pfs0:/ISO/`; application files, configs, cover indexes and `ART/` remain on `PP.DVRISO`.
+
+**For developers:** [Complete HDD 1.0 architecture, root causes, Neutrino PFS wrapper, FIX95, NETFIX, credits and test matrix (English)](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md). See the [validated build](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678) and [HDD branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/v1.0-hdd).
+
+**USB v0.8** is the currently published release, documented below. Its USB files and launch workflow are separate from the HDD 1.0 candidate.
+
+---
+
 **PSX DVR ISO Manager** lists and launches PS2 ISO games from the DVR partition of a Sony PSX DESR console. Version **0.8** adds a 12-game paged menu, cover previews and on-demand cover downloads via a companion Windows PC application.
 
-**Hardware status:** tested on a Sony PSX DESR-7000 with **40 ISO games**. A full 40/40 artwork download, automatic index refresh and launch of **REZ in English** were confirmed. **The 128-game capacity is a limit defined in the source code (`DESR_GAME_CAP = 128`), not a hardware-tested result. Libraries larger than 40 games, including games 41–128, have not yet been verified on the console.** Individual games and external artwork sources may still behave differently.
+**USB v0.8 hardware status:** tested on a Sony PSX DESR-7000 with **40 ISO games**. A full 40/40 artwork download, automatic index refresh and launch of **REZ in English** were confirmed. **The 128-game capacity is a limit defined in the source code (`DESR_GAME_CAP = 128`), not a hardware-tested result. Libraries larger than 40 games, including games 41–128, have not yet been verified **with the USB v0.8 release**.** Individual games and external artwork sources may still behave differently.
 
 ## Features
 
