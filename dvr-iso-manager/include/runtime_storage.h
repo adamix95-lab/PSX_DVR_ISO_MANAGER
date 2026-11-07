@@ -10,7 +10,7 @@
  */
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
 #ifdef DESR_HDD_NETFIX
-#define DESR_APP_VARIANT "1.0 HDD NETFIX"
+#define DESR_APP_VARIANT "1.0 HDD"
 #elif defined(DESR_HDD_ART_PROBE)
 #define DESR_APP_VARIANT "1.0 HDD LAN PROBE RO"
 #else

@@ -267,7 +267,7 @@ static void draw(void) {
   scr_setXY(2, 1);
   scr_printf("PSX DVR ISO MANAGER");
 #ifdef DESR_HDD_NETFIX
-  scr_setXY(62, 1);
+  scr_setXY(69, 1);
 #else
   scr_setXY(69, 1);
 #endif
