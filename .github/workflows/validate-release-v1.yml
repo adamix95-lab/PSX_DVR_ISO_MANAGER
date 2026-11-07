@@ -50,7 +50,7 @@ jobs:
                   count += 1
           readme=pages[0].read_text()
           assert 'HDD is the primary development target' in readme
-          assert 'USB v0.8' in readme and 'not independently hardware-tested' in readme
+          assert 'USB v0.8' in readme and '1.0 USB' in readme and 'PASS' in readme
           assert 'XMB' in readme and 'PP.DVRISO' in readme
           assert 'NETFIX' in pathlib.Path('docs/HDD_1_0_TECHNICAL_EN.md').read_text()
           print('Release documentation PASS;', count, 'local links resolved')
