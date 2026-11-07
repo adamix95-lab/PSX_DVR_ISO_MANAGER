@@ -9,7 +9,7 @@
 | Wariant | Wynik na Sony PSX DESR-7000 | Instalacja |
 | --- | --- | --- |
 | **1.0 HDD** | **PASS:** 44/44 okładki (40 + 4), dwie uruchomione gry, w tym wymuszony angielski; działa start Managera z XMB i nagłówek `1.0 HDD` | Istniejąca partycja APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
-| **1.0 USB** | **ELF zbudowany; nieprzetestowany oddzielnie na sprzęcie.** Baza USB v0.8: 40/40 okładek i REZ po angielsku | Pendrive FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
+| **1.0 USB** | **PASS — przetestowany na Sony PSX DESR-7000 (7.11.2026):** USB 1.0 działa na konsoli. Wcześniejsze testy USB v0.8 oddzielnie potwierdziły 40/40 okładek i REZ po angielsku | Pendrive FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
 **Pliki przygotowane do wydania (jeszcze nie opublikowane):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, opcjonalny `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. Aktualny [ART Server dla Windows z v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) nadal jest wykorzystywany.
 
