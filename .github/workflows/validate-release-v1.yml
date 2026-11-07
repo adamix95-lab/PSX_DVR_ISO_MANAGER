@@ -1,0 +1,57 @@
+name: Validate v1.0.0 release documentation
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'README_PL.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - 'xmb-installer/**'
+      - 'release-tools/v1_0/**'
+      - '.github/workflows/validate-release-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile host-side release verifier
+        run: python3 -m py_compile release-tools/v1_0/verify_release_assets.py
+      - name: Check release docs, links and status
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          pages = [
+              pathlib.Path('README.md'), pathlib.Path('README_PL.md'),
+              pathlib.Path('CHANGELOG.md'),
+              pathlib.Path('docs/RELEASE_NOTES_v1.0.0_EN.md'),
+              pathlib.Path('docs/RELEASE_NOTES_v1.0.0_PL.md'),
+              pathlib.Path('docs/HDD_1_0_TECHNICAL_EN.md'),
+              pathlib.Path('docs/HDD_1_0_TECHNICAL_PL.md'),
+              pathlib.Path('release-tools/v1_0/RELEASE_CHECKLIST.md'),
+              pathlib.Path('xmb-installer/README_PL.md'),
+              pathlib.Path('xmb-installer/README_EN.md'),
+          ]
+          count = 0
+          for path in pages:
+              assert path.is_file(), path
+              text = path.read_text()
+              for link in re.findall(r'\]\(([^)]+)\)', text):
+                  part = link.split('#')[0]
+                  if not part or re.match(r'^(https?://|mailto:)', part):
+                      continue
+                  target = (path.parent / part).resolve()
+                  assert target.is_file() or target.is_dir(), f'{path}: broken {link}'
+                  count += 1
+          readme=pages[0].read_text()
+          assert 'HDD is the primary development target' in readme
+          assert 'USB v0.8' in readme and 'not independently hardware-tested' in readme
+          assert 'XMB' in readme and 'PP.DVRISO' in readme
+          assert 'NETFIX' in pathlib.Path('docs/HDD_1_0_TECHNICAL_EN.md').read_text()
+          print('Release documentation PASS;', count, 'local links resolved')
+          PY
