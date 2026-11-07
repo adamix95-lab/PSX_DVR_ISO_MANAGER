@@ -21,7 +21,7 @@ Kompatybilny [ART Server v0.8 dla Windows](https://github.com/adamix95-lab/PSX_D
 
 ## Testy i ograniczenia
 
-HDD 1.0 oraz start XMB → Manager: **PASS** na DESR-7000. USB **v0.8**: **PASS** (40/40 okładek i REZ po angielsku). Nowy ELF **USB 1.0 nie został jeszcze oddzielnie sprawdzony na konsoli**. Nie sprawdzono startu wszystkich 44 gier ani innych modeli DESR. Automatyczny instalator XMB i NATIVE QUIT nie są częścią wydania.
+HDD 1.0 oraz start XMB → Manager: **PASS** na DESR-7000. **USB 1.0: PASS — potwierdzone działanie na DESR-7000 dnia 7.11.2026.** Szczegółowe wyniki **USB v0.8** (40/40 okładek, REZ po angielsku) pochodzą z wcześniejszego testu i nie są przypisywane nowemu USB 1.0. Nie sprawdzono startu wszystkich 44 gier ani innych modeli DESR. Automatyczny instalator XMB i NATIVE QUIT nie są częścią wydania.
 
 ## Technika i autorzy
 
