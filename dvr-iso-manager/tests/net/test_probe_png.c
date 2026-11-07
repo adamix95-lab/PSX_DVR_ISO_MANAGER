@@ -40,6 +40,12 @@ int main(void) {
   assert(probe_http_extract_png(response,n+sizeof(png),&image,&size)<0);
   response[n+55]^=1;
   assert(probe_http_extract_png(response,n+sizeof(png)-1,&image,&size)<0);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.0 200 OK\r\n",17)==200);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.0 404 Not Found\r\n",24)==404);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.0 403 Forbidden\r\n",24)==403);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.1 503 Unavailable\r\n",26)==503);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.0 4O4 Bad",16)<0);
+  assert(probe_http_status((const uint8_t *)"HTTP/1.0 404",12)<0);
   memcpy(response,"HTTP/1.0 404",12);
   assert(probe_http_extract_png(response,n+sizeof(png),&image,&size)<0);
   assert(probe_png_check(png,sizeof(png)-1)<0);

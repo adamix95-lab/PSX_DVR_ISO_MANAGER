@@ -1,0 +1,219 @@
+name: Build PSX DVR ISO Manager 1.0 HDD full package
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/v1.0-hdd]
+    paths:
+      - 'dvr-iso-manager/**'
+      - 'hdd-netfix/**'
+      - 'neutrino-hdd-v1/**'
+      - 'neutrino-v02/**'
+      - 'release-tools/build_hdd_bundle_v1.py'
+      - 'release-tools/HDD_TEST_START_HERE_PL.txt'
+      - '.github/workflows/build-hdd-test-bundle-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  manager:
+    name: Build interactive HDD Manager with proven NETFIX
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache cmake build-base python3 bash git patch
+      - name: Host-test SYSTEM/ENGLISH HDD CNF, #PAD and ISO case
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/iso_utils.c dvr-iso-manager/src/hdd_boot_config.c \
+            dvr-iso-manager/tests/test_hdd_boot_config.c -o /tmp/test_hdd_boot_config
+          /tmp/test_hdd_boot_config
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build the patched SDK for interactive HDD
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Compile interactive HDD Manager with NETFIX
+        run: |
+          cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          mkdir -p dist
+          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF dist/DVR_ISO_MANAGER_HDD.ELF
+          test -s dist/DVR_ISO_MANAGER_HDD.ELF
+      - name: Verify HDD NETFIX and boot paths (no preview delivered)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path("dvr-iso-manager/src/main.c").read_text()
+          cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          for term in (
+              'LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args)',
+              'desr_make_hdd_boot_cnf(games[selected], force_english',
+              'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY)',
+              'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDWR)',
+              'write_verified_file(DESR_APP_BOOT_NEXT, cnf, len)',
+              'HDD preview: CNF / ART writes and launch disabled',
+              'DESR_HDD_TEST',
+          ):
+              assert term in src, term
+          assert 'DESR_HDD_PREVIEW=1' in cm and 'DESR_HDD_TEST=1' in cm
+          assert 'PP.TESTDVR' not in src
+
+          storage=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert '#define DESR_APP_ROOT "pfs1:/"' in storage
+          assert '#define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"' in storage
+          assert '#define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"' in storage
+          assert '"pfs0:/neutrino_hdd' not in storage
+          print("HDD TEST, staged CNF, Neutrino PFS1 and DIAG Z OSDMenu chainload PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd-bundle-manager
+          path: dist/
+          if-no-files-found: error
+
+  system:
+    name: Build real ISO Neutrino HDD SYSTEM FIX95
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply FIX95 + HDD PFS wrapper and compile unpacked loader
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'CONFIG FAIL KIND=%d:' ee/loader/src/main.c
+          grep -Fq 'desr_hdd_failed_toml' ee/loader/src/config.c
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
+          grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
+          git diff --check
+          make -C ee/loader all
+          test -s ee/loader/neutrino_unpacked.elf
+          mkdir -p ../out
+          cp ee/loader/neutrino_unpacked.elf ../out/neutrino_hdd.elf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd-bundle-system
+          path: out/
+          if-no-files-found: error
+
+  english:
+    name: Build real ISO Neutrino HDD ENGLISH FIX95 + EE core
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Patch English OSD plus FIX95 and build matching EE core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          grep -Fq 'CONFIG FAIL KIND=%d:' ee/loader/src/main.c
+          grep -Fq 'desr_hdd_failed_toml' ee/loader/src/config.c
+          grep -Fq 'desr_hdd_stage = 85' ee/loader/src/main.c
+          grep -Fq 'UPSTREAM STAGE=%d' ee/loader/src/main.c
+          grep -Fq 'strcmp(sDVDFile, argv[2] + 5) != 0' ee/loader/src/main.c
+          git diff --check
+          make -C ee/ee_core all
+          make -C ee/loader all
+          mkdir -p ../out/modules ../out/config
+          cp ee/loader/neutrino_unpacked.elf ../out/neutrino_hdd_lang.elf
+          cp ee/ee_core/ee_core.elf ../out/modules/ee_core_lang.elf
+          cp ../manager/neutrino-v02/osdlang.toml ../out/config/osdlang.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd-bundle-english
+          path: out/
+          if-no-files-found: error
+
+  package:
+    name: Assemble v1.0 HDD ZIP with original OSDMenu and modules
+    needs: [manager, system, english]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd-bundle-manager
+          path: payload/manager
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd-bundle-system
+          path: payload/system
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd-bundle-english
+          path: payload/english
+      - name: Get original OSDMenu, config and DVR modules from v0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p payload/legacy
+          gh release download v0.3.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'PSX.DVR.ISO.MANAGER.03.zip' --dir payload/legacy
+          test -s payload/legacy/PSX.DVR.ISO.MANAGER.03.zip
+      - name: Build verified HDD 1.0 package (no preview)
+        run: |
+          python3 release-tools/build_hdd_bundle_v1.py \
+            --legacy payload/legacy/PSX.DVR.ISO.MANAGER.03.zip \
+            --manager payload/manager/DVR_ISO_MANAGER_HDD.ELF \
+            --system payload/system/neutrino_hdd.elf \
+            --english payload/english/neutrino_hdd_lang.elf \
+            --core payload/english/modules/ee_core_lang.elf \
+            --osdlang payload/english/config/osdlang.toml \
+            --network release-tools/NET_PROBE.CNF \
+            --readme release-tools/HDD_TEST_START_HERE_PL.txt \
+            --output dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
+          test -s dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          p=Path("dist/PSX-DVR-ISO-Manager-1.0-HDD.zip")
+          with zipfile.ZipFile(p) as z:
+              names=z.namelist()
+              assert z.testzip() is None
+              assert sum(n.endswith("/DVR_ISO_MANAGER_HDD.ELF") for n in names)==1
+              assert not any("PREVIEW" in n or n.endswith("HDD_TEST.ELF") for n in names)
+              assert any(n.endswith("/ART/") for n in names)
+          print("One v1.0 HDD Manager, no preview, ART folder retained")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD
+          path: dist/PSX-DVR-ISO-Manager-1.0-HDD.zip
+          if-no-files-found: error

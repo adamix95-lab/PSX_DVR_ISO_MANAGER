@@ -1,9 +1,10 @@
-name: Build PSX DVR ISO Manager v0.8
+name: Build PSX DVR ISO Manager 1.0 HDD (read-only preview)
 on:
   workflow_dispatch:
   push:
     paths:
       - 'dvr-iso-manager/**'
+      - 'hdd-netfix/**'
       - '.github/workflows/build-dvr-iso-manager.yml'
 permissions:
   contents: read
@@ -14,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install CMake
-        run: apk add --no-cache cmake build-base
+        run: apk add --no-cache cmake build-base python3 bash git patch
       - name: Host-side validation
         run: |
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/iso_utils.c dvr-iso-manager/tests/test_iso_utils.c -o /tmp/test_cnf
@@ -31,6 +32,14 @@ jobs:
           /tmp/test_http_png
           cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include dvr-iso-manager/src/net/art_sync.c dvr-iso-manager/tests/net/test_art_sync.c -o /tmp/test_art_sync
           /tmp/test_art_sync
+      - name: Host-test HDD Quickboot CNF (no filesystem writes)
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/iso_utils.c \
+            dvr-iso-manager/src/hdd_boot_config.c \
+            dvr-iso-manager/tests/test_hdd_boot_config.c \
+            -o /tmp/test_hdd_boot_config
+          /tmp/test_hdd_boot_config
       - name: Check available image libraries
         run: |
           for p in "$PS2SDK/ports/include/png.h" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" "$GSKIT/include/gsKit.h"; do
@@ -41,10 +50,124 @@ jobs:
           cmake -S dvr-iso-manager -B build-dvr-manager
           cmake --build build-dvr-manager -j2
           test -s build-dvr-manager/DVR_ISO_MANAGER.ELF
+      - name: Verify HDD preview read-only guards and dual UI headers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          main=Path("dvr-iso-manager/src/main.c").read_text()
+          paths=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert 'DESR_APP_VARIANT "1.0 HDD"' in paths
+          assert 'DESR_APP_VARIANT "1.0 USB"' in paths
+          assert 'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY)' in main
+          assert 'if (new_press & PAD_TRIANGLE)' in main
+          assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in main
+          assert 'HDD preview: CNF / ART writes and launch disabled' in main
+          assert 'hdd0:PP.DVRISO' in paths and 'PP.TESTDVR' not in paths
+          cmake=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          assert 'foreach(name ps2dev9 ps2atad ps2hdd ps2fs)' in cmake
+          assert 'EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES}' in cmake
+          for snippet in ('LOAD(ps2dev9);', 'LOAD(ps2atad);',
+                          'hdd_arguments, sizeof(hdd_arguments)',
+                          'pfs_arguments, sizeof(pfs_arguments)',
+                          'sceCdInit(SCECdINoD)',
+                          'fileXioDopen("hdd0:")',
+                          'fileXioDopen(DVR_FOLDER)',
+                          'hdd_mount_owned = 1;',
+                          'hdd_unmount_owned();'):
+              assert snippet in main, snippet
+          print("HDD preview variant, read-only gate, version banners PASS")
+          PY
+      - name: Build additional HDD read-only preview target
+        run: |
+          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_PREVIEW.ELF -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+      - name: Verify HDD TEST runtime invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("dvr-iso-manager/src/main.c").read_text()
+          st=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          assert 'DESR_HDD_TEST=1' in cm
+          assert 'hdd0:PP.DVRISO/BOOT.CNF' in st
+          assert 'LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args)' in s
+          assert 'desr_make_hdd_boot_cnf(games[selected], force_english' in s
+          assert 'fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDWR)' in s
+          assert 'write_verified_file(DESR_APP_BOOT_NEXT, cnf, len)' in s
+          assert 'fileXioRename(DESR_APP_BOOT_NEXT, USB_BOOT_CNF)' in s
+          assert 'if (new_press & (PAD_CROSS | PAD_SQUARE))' in s
+          assert 'HDD preview: CNF / ART writes and launch disabled' in s
+          assert 'PP.TESTDVR' not in s
+
+          storage=Path("dvr-iso-manager/include/runtime_storage.h").read_text()
+          assert '#define DESR_APP_ROOT "pfs1:/"' in storage
+          assert '#define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"' in storage
+          assert '#define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"' in storage
+          assert '"pfs0:/neutrino_hdd' not in storage
+          print('HDD TEST PFS1 + separate READONLY preview guards PASS')
+          PY
+      - name: Build HDD LAN RAM-only diagnostic
+        run: |
+          cmake --build build-dvr-manager --target DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF -j2
+          test -s build-dvr-manager/DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("dvr-iso-manager/src/main.c").read_text()
+          cm=Path("dvr-iso-manager/CMakeLists.txt").read_text()
+          net=Path("dvr-iso-manager/src/net/art_sync_runtime.c").read_text()
+          assert 'DESR_HDD_PREVIEW=1 DESR_HDD_ART_PROBE=1' in cm
+          assert 'desr_lan_art_probe(probe_all_ids,count)' in s
+          assert 'desr_covers_resolve_ids(games,count,probe_all_ids)' in s
+          assert 'COVER_SCAN_LOG' in Path("dvr-iso-manager/src/cover_runtime.c").read_text()
+          assert 'if (remaining>512U) remaining=512U' in net
+          assert 'DESR_LAN_PROBE_ATTEMPTS 5' in net
+          assert 'if (rc!=-6) break;' in net
+          assert 'RAM DETAIL: FIRST' in net
+          assert 'art_sync_probe_retry_stats' in s
+          assert 'art_sync_probe_all' in net
+          assert 'RAM DONE' in net
+          assert 'hdd_mount_readonly()' in s
+          assert 'HDD preview: CNF / ART writes and launch disabled' in s
+          print("HDD LAN RAM benchmark: separate PREVIEW-gated RO target PASS")
+          PY
+      - name: Upload HDD LAN RAM-only diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-HDD-LAN-RO-PROBE-ELF
+          path: build-dvr-manager/DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF
+          if-no-files-found: error
+      - name: Upload separate 1.0 HDD read-only preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-READONLY-PREVIEW
+          path: |
+            build-dvr-manager/DVR_ISO_MANAGER_HDD_PREVIEW.ELF
+            neutrino-hdd-v1/README_PL.md
+          if-no-files-found: error
       - name: Upload test ELF
         uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-v0.8
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-USB-BASELINE
           path: |
             build-dvr-manager/DVR_ISO_MANAGER.ELF
             dvr-iso-manager/README_PL.md
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build the patched SDK for interactive HDD
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build HDD interactive target with proven NETFIX
+        run: |
+          cmake -S dvr-iso-manager -B build-hdd-netfix -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-hdd-netfix --target DVR_ISO_MANAGER_HDD_TEST.ELF -j2
+          test -s build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF
+          cp build-hdd-netfix/DVR_ISO_MANAGER_HDD_TEST.ELF build-hdd-netfix/DVR_ISO_MANAGER_HDD.ELF
+      - name: Upload standalone 1.0 HDD
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DVR-ISO-Manager-v1.0-HDD-ELF
+          path: build-hdd-netfix/DVR_ISO_MANAGER_HDD.ELF
+          if-no-files-found: error
