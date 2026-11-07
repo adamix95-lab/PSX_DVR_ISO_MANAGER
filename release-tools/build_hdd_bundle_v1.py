@@ -109,8 +109,12 @@ def build(args: argparse.Namespace) -> None:
     # The interactive Manager MUST reference BOTH binaries on its own
     # pfs1: mount. OSDMenu/Neutrino themselves later use pfs0:.
     test_manager = payload[manager_file]
-    if b"1.0 HDD NETFIX" not in test_manager:
-        raise ValueError("Rollback Manager must include validated NETFIX")
+    # NETFIX remains active; its internal banner is still present.
+    # Only the displayed application-version suffix was removed.
+    if (b"1.0 HDD" not in test_manager or
+            b"NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum" not in test_manager or
+            b"1.0 HDD NETFIX" in test_manager):
+        raise ValueError("HDD Manager must have clean 1.0 title and retained NETFIX")
     for required_path in (
             b"pfs1:/neutrino_hdd.elf",
             b"pfs1:/neutrino_hdd_lang.elf"):
