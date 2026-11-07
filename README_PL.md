@@ -1,10 +1,29 @@
-# PSX DVR ISO Manager v0.8
+# PSX DVR ISO MANAGER
 
 [English](README.md)
 
+## v1.0.0 — HDD + USB
+
+**Główną wersją rozwojową jest HDD; USB pozostaje obsługiwane.** Oba warianty przeglądają i uruchamiają gry PS2 ISO zapisane na partycji DVR konsoli Sony PSX. Wariant HDD został sprawdzony na konsoli, łącznie ze startem **XMB → PSX DVR ISO MANAGER** i ikoną PDIM (dysk HDD + DVD). Oficjalne GitHub Release v1.0.0 jest w przygotowaniu — ta gałąź nie publikuje go automatycznie.
+
+| Wariant | Wynik na Sony PSX DESR-7000 | Instalacja |
+| --- | --- | --- |
+| **1.0 HDD** | **PASS:** 44/44 okładki (40 + 4), dwie uruchomione gry, w tym wymuszony angielski; działa start Managera z XMB i nagłówek `1.0 HDD` | Istniejąca partycja APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
+| **1.0 USB** | **PASS — przetestowany na Sony PSX DESR-7000 (7.11.2026):** USB 1.0 działa na konsoli. Wcześniejsze testy USB v0.8 oddzielnie potwierdziły 40/40 okładek i REZ po angielsku | Pendrive FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
+
+**Pliki przygotowane do wydania (jeszcze nie opublikowane):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, opcjonalny `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. Aktualny [ART Server dla Windows z v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) nadal jest wykorzystywany.
+
+**Dokumentacja:** [Opis wydania PL](docs/RELEASE_NOTES_v1.0.0_PL.md) · [English](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Techniczny opis HDD PL](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md) · [Lista czynności do publikacji](release-tools/v1_0/RELEASE_CHECKLIST.md).
+
+**Bezpieczeństwo:** Manager nie formatuje dysku ani nie zapisuje obrazów ISO. Opcjonalna iniekcja **nagłówka APA dla XMB** modyfikuje metadane partycji — wcześniej wykonaj kopię możliwą do przywrócenia; w wLaunchELF_R3Z wybierz **tylko PP.DVRISO**. Nie wybieraj Format/Create/Expand ani operacji na wszystkich partycjach. Po działającej instalacji XMB podmiana samego ELF-a nie wymaga ponownej iniekcji.
+
+---
+
+## USB v0.8 — archiwalna dokumentacja poprzedniego wydania
+
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. Wersja **0.8** zawiera stronicowaną listę gier, podgląd okładek PNG oraz automatyczne uzupełnianie brakujących grafik przez aplikację na komputerze Windows.
 
-**Test na sprzęcie:** Sony PSX DESR-7000, **40 gier ISO** na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**. **Limit 128 gier wynika z kodu źródłowego (`DESR_GAME_CAP = 128`), a nie z testów sprzętowych. Biblioteka większa niż 40 gier, w tym pozycje 41–128, nie została jeszcze zweryfikowana na konsoli.**
+**Test wersji USB v0.8 na sprzęcie:** Sony PSX DESR-7000, **40 gier ISO** na partycji DVR. Potwierdzono pobranie i wyświetlenie **40/40 okładek od zera**, automatyczną odbudowę indeksu i uruchomienie **REZ po angielsku**. **Limit 128 gier wynika z kodu źródłowego (`DESR_GAME_CAP = 128`), a nie z testów sprzętowych. Biblioteka większa niż 40 gier, w tym pozycje 41–128, nie została jeszcze zweryfikowana **w wydaniu USB v0.8**.**
 
 ## Możliwości programu
 
