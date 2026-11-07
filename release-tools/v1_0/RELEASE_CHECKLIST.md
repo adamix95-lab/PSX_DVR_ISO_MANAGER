@@ -1,6 +1,6 @@
 # v1.0.0 — publication checklist / lista przed publikacją
 
-> **Status:** packages prepared and checksummed; nothing has been published as GitHub Release v1.0.0 yet. HDD hardware PASS; XMB launch PASS; USB v1.0 binary built but not separately hardware-tested.
+> **Status:** packages prepared and checksummed; nothing has been published as GitHub Release v1.0.0 yet. HDD hardware PASS; XMB launch PASS; **USB v1.0 hardware PASS (2026-11-07)**. The 40/40 covers and REZ-in-English results belong to the prior USB v0.8 test.
 
 ## Release files (exact filenames and SHA-256)
 
@@ -19,19 +19,19 @@ XMB icon: `jkt_002.png`, 76x108 indexed PNG8. No `HDD_TEST` / `PREVIEW` files in
 
 - [x] Select verified HDD candidate, clean title, retained NETFIX and two Neutrino variants.
 - [x] Verify KELF matches hardware-tested wrapper and update XMB installer with current HDD Manager.
-- [x] Keep USB 1.0 as a separate download and identify its testing limitation.
+- [x] Keep USB 1.0 as a separate download; **hardware operation confirmed on DESR-7000 on 2026-11-07**. Do not confuse this with USB v0.8's detailed test coverage.
 - [x] Prepare bilingual release notes and README; document upstream authors and APA risks.
 - [x] Build three ZIPs and validate ZIP CRC / ELF header / partition paths / SHA-256.
 - [ ] Review and merge release preparation PR into `main` (becomes HDD-first default development history); keep `feature/v1.0-usb` for USB-specific work.
 - [ ] On GitHub, create a **draft release** at tag **`v1.0.0`** targeting the merged `main` commit.
 - [ ] Attach the **three runtime ZIPs**, optional `RELEASE-SOURCES.zip` (builder, icon sources, GPL license), and `SHA256SUMS.txt`; optionally attach `RELEASE_MANIFEST.json`.
 - [ ] Paste [English release notes](../../docs/RELEASE_NOTES_v1.0.0_EN.md) (Polish version available); check final filenames and links.
-- [ ] Publish the draft when ready. Do not accidentally mark the USB 1.0 binary as independently hardware-tested.
+- [ ] Publish the draft when ready. USB 1.0 is hardware-tested; do not attribute USB v0.8's 40/40 covers and REZ-in-English results to the newer test.
 - [ ] Optional future check: end-to-end XMB → specific game, and other DESR consoles.
 
 ## Sources
 
 - HDD build: [GitHub Actions run 42346457001](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42346457001)
-- USB 1.0 baseline built in [run 42346249233](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42346249233)
+- USB 1.0 confirmed working on physical DESR-7000 (user report, 2026-11-07); build from [run 42346249233](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42346249233)
 - Approved USB v0.8 packaging [run 42346456930](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42346456930)
 - The reproducible asset builder is included in `PSX-DVR-ISO-Manager-v1.0.0-RELEASE-SOURCES.zip` (host-side Python/Pillow). The GitHub branch contains `release-tools/v1_0/verify_release_assets.py` to validate release binaries.
