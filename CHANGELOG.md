@@ -8,7 +8,7 @@
 - XMB Games → Manager launch using the PDIM HDD/DVD icon and wLaunchELF_R3Z APA-header injection.
 - Neutrino HDD PFS environment wrapper, dynamic ISO path validation (FIX95).
 - HDD TCP/HTTP integrity repair (NETMAN RX DMA / patched SDK), without debug counters or NETFIX in the Manager title.
-- Separate 1.0 USB ELF and complete USB package; follows the v0.8 USB architecture. USB v1.0 binary not yet independently tested on the console.
+- Separate 1.0 USB ELF and complete USB package, following the v0.8 USB architecture. **USB v1.0 confirmed working on a physical DESR-7000 on 2026-11-07**; 40/40 covers and REZ-in-English results remain attributed to the earlier v0.8 hardware test.
 - Bilingual technical and release documentation, with upstream attribution and safe install instructions.
 
 **Excluded:** experimental Native QUIT, automatic disk formatting or partition creation, one-click XMB installer.
