@@ -1,0 +1,113 @@
+name: Build experimental Neutrino 1.2 for isolated PP.DVRISO12
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'neutrino-hdd-v1/patch_hdd_runtime_v12.py'
+      - '.github/workflows/v1.2-neutrino-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  system:
+    name: Compile Neutrino SYSTEM for PP.DVRISO12
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply proven HDD FIX95 patches then retarget v1.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          test "$(git rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime_v12.py ee/loader/src/main.c
+          git diff --check
+          make -C ee/loader all
+          mkdir -p ../dist
+          cp ee/loader/neutrino_unpacked.elf ../dist/neutrino_hdd.elf
+      - name: Check compiled loader refers exclusively to PP.DVRISO12
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path("dist/neutrino_hdd.elf").read_bytes()
+          assert b.startswith(b"\x7fELF")
+          assert b"hdd0:PP.DVRISO12" in b
+          assert b"hdd0:PP.DVRISO:pfs:" not in b
+          assert b"hdd0:PP.DVRISO\x00" not in b
+          print("PASS SYSTEM: v1.2 Neutrino isolated partition, no 1.0 HDD path")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-NEUTRINO-SYSTEM-PP.DVRISO12-EXPERIMENTAL
+          path: dist/neutrino_hdd.elf
+          if-no-files-found: error
+
+  english:
+    name: Compile Neutrino ENGLISH for PP.DVRISO12
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply existing OSD English + proven FIX95 + v1.2 retarget
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git config --global --add safe.directory "$(pwd)"
+          git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime_v12.py ee/loader/src/main.c
+          git diff --check
+          make -C ee/ee_core all
+          make -C ee/loader all
+          mkdir -p ../dist/config ../dist/modules
+          cp ee/loader/neutrino_unpacked.elf ../dist/neutrino_hdd_lang.elf
+          cp ee/ee_core/ee_core.elf ../dist/modules/ee_core_lang.elf
+          cp ../manager/neutrino-v02/osdlang.toml ../dist/config/osdlang.toml
+      - name: Check ENGLISH loader is isolated
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path("dist/neutrino_hdd_lang.elf").read_bytes()
+          assert b.startswith(b"\x7fELF")
+          assert b"hdd0:PP.DVRISO12" in b
+          assert b"hdd0:PP.DVRISO:pfs:" not in b
+          assert b"hdd0:PP.DVRISO\x00" not in b
+          assert b"osdlang" in b
+          print("PASS ENGLISH: v1.2 Neutrino and language core isolated")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-NEUTRINO-ENGLISH-PP.DVRISO12-EXPERIMENTAL
+          path: dist/
+          if-no-files-found: error
