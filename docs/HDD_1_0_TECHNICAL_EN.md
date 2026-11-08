@@ -14,7 +14,7 @@
 | Earlier DIAG Z / FIX95 tests (including MGS2 and ICO) | **PASS, historical** | Previous boot-chain diagnostics |
 | Earlier forced-English Metal Slug test | **PASS, historical** | Previous NETFIX verification |
 | Boot compatibility of all 44 titles | **NOT TESTED** | 44/44 refers to **covers**, not game compatibility |
-| Automatic XMB installation / launch through an installed XMB entry | **NOT VERIFIED** | Separate work |
+| Llaunch through an installed XMB entry | PASS |  |
 | Other DESR models, storage devices or networks | **NOT VERIFIED** | Community testing needed |
 
 A successful real-hardware test is not a blanket guarantee. The separately released **USB v0.8** variant remains available.
