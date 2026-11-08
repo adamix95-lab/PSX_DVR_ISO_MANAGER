@@ -31,6 +31,9 @@
 
 /* All read paths come from one v1 layout header. HDD_PREVIEW never writes. */
 #include "runtime_storage.h"
+#ifdef DESR_HDD_V12
+#include "v12_tls_clock.h"
+#endif
 #define USB_TEST_CNF DESR_APP_TEST_CNF
 #define USB_BOOT_CNF DESR_APP_BOOT_CNF
 #define USB_BACKUP_CNF DESR_APP_BACKUP_CNF
@@ -396,10 +399,10 @@ static void draw(void) {
   scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_V12
-  scr_printf("V1.2 READ ONLY: TRIANGLE = DNS + TCP/443 PROBE");
+  scr_printf("V1.2 RO: TRIANGLE=NET  SQUARE=RTC CLOCK");
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
-  scr_printf("X / SQUARE DISABLED   START: EXIT");
+  scr_printf("X: DISABLED   START: EXIT");
 #else
   scr_printf("UP/DOWN: GAME   LEFT/RIGHT: PAGE   X: LAUNCH");
   scr_setfontcolor(0xC8C8C8);
@@ -914,6 +917,37 @@ int main(int argc, char *argv[]) {
         v12_internet_screen=1;
         continue;
       }
+      if (new_press & PAD_SQUARE) {
+        sceCdCLOCK clock;
+        v12_tls_clock decoded;
+        int clock_rc;
+        memset(&clock,0,sizeof(clock));
+        scr_clear();
+        scr_printf("PSX DVR ISO MANAGER 1.2 - RTC PREFLIGHT\\n");
+        scr_printf("Read only: no RTC setting / no disk writes\\n");
+        scr_printf("--------------------------------------------\\n");
+        clock_rc=sceCdReadClock(&clock);
+        scr_printf("sceCdReadClock rc=%d status=0x%02x\\n",
+                   clock_rc,(unsigned)clock.stat);
+        if (clock_rc &&
+            v12_tls_clock_decode(clock.stat,clock.year,clock.month,
+                      clock.day,clock.hour,clock.minute,clock.second,
+                      &decoded)==0) {
+          scr_printf("RTC DATE: %04u-%02u-%02u %02u:%02u:%02u\\n",
+            decoded.year,decoded.month,decoded.day,
+            decoded.hour,decoded.minute,decoded.second);
+          scr_printf("RTC PLAUSIBLE: PASS (NOT TRUSTED TIME)\\n");
+        } else {
+          scr_printf("RTC PLAUSIBLE: FAIL; check clock/battery\\n");
+          scr_printf("RTC RAW BCD: Y%02x M%02x D%02x h%02x m%02x s%02x\\n",
+             clock.year,clock.month,clock.day,
+             clock.hour,clock.minute,clock.second);
+        }
+        scr_printf("No TLS was attempted. Certificate check unavailable.\\n");
+        scr_printf("CIRCLE: BACK   START: EXIT\\n");
+        v12_internet_screen=1;
+        continue;
+      }
 #elif defined(DESR_HDD_ART_PROBE)
       /* Dedicated RO LAN benchmark: TRIANGLE fetches every indexed Game ID
          into RAM and validates it. Never mount RW, scan/write INDEX or
@@ -965,7 +999,7 @@ int main(int argc, char *argv[]) {
       if (new_press & (PAD_CROSS | PAD_SQUARE)) {
         snprintf(status, sizeof(status),
 #ifdef DESR_HDD_V12
-                 "1.2 HDD: X/SQUARE disabled; TRIANGLE tests Internet only"
+                 "1.2 HDD: X disabled; TRIANGLE NET / SQUARE RTC"
 #elif defined(DESR_HDD_ART_PROBE)
                  "HDD LAN PROBE READ ONLY: X/SQUARE launch & writes disabled"
 #else
