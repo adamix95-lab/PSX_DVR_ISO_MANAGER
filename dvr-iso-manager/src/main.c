@@ -788,6 +788,11 @@ static int hdd_mount_readonly(void) {
 #ifdef DESR_HDD_TEST
 /* Explicit user action required for writes; app PP.DVRISO only. */
 static int hdd_enable_writes(void) {
+#ifdef DESR_HDD_V12
+  /* Fail closed even if a future UI path calls this helper by mistake.
+     Experimental 1.2 cannot remount PFS read/write or touch BOOT.CNF. */
+  return -230;
+#else
   int rc, fd;
   if (hdd_writable) return 0;
   if (!hdd_mount_owned) return -220;
@@ -810,6 +815,7 @@ static int hdd_enable_writes(void) {
   hdd_writable = 1;
   scr_printf("%s: %s RW OPT-IN OK\n", DESR_APP_VARIANT, DESR_APP_PARTITION);
   return 0;
+#endif /* not DESR_HDD_V12 */
 }
 #endif
 #endif
