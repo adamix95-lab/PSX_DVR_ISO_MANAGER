@@ -74,10 +74,13 @@ short-lived TCP connection to port 443 of `raw.githubusercontent.com`.
 It **never** mounts the app partition read/write. `X` and `SQUARE` are
 disabled and it never launches Neutrino or writes BOOT/ART/CNF.
 
-The experimental ELF is built by
-[`v1.2-hdd-build.yml`](../../.github/workflows/v1.2-hdd-build.yml)
-with a separate `DVR_ISO_MANAGER_V12_HDD.ELF` output. Do not use it until
-that workflow succeeds for the commit containing the N1 source.
+**N1 STATUS: READY FOR PHYSICAL READ-ONLY TEST (DESR-7000).**
+
+- [Verified N1 ELF — GitHub Actions run 42528063946](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42528063946) — **PASS**, artifact `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS` containing `DVR_ISO_MANAGER_V12_HDD.ELF`.
+- [Host parser and safety contract — run 42528083914](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42528083914) — **PASS**.
+- This is **not** a complete HTTPS client. No TLS handshakes or cover transfers are performed by N1.
+
+The ELF is built by [`v1.2-hdd-build.yml`](../../.github/workflows/v1.2-hdd-build.yml) from the test branch, **not** from a public release.
 
 ### What to prepare on your DESR-7000
 
