@@ -128,7 +128,19 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
-## Stage N3A — Roughtime wire/network preflight (EXPERIMENTAL)
+## Stage N3A — Roughtime wire/network preflight (READY FOR HARDWARE TEST)
+
+**Host tests: PASS.** [GitHub Actions run 42532764928](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764928).
+**PS2 build: PASS.** [GitHub Actions run 42532764843](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764843).
+Download artifact `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS`,
+containing `DVR_ISO_MANAGER_V12_HDD.ELF` (~1.6 MB archive). Replace only
+the experimental ELF on the FAT32 USB, launch from wLE-R3Z as before.
+Keep the same **PP.DVRISO12/V12_NET.CNF** as N1/N2B.
+
+**N3A on physical DESR-7000 has not yet been tested.** Please press
+**SELECT** exactly once and photograph the result. Do **not** interpret
+`FRAME: PASS` as a signature or time verification.
+
 
 Cloudflare operates the public `roughtime.cloudflare.com:2003` service,
 which signs time responses with Ed25519 using a published root public key.
