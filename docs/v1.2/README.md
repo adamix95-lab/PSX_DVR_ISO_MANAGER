@@ -86,6 +86,13 @@ The experimental-only modules are now in the tree:
   `DVR_ISO_MANAGER_V12_HDD.ELF` build target compiles the new C modules
   without using them in stable 1.0.
 
+### Build and audit evidence
+
+- [Host tests: partition isolation + HTTPS policy/client + Neutrino retarget](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527003801) — **PASS**.
+- [Separate Neutrino v1.2 SYSTEM and ENGLISH builds](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527061168) — **PASS**.
+- [Experimental HDD ELF with NETFIX, read-only preview and v1.2 partition](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527208156) — **PASS**. It intentionally contains no usable Quickboot or live HTTPS.
+- [PS2 wolfSSL headers/toolchain audit](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527310888) — **PASS** for the cross-compiler using `WOLFSSL_USER_IO`, `WOLFSSL_NO_SOCK` and `NO_WRITEV`. The library exists in PS2SDK ports; certificate validation, secure entropy, DNS and live TLS are **not yet validated**.
+
 **Still not implemented:** the real wolfSSL backend, DNS, trusted CA
 installation, secure entropy source, working certificate-time validation,
 remote image normalization and integration with HDD artwork writes.
