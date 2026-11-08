@@ -66,6 +66,59 @@ Before using any resulting ELF, confirm that it contains
 `hdd0:PP.DVRISO12` and that the displayed application variant says
 `1.2 HDD`.
 
+## Stage N1 — Physical DNS + TCP/443 test (READ-ONLY)
+
+**No TLS handshake, HTTP request or PNG download happens in this test.**
+The test checks network configuration, NETMAN/SMAP + NETFIX, DNS and a
+short-lived TCP connection to port 443 of `raw.githubusercontent.com`.
+It **never** mounts the app partition read/write. `X` and `SQUARE` are
+disabled and it never launches Neutrino or writes BOOT/ART/CNF.
+
+The experimental ELF is built by
+[`v1.2-hdd-build.yml`](../../.github/workflows/v1.2-hdd-build.yml)
+with a separate `DVR_ISO_MANAGER_V12_HDD.ELF` output. Do not use it until
+that workflow succeeds for the commit containing the N1 source.
+
+### What to prepare on your DESR-7000
+
+1. Back up important APA headers/data. **Never format `PP.DVRISO`.**
+   If you have not created `PP.DVRISO12`, create that separate PFS
+   application partition manually only when prepared to test; 256 MB
+   is sufficient for N1. Do **not** inject any XMB header.
+2. Put **only** the following config file at
+   `hdd0:PP.DVRISO12/V12_NET.CNF` using wLaunchELF_R3Z. Replace
+   *every example address* with your own free LAN IP/router/subnet/DNS.
+   Do not copy your working `PP.DVRISO/BOOT.CNF`.
+
+   ```ini
+   # EXAMPLE ONLY — adjust to your home network.
+   IP=192.168.1.90
+   NETMASK=255.255.255.0
+   GATEWAY=192.168.1.1
+   DNS=192.168.1.1
+   ```
+
+3. Copy the **experimental** `DVR_ISO_MANAGER_V12_HDD.ELF` to
+   FAT32 USB and launch it with wLE (not from production XMB).
+   It must show `1.2 HDD`, not `1.0 HDD`.
+4. Press **TRIANGLE** exactly once. It should print the IP, DNS,
+   resolved IPv4 address for `raw.githubusercontent.com` and
+   `TCP/443 CONNECTED`. It then displays a result code and holds
+   the screen for a photograph. **CIRCLE** returns to the menu;
+   **START** exits the Manager.
+5. Photograph the result screen, including error codes. The program
+   does not download images; a successful N1 only proves DNS and TCP
+   reachability, **not native HTTPS/TLS**.
+
+Codes: `-301` missing configuration, `-302` invalid configuration,
+`-303` NETMAN/SMAP/network failure, `-304` invalid fixed host,
+`-305` DNS failure, `-306` TCP/443 connect failure. `0` is
+DNS/TCP success.
+
+The first N1 probe may wait for DNS timeouts on a broken network.
+Use a working wired router and a unique unused console IP address.
+No PS2 system/DVR ISO partition write is performed.
+
 ## Progress: verified-in-RAM HTTPS request scaffolding
 
 The experimental-only modules are now in the tree:
@@ -93,9 +146,11 @@ The experimental-only modules are now in the tree:
 - [Experimental HDD ELF with NETFIX, read-only preview and v1.2 partition](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527208156) — **PASS**. It intentionally contains no usable Quickboot or live HTTPS.
 - [PS2 wolfSSL headers/toolchain audit](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527310888) — **PASS** for the cross-compiler using `WOLFSSL_USER_IO`, `WOLFSSL_NO_SOCK` and `NO_WRITEV`. The library exists in PS2SDK ports; certificate validation, secure entropy, DNS and live TLS are **not yet validated**.
 
-**Still not implemented:** the real wolfSSL backend, DNS, trusted CA
-installation, secure entropy source, working certificate-time validation,
-remote image normalization and integration with HDD artwork writes.
+**Still not implemented:** the real wolfSSL backend, cryptographically
+verified TLS, trusted CA installation, secure entropy source,
+working certificate-time validation, remote image normalization and
+integration with HDD artwork writes. The new **DNS/TCP reachability probe**
+is implemented but still requires a physical DESR-7000 test.
 
 **Neutrino isolation:** the stable HDD Neutrino FIX95 wrapper also hardcoded
 `hdd0:PP.DVRISO` for both targets and its `pfs0` mount. The new
