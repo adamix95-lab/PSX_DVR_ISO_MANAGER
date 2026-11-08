@@ -1,0 +1,66 @@
+name: N3B PS2 Ed25519 Roughtime crypto toolchain audit
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/src/v12_roughtime_crypto_link_audit.c'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - '.github/workflows/v1.2-roughtime-crypto-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ed25519-ee:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: apk add --no-cache cmake make git
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: v5.8.2-stable
+          path: wolfssl-src
+      - name: Build isolated wolfSSL port with Ed25519 + SHA-512
+        shell: sh
+        run: |
+          set -eu
+          export V12_WOLFSSL_DIR="$GITHUB_WORKSPACE/v12-wolfssl-install"
+          echo "V12_WOLFSSL_DIR=$V12_WOLFSSL_DIR" >> "$GITHUB_ENV"
+          CFLAGS="-DWOLFSSL_GETRANDOM -DNO_WRITEV" cmake \
+            -S wolfssl-src -B build-wolfssl-v12 \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$V12_WOLFSSL_DIR" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DWOLFSSL_CRYPT_TESTS=OFF \
+            -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON \
+            -DWOLFSSL_ED25519=yes \
+            -DWOLFSSL_SHA512=yes \
+            -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-v12 -j2
+          cmake --install build-wolfssl-v12
+          test -f "$V12_WOLFSSL_DIR/lib/libwolfssl.a"
+          test -f "$V12_WOLFSSL_DIR/include/wolfssl/options.h"
+          grep -q 'define HAVE_ED25519' "$V12_WOLFSSL_DIR/include/wolfssl/options.h"
+          echo "PASS: isolated EE wolfSSL has Ed25519 compile feature"
+      - name: Compile/link Ed25519 + SHA512 API test
+        shell: sh
+        run: |
+          set -eu
+          cmake -S dvr-iso-manager -B build-roughtime-crypto \
+            -DDESR_V12_ROUGHTIME_CRYPTO_AUDIT=ON
+          cmake --build build-roughtime-crypto --target V12_ROUGHTIME_CRYPTO_AUDIT.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path("build-roughtime-crypto/V12_ROUGHTIME_CRYPTO_AUDIT.ELF")
+          assert a.read_bytes().startswith(b'\x7fELF')
+          print("PASS: PS2 EE Ed25519 verify + SHA512 static link; no execution/handshake")
+          PY
+      # No artifact is distributed: toolchain/ABI test only.
+      # Next: runtime verification using test vectors, RNG audit, and licensing.
