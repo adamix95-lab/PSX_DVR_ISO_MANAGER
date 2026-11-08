@@ -23,6 +23,7 @@
 #include "v12_net_config.h"
 #include "v12_https_policy.h"
 #include "v12_ntp.h"
+#include "v12_roughtime_wire.h"
 #include <time.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -322,6 +323,95 @@ int desr_v12_ntp_probe(v12_ntp_time *out) {
   } else {
     scr_printf("NTP FAILED code %d; RTC unchanged.\n",ret);
   }
+  return ret;
+}
+
+
+/* N3A: reachability/framing only for Cloudflare Roughtime draft-08.
+ * This intentionally does NOT verify Ed25519 signatures, delegation,
+ * nonce Merkle proof or signed time. The nonce below is NOT crypto-secure,
+ * so NEVER trust this response or use it for wolfSSL certificate checks.
+ * No storage, RTC, HTTP or TLS writes. UDP traffic only.
+ */
+int desr_v12_roughtime_probe(void) {
+  const char *host="roughtime.cloudflare.com";
+  v12_net_config net;
+  probe_config cfg;
+  ip_addr_t dns;
+  struct addrinfo hints,*resolved=NULL,*cur;
+  uint8_t request[V12_RT_REQUEST_BYTES],response[V12_RT_REPLY_MAX_BYTES];
+  uint8_t nonce[32];
+  static uint32_t seq;
+  uint32_t x;
+  unsigned tags=0;
+  int sock=-1,rc,ret=-321,try_count=0;
+  if(v12_read_network_config(&net)<0) return -322;
+  memset(&cfg,0,sizeof(cfg));
+  memcpy(cfg.ip,net.ip,4);
+  memcpy(cfg.netmask,net.netmask,4);
+  memcpy(cfg.gateway,net.gateway,4);
+  if(network_init(&cfg)<0) return -323;
+  IP4_ADDR(&dns,net.dns[0],net.dns[1],net.dns[2],net.dns[3]);
+  dns_setserver(0,&dns);
+  ++seq;
+  x=(uint32_t)clock() ^ ((uint32_t)(uintptr_t)&seq) ^
+    (UINT32_C(0x9e3779b9)*seq);
+  if(!x) x=1;
+  for(unsigned i=0;i<sizeof(nonce);i++) {
+    /* Probe-only distinct nonce, NOT a cryptographic entropy source. */
+    x^=x<<13; x^=x>>17; x^=x<<5;
+    nonce[i]=(uint8_t)(x>>((i&3U)*8U));
+  }
+  if(v12_rt_make_request(request,sizeof(request),nonce)<0)
+    return -324;
+  memset(&hints,0,sizeof(hints));
+  hints.ai_family=AF_INET;hints.ai_socktype=SOCK_DGRAM;
+  hints.ai_protocol=IPPROTO_UDP;
+  scr_printf("Roughtime DNS: %s\\n",host);
+  rc=getaddrinfo(host,"2003",&hints,&resolved);
+  if(rc!=0 || !resolved) {
+    scr_printf("Roughtime DNS FAILED: %d\\n",rc);
+    if(resolved) freeaddrinfo(resolved);
+    return -325;
+  }
+  for(cur=resolved;cur && try_count<2;cur=cur->ai_next) {
+    fd_set reads;
+    struct timeval tv;
+    int got;
+    if(cur->ai_family!=AF_INET ||
+       cur->ai_addrlen<sizeof(struct sockaddr_in)) continue;
+    ++try_count;
+    sock=lwip_socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(sock<0) continue;
+    if(lwip_connect(sock,cur->ai_addr,cur->ai_addrlen)<0) {
+      lwip_close(sock);sock=-1;continue;
+    }
+    if(lwip_send(sock,request,sizeof(request),0)!=(int)sizeof(request)) {
+      lwip_close(sock);sock=-1;continue;
+    }
+    FD_ZERO(&reads);FD_SET(sock,&reads);
+    tv.tv_sec=6;tv.tv_usec=0;
+    if(lwip_select(sock+1,&reads,NULL,NULL,&tv)<=0 ||
+       !FD_ISSET(sock,&reads)) {
+      scr_printf("Roughtime UDP/2003: TIMEOUT\\n");
+      lwip_close(sock);sock=-1;continue;
+    }
+    got=lwip_recv(sock,response,sizeof(response),0);
+    lwip_close(sock);sock=-1;
+    if(got<=0) continue;
+    scr_printf("UDP RESPONSE: %d bytes\\n",got);
+    if(v12_rt_check_reply_frame(response,(size_t)got,&tags)!=0) {
+      scr_printf("ROUGHTIME FRAME: INVALID (NOT TRUSTED)\\n");
+      ret=-326;continue;
+    }
+    scr_printf("ROUGHTIME FRAME: PASS, tags=%u (UNVERIFIED)\\n",tags);
+    scr_printf("NO Ed25519 check. NO trusted time.\\n");
+    ret=0;break;
+  }
+  if(sock>=0) lwip_close(sock);
+  freeaddrinfo(resolved);
+  scr_printf("N3A UDP/2003 RESULT: %s (code %d)\\n",
+             ret==0?"PASS (transport only)":"FAIL",ret);
   return ret;
 }
 
