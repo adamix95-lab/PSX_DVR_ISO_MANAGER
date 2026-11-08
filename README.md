@@ -4,6 +4,8 @@
 
 ## v1.0.0 — HDD + USB
 
+**[Download the official 1.0 release — HDD, USB and XMB installer](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.0)** (including the Windows ART Server and SHA-256 checksums).
+
 **PSX DVR ISO Manager** lets you browse and launch PlayStation 2 ISO games from the DVR partition of a Sony PSX DESR console.
 
 **HDD is the primary development variant, while USB remains supported.** Both versions launch PS2 ISO games stored on the Sony PSX DVR partition. The HDD version has been hardware-tested, including launching the Manager directly from XMB.
