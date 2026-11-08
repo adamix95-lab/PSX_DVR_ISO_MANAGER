@@ -1,0 +1,55 @@
+name: Build isolated PSX DVR ISO Manager 1.2 HDD (HTTPS scaffolding only)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/**'
+      - 'hdd-netfix/**'
+      - '.github/workflows/v1.2-hdd-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experimental-hdd:
+    name: Compile v1.2 with NETFIX and verify separate partition
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Rebuild the proven pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build only experimental v1.2 ELF
+        run: |
+          cmake -S dvr-iso-manager -B build-v12-hdd -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-v12-hdd --target DVR_ISO_MANAGER_V12_HDD.ELF -j2
+          mkdir -p dist
+          cp build-v12-hdd/DVR_ISO_MANAGER_V12_HDD.ELF dist/DVR_ISO_MANAGER_V12_HDD.ELF
+      - name: Assert real ELF and isolated HDD path
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/DVR_ISO_MANAGER_V12_HDD.ELF')
+          blob=p.read_bytes()
+          assert blob.startswith(b'\x7fELF')
+          assert b'1.2 HDD' in blob
+          assert b'hdd0:PP.DVRISO12' in blob
+          assert b'hdd0:PP.DVRISO12/BOOT.CNF' in blob
+          assert b'hdd0:PP.DVRISO/BOOT.CNF' not in blob
+          assert b'NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum' in blob
+          print('PASS: experimental isolated v1.2 HDD ELF; native HTTPS transport still pending')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS
+          path: dist/DVR_ISO_MANAGER_V12_HDD.ELF
+          if-no-files-found: error
