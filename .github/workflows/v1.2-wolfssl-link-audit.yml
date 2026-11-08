@@ -1,0 +1,35 @@
+name: N2 wolfSSL link audit (no TLS, no distributed binary)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/src/v12_wolfssl_link_audit.c'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - '.github/workflows/v1.2-wolfssl-link-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ee-link:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake
+        run: apk add --no-cache cmake make
+      - name: Cross-compile and link wolfSSL API smoke test (never shipped)
+        run: |
+          cmake -S dvr-iso-manager -B build-v12-wolf-link -DDESR_V12_WOLFSSL_LINK_AUDIT=ON
+          cmake --build build-v12-wolf-link --target V12_WOLFSSL_LINK_AUDIT.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('build-v12-wolf-link/V12_WOLFSSL_LINK_AUDIT.ELF')
+          assert p.read_bytes().startswith(b'\x7fELF')
+          print('PASS: wolfSSL cross-linked; no TLS handshake attempted')
+          PY
+      # No upload-artifact: avoid distributing a GPL-linked test image until
+      # the downstream project license and complete corresponding sources
+      # are documented and the hardware RNG/CA requirements are met.
