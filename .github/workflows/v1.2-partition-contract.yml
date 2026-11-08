@@ -16,6 +16,8 @@ on:
       - 'dvr-iso-manager/include/v12_https_client.h'
       - 'dvr-iso-manager/src/net/v12_https_client.c'
       - 'dvr-iso-manager/tests/net/test_v12_https_client.c'
+      - 'neutrino-hdd-v1/patch_hdd_runtime_v12.py'
+      - 'dvr-iso-manager/tests/test_v12_neutrino_partition.py'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate v1.2 isolation and unchanged stable paths
-        run: python3 dvr-iso-manager/tests/test_v12_partition_contract.py
+        run: |
+          python3 dvr-iso-manager/tests/test_v12_partition_contract.py
+          python3 dvr-iso-manager/tests/test_v12_neutrino_partition.py
       - name: Host test native HTTPS allowlist and PNG response validation
         run: |
           cc -std=c99 -Wall -Wextra -Werror -pedantic \
