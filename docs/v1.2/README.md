@@ -82,9 +82,14 @@ Before using any resulting ELF, confirm that it contains
 - N2A preserves **TRIANGLE: DNS/TCP443**, **X: disabled**,
   **CIRCLE: return** and **START: exit**.
 
-## Stage N2B — Time bootstrap for dead-RTC DESR (experimental)
+## Stage N2B — Time bootstrap for dead-RTC DESR (READY FOR HARDWARE TEST)
 
-**Physical test is pending.** The maintainer confirmed that the DESR-7000
+**CI build and host tests: PASS. Physical DESR hardware test: pending.**
+
+- [N2B ELF — GitHub Actions run 42531199387](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42531199387), artifact `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS`, containing `DVR_ISO_MANAGER_V12_HDD.ELF`.
+- [Strict NTP codec, RTC and partition host tests — run 42531214285](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42531214285) — **PASS**.
+- **N2A physical RTC test can be skipped:** maintainer reported a depleted RTC battery; the network-based N2B is the next test.
+ The maintainer confirmed that the DESR-7000
 RTC battery is depleted, so the development order is changed: attempt
 network UTC first, without relying on the console's hardware RTC.
 
@@ -106,6 +111,9 @@ disabled, `CIRCLE` returns to the menu, and `START` exits.
 - All times shown are **UTC**, not local Poland time (UTC+1 in winter).
 - A router or ISP that blocks outbound UDP/123 can produce a timeout.
   This is a network limitation, not evidence of broken RTC/NETFIX.
+- Test with the existing `V12_NET.CNF` and `PP.DVRISO12` from N1.
+  Copy the new experimental ELF to the same FAT32 USB path and launch
+  through wLaunchELF_R3Z. Do **not** install into the 1.0 XMB.
 - Typical errors: `-311` config unavailable, `-313` network init,
   `-314` NTP DNS, `-312` UDP timeout/connect failure, `-316`
   rejected response.
@@ -124,7 +132,7 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
-## Stage N2A — hardware RTC preflight (READY FOR TEST)
+## Stage N2A — optional RTC diagnostic (deferred: battery depleted)
 
 **Built successfully:** [RTC-capable 1.2 HDD ELF / Actions run 42530395826](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42530395826).
 The `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS` artifact contains
