@@ -1,97 +1,581 @@
-# PSX DVR ISO Manager
+# PSX DVR ISO MANAGER
 
 [Polski / Polish](README_PL.md)
 
 ## v1.0.0 — HDD + USB
 
-**HDD is the primary development target; USB remains supported.** Both variants browse and launch PS2 ISO games stored on the Sony PSX DVR partition. The HDD build is hardware-tested, including the **XMB Games → PSX DVR ISO MANAGER** launcher with the metallic PDIM HDD/DVD cover. The official v1.0.0 GitHub Release is being prepared; this branch does not publish it automatically.
+**PSX DVR ISO Manager** lets you browse and launch PlayStation 2 ISO games from the DVR partition of a Sony PSX DESR console.
 
-| Edition | Status on Sony PSX DESR-7000 | Installation |
+**HDD is the primary development variant, while USB remains supported.** Both versions launch PS2 ISO games stored on the Sony PSX DVR partition. The HDD version has been hardware-tested, including launching the Manager directly from XMB.
+
+| Version | Sony PSX DESR-7000 testing | Installation |
 | --- | --- | --- |
-| **1.0 HDD** | **PASS:** 44/44 covers (40 + 4), two games including forced ENGLISH, XMB opens the Manager, clean `1.0 HDD` title | Existing APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
-| **1.0 USB** | **PASS — tested on Sony PSX DESR-7000 (2026-11-07):** USB 1.0 works on real hardware. The earlier USB v0.8 tests separately confirmed 40/40 covers and REZ in English | FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
+| **1.0 HDD** | **PASS:** 44/44 covers downloaded (40 + 4), two games launched including forced English; Manager launches from XMB and displays `1.0 HDD` | Existing APA/PFS partition `hdd0:PP.DVRISO`; `DVR_ISO_MANAGER_HDD.ELF` |
+| **1.0 USB** | **PASS — tested on a Sony PSX DESR-7000 (November 7, 2026):** USB 1.0 runs on hardware. Earlier USB v0.8 tests separately confirmed 40/40 covers and REZ in English | FAT32 USB at `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
-**Release files (prepared, not yet published):** `PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip`, `PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip`, and optional `PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip`. The current [v0.8 Windows ART Server](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) remains compatible.
+**Documentation:** [English release notes](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Polski](docs/RELEASE_NOTES_v1.0.0_PL.md) · [HDD technical explanation](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md) · [Release checklist](release-tools/v1_0/RELEASE_CHECKLIST.md).
 
-**Start here:** [Release notes (English)](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Polski](docs/RELEASE_NOTES_v1.0.0_PL.md) · [HDD technical details (English)](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md) · [Publication checklist](release-tools/v1_0/RELEASE_CHECKLIST.md).
-
-**Safety:** The application never formats a disk or writes game ISO files. The separate optional **APA-header injection** for XMB modifies partition metadata: make a recoverable backup first and select **only PP.DVRISO** in wLaunchELF_R3Z. Never select Format/Create/Expand or inject all partitions. A working XMB entry does not need reinjection when the Manager ELF changes.
+**Safety:** The Manager never formats the drive or modifies game ISO files. The optional **APA header injection used for XMB integration** changes partition metadata; first make a backup that you can restore.
 
 ---
 
-## USB v0.8 — previous release documentation
-
-**PSX DVR ISO Manager** lists and launches PS2 ISO games from the DVR partition of a Sony PSX DESR console. Version **0.8** adds a 12-game paged menu, cover previews and on-demand cover downloads via a companion Windows PC application.
-
-**USB v0.8 hardware status:** tested on a Sony PSX DESR-7000 with **40 ISO games**. A full 40/40 artwork download, automatic index refresh and launch of **REZ in English** were confirmed. **The 128-game capacity is a limit defined in the source code (`DESR_GAME_CAP = 128`), not a hardware-tested result. Libraries larger than 40 games, including games 41–128, have not yet been verified **with the USB v0.8 release**.** Individual games and external artwork sources may still behave differently.
-
 ## Features
 
-- **Code-defined limit:** browse up to 128 ISO filenames from the **read-only** `dvr_pfs0:/ISO` directory (`DESR_GAME_CAP = 128`), 12 titles per page. **Only 40 ISO games have been tested on real hardware so far.**
-- Display Game IDs and USB-hosted PNG covers, using OPL-style names such as `SLES_538.86_COV.png`.
-- Manually rescan the ISO library with **Triangle**, generate/update `COVERS.IDX` and `COVER_SCAN.LOG`, and count missing covers.
-- After a scan, optionally press **X** to download missing artwork from a PC on your local network; press **Circle (O)** to skip. Successfully downloaded covers are automatically reindexed.
-- Launch games through the configured OSDMenu/Neutrino Quickboot path, with optional `SYSTEM` or `ENGLISH` language selection.
+- **Source-code limit:** browse up to **128 ISO files** (`DESR_GAME_CAP = 128`) from the read-only `dvr_pfs0:/ISO` directory, 12 titles per page, without page wrapping. **A library of 44 ISO entries was used on real hardware; this is not a claim that all 44 games were individually boot-tested.**
+- Detect **Game IDs** (for example `SLES_538.86`) from information inside ISO images and find artwork in the configured application `ART/` directory (on USB: `mass0:/DESR_DVR/ART`; on HDD: `PP.DVRISO/ART`).
+- Show color PNG cover previews and maintain `COVERS.IDX`.
+- Manually scan with **Triangle**, write `COVER_SCAN.LOG`, identify missing covers and optionally download them from a LAN HTTP server.
+- Automatically rebuild the artwork index and return to the game list after downloading new images.
+- Boot games via OSDMenu / Neutrino with `SYSTEM` or `ENGLISH` language selection.
 
 ## Controller
 
-| Button | Action |
+| Button | Function |
 | --- | --- |
-| **Up / Down** | Select previous / next game |
-| **Left / Right** | Switch between pages of 12 games |
-| **X** | Launch selected game from the normal menu |
-| **Triangle** | Rescan the DVR ISO library, identify Game IDs and refresh the USB cover index |
-| **X / Circle** on the missing-artwork screen | Download missing covers / cancel and return |
-| **Square** | Write a test configuration to `DVR_TEST.CNF` |
+| **UP / DOWN** | Select previous / next game |
+| **LEFT / RIGHT** | Switch between pages of 12 games |
+| **X** | Launch the highlighted game from the normal list |
+| **TRIANGLE (△)** | Rescan ISO files, detect Game IDs and refresh the cover index |
+| **X / CIRCLE (O)** on the prompt | Download missing covers / skip downloading |
+| **SQUARE (□)** | Write the test configuration to `DVR_TEST.CNF` |
 | **SELECT** | Switch between `SYSTEM` and `ENGLISH` |
-| **START** | Exit Manager |
+| **START** | Exit the Manager |
 
-Page navigation does not wrap from the first page to the last. After cancelling a cover download, **Triangle** can offer the missing artwork again without restarting Manager.
+# PSX DVR ISO MANAGER 1.0 HDD — launch and user guide
 
-## Complete USB package (recommended)
+The **1.0 HDD** version launches PlayStation 2 games stored on the Sony PSX DESR DVR partition without needing a USB drive while the Manager is running.
 
-**Download [PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/v0.8/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip).** This is the easiest way to install the Manager; you do **not** need to download v0.3 separately or search for Neutrino/OSDMenu modules.
+The application itself, Neutrino configuration/modules and game artwork are stored on a separate HDD application partition named **`PP.DVRISO`**.
 
-1. Extract the ZIP file on your computer.
-2. Open the extracted `PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE` directory and copy its **inner `DESR_DVR` folder** to the **root of your USB drive**. The result must be `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF`; do not copy the outer wrapper directory to USB.
-3. Launch `DVR_ISO_MANAGER.ELF` via wLE or UDPFS. Your ISO games must already be on the DVR partition at `dvr_pfs0:/ISO/`.
-4. To download covers, run the **separate Windows ART Server `.exe`** from the same v0.8 release. Edit the included `DESR_DVR/NET_PROBE.CNF` to match your network as described below.
+This version has been successfully tested on a physical **Sony PSX DESR-7000**.
 
-The user-approved **clean ZIP contains 81 files**, including all required **OSDMenu/Neutrino binaries, modules and TOML configurations from v0.3.0**, the official **v0.8 Manager ELF**, an empty `ART/` directory, a sample `NET_PROBE.CNF` and starter guides. Old test files (`DVR_TEST.CNF`, `info.sys`, `jkt_*.png`), the pre-existing `BOOT_RECOVERY.CNF` and the old checksum manifest are **not included**. The current Manager can create test/recovery files when needed. The v0.3 `BOOT.elf` has the filename **`BOOT.ELF`** in this ZIP, matching the current Manager's launch path; its binary contents are unchanged. Game ISOs, cover images and the Windows program are **not** bundled inside the USB folder.
+## 1. Requirements
 
-**Upgrading an existing USB installation?** First make a complete backup of your current `DESR_DVR` folder. In particular, preserve your `BOOT.CNF`, `BOOT_RECOVERY.CNF`, `NET_PROBE.CNF`, `ART/`, `COVERS.IDX` and `COVER_SCAN.LOG` rather than replacing your working personal settings or covers with the clean-install samples.
+You need:
 
-## USB folder layout
+- A Sony PSX DESR console with a functioning internal HDD.
+- **wLaunchELF-R3Z**, supporting DVR and PFS partitions.
+- An existing application partition `hdd0:PP.DVRISO`.
+- The complete **PSX DVR ISO MANAGER 1.0 HDD** package.
+- PS2 ISO images already stored in `dvr_pfs0:/ISO/`.
 
-The Manager ELF can also be started through UDPFS, but its boot files and artwork cache remain in `mass0:/DESR_DVR/` on USB.
+You need a USB drive or UDPFS to transfer the files and start wLaunchELF, but once the partition is prepared, **the HDD Manager does not use USB to store its own data**.
+
+> **Important:** `PP.DVRISO` must already exist and be correctly formatted as PFS. The Manager does not create it automatically and never formats Sony system partitions.
+
+---
+
+## 2. HDD file layout
+
+After extracting the HDD package, locate the **`PP.DVRISO-FILES`** folder.
+
+**Copy its contents directly to the root of the `PP.DVRISO` partition.**
+
+The resulting structure is approximately:
+
+```text
+hdd0:PP.DVRISO/
+│
+├── DVR_ISO_MANAGER_HDD.ELF     # Manager 1.0 HDD
+│
+├── BOOT.ELF                    # OSDMenu Launcher
+├── BOOT.CNF                    # Generated automatically
+│
+├── neutrino_hdd.elf           # Neutrino — SYSTEM
+├── neutrino_hdd_lang.elf      # Neutrino — ENGLISH
+│
+├── NET_PROBE.CNF              # LAN configuration
+│
+├── ART/                       # Game covers
+│   ├── SLES_XXXXX_COV.png
+│   └── SLUS_XXXXX_COV.png
+│
+├── COVERS.IDX                 # Generated automatically
+├── COVER_SCAN.LOG             # Generated by scanning
+│
+├── config/                    # Neutrino settings
+│   ├── system.toml
+│   ├── bsd-dvr.toml
+│   ├── osdlang.toml
+│   └── ...                    # Other TOML files
+│
+└── modules/                   # Neutrino / DVR modules
+    ├── ee_core.elf
+    ├── ee_core_lang.elf
+    ├── dvrfile_fhi.irx
+    ├── dvrdrv.irx
+    ├── dvrfile.irx
+    └── ...                    # Remaining bundled modules
+```
+
+*This is a simplified layout. Keep every file and subdirectory shipped inside `config/` and `modules/`.*
+
+### Important files
+
+| File or folder | Purpose |
+| --- | --- |
+| `DVR_ISO_MANAGER_HDD.ELF` | Main Manager application |
+| `BOOT.ELF` | OSDMenu Launcher used to start Neutrino |
+| `BOOT.CNF` | Selected-game configuration, created and updated automatically |
+| `neutrino_hdd.elf` | Launch games with SYSTEM language |
+| `neutrino_hdd_lang.elf` | Launch games with forced ENGLISH |
+| `NET_PROBE.CNF` | PC IP, console IP and artwork-server port |
+| `ART/` | Downloaded PNG game covers |
+| `COVERS.IDX` | Artwork index |
+| `COVER_SCAN.LOG` | ISO scanning report |
+| `config/` | Neutrino TOML settings |
+| `modules/` | Neutrino / DVR dependencies |
+
+> **Note:** A new installation does not include `BOOT.CNF`. The Manager creates it when you launch your first game with **X**; there is no need to write it manually.
+
+**Do not copy `PP.DVRISO-FILES` itself as an additional folder on HDD.** Its contents must be at the partition root.
+
+---
+
+## 3. Where to store game ISOs
+
+Game images are **not** stored on `PP.DVRISO`.
+
+The Manager uses the original Sony PSX DVR filesystem:
+
+```text
+dvr_pfs0:/ISO/
+│
+├── ICO.iso
+├── MGS 2.ISO
+├── REZ.iso
+├── Metal Slug Anthology.iso
+└── ...
+```
+
+The `PP.DVRISO` partition is reserved for the application, its configuration and game artwork.
+
+**The Manager reads game ISOs from the DVR partition without modifying their contents.**
+
+---
+
+## 4. Copying files to HDD
+
+1. Extract the complete **HDD 1.0** package on your computer.
+2. Copy `PP.DVRISO-FILES` to a FAT32 USB drive or make the files available via UDPFS.
+3. Launch **wLaunchELF-R3Z** on the console.
+4. Open the existing `PP.DVRISO` partition using wLaunchELF's HDD/PFS support.
+5. Copy **all the contents** of `PP.DVRISO-FILES` to the root of this partition.
+6. Verify that `DVR_ISO_MANAGER_HDD.ELF` and the `config/`, `modules/` and `ART/` folders are in the correct locations.
+
+> **Upgrading:** Make a backup before replacing existing files. Preserve your `ART/` covers, `NET_PROBE.CNF`, `BOOT.CNF` and cover indexes.
+
+---
+
+## 5. Starting the Manager from HDD
+
+After copying the files:
+
+1. Launch **wLaunchELF-R3Z**.
+2. Go to its HDD/PFS file browser.
+3. Open or mount **`PP.DVRISO`**.
+4. Find **`DVR_ISO_MANAGER_HDD.ELF`** at the partition root.
+5. Execute that file.
+
+If the partition is mounted at `pfs0:`, the path looks like:
+
+```text
+pfs0:/DVR_ISO_MANAGER_HDD.ELF
+```
+
+After successful startup you will see:
+
+**PSX DVR ISO MANAGER — 1.0 HDD** and the list of ISO games found in the DVR directory.
+
+---
+
+<details>
+<summary><strong>Install PDIM as an application directly in XMB — click to expand</strong></summary>
+
+# Install PSX DVR ISO MANAGER 1.0 HDD in XMB
+
+PDIM 1.0 HDD can also appear as an application in the **Games** section of the original Sony PSX DESR XMB.
+
+It uses its own PDIM icon representing an HDD and a DVD disc and appears under the name **PSX DVR ISO MANAGER**.
+
+This procedure has been tested on a **Sony PSX DESR-7000** using **wLaunchELF-R3Z 4.80**.
+
+## 1. Requirements
+
+You need:
+
+- A Sony PSX DESR console with a working HDD.
+- **wLaunchELF-R3Z 4.80**.
+- A FAT32 USB drive.
+- The complete **PSX DVR ISO MANAGER 1.0 HDD** package.
+- The **XMB-PDIM-INSTALL** package containing the APA header files, icon and launcher files.
+- Free space on the HDD.
+
+**Warning:** Create a recoverable backup before you begin. Creating a partition and injecting its APA header modify on-disk structures.
+
+Never format the entire Sony PSX HDD or delete its original system partitions.
+
+---
+
+## 2. Preparing USB
+
+Extract the HDD and XMB packages on your computer.
+
+Prepare your USB drive with this layout:
+
+```text
+USB:/
+│
+├── __Headers/
+│   └── PP.DVRISO/
+│       ├── system.cnf
+│       ├── icon.sys
+│       ├── info.sys
+│       ├── jkt_001.png
+│       └── jkt_002.png
+│
+├── PFS_COPY_TO_PP.DVRISO/
+│   ├── EXECUTE.ELF
+│   └── EXECUTE.CNF
+│
+└── PP.DVRISO-FILES/
+    ├── DVR_ISO_MANAGER_HDD.ELF
+    ├── BOOT.ELF
+    ├── neutrino_hdd.elf
+    ├── neutrino_hdd_lang.elf
+    ├── NET_PROBE.CNF
+    ├── ART/
+    ├── config/
+    └── modules/
+```
+
+This is a simplified example; retain all other files included in the HDD package.
+
+**Important:** `__Headers` must be directly in the USB drive's root. wLaunchELF-R3Z reads the header files from there.
+
+### XMB installation files
+
+| File | Purpose |
+| --- | --- |
+| `system.cnf` | XMB boot configuration written into the APA header |
+| `icon.sys` | Icon metadata |
+| `info.sys` | Application name and metadata |
+| `jkt_001.png` | 256 × 256 PSBBN artwork |
+| `jkt_002.png` | 76 × 108 PSX XMB icon |
+| `EXECUTE.ELF` | KELF container to start the launcher |
+| `EXECUTE.CNF` | Configuration forwarding startup to PDIM |
+
+---
+
+## 3. Creating the PP.DVRISO partition
+
+Start **wLaunchELF-R3Z 4.80**.
+
+1. Open **MISC → HDDManager**.
+2. Display the partitions on `hdd0:`.
+3. Check whether `PP.DVRISO` already exists.
+4. If missing, open the operations menu and choose **Create partition**.
+5. Enter the exact name: **`PP.DVRISO`**.
+6. Choose a sample capacity of **256 MB**.
+7. Confirm creation.
+8. Ensure it appears in the partition list with type **PFS**.
+
+Example:
+
+```text
+hdd0:
+└── PP.DVRISO        PFS        256 MB
+```
+
+**Why 256 MB?** It is enough for the Manager, Neutrino, settings and many PNG covers, with extra free space. You may choose a larger partition for a bigger artwork library.
+
+> **Note:** Use exactly `PP.DVRISO`, not `PP.TESTDVR` or `+DVRISO`, because our HDD 1.0 binaries reference that specific partition.
+>
+> If the partition already contains a working installation, **do not recreate or format it**. If a newly created partition cannot be mounted as PFS, inspect its type and state instead of formatting the entire drive.
+
+---
+
+## 4. Injecting the APA header
+
+After creating the application partition, register it for XMB display:
+
+1. Stay in **HDDManager** in wLaunchELF-R3Z 4.80.
+2. Highlight **`PP.DVRISO`**.
+3. Open the **R1** operations menu.
+4. Select **Inject Header**.
+5. Choose the USB drive as the source.
+6. Select **This partition only**.
+7. Confirm the injection.
+
+The header injector reads:
+
+```text
+USB:/__Headers/PP.DVRISO/
+```
+
+`system.cnf` and the relevant metadata are written into the APA header. `info.sys` and the XMB artwork are copied into the application's PFS `res/` directory.
+
+**Do not select** `Matching partitions` or `Matching and create missing partitions`. Only `PP.DVRISO` should be changed.
+
+---
+
+## 5. Copying the Manager files to HDD
+
+Return to wLaunchELF-R3Z **FileBrowser**.
+
+Open `hdd0` and then the newly created `PP.DVRISO` partition.
+
+### Step 1 — XMB boot files
+
+Copy the contents of:
+
+```text
+USB:/PFS_COPY_TO_PP.DVRISO/
+```
+
+to the root of `PP.DVRISO`:
+
+```text
+EXECUTE.ELF
+EXECUTE.CNF
+```
+
+These are required to launch PDIM from XMB.
+
+### Step 2 — HDD Manager files
+
+Copy **the contents** of:
+
+```text
+USB:/PP.DVRISO-FILES/
+```
+
+directly into the root of `PP.DVRISO`. Do not create an additional `PP.DVRISO-FILES` folder on the partition.
+
+### Final directory layout
+
+```text
+hdd0:PP.DVRISO/
+│
+├── EXECUTE.ELF                # XMB boot (KELF)
+├── EXECUTE.CNF                # XMB launcher configuration
+│
+├── DVR_ISO_MANAGER_HDD.ELF    # PDIM 1.0 HDD
+├── BOOT.ELF                   # OSDMenu Launcher
+├── BOOT.CNF                   # Created when a game is selected
+│
+├── neutrino_hdd.elf          # Neutrino SYSTEM
+├── neutrino_hdd_lang.elf     # Neutrino ENGLISH
+│
+├── NET_PROBE.CNF             # LAN configuration
+│
+├── ART/                      # Game covers
+│
+├── config/                   # Neutrino configuration
+│   ├── system.toml
+│   ├── bsd-dvr.toml
+│   ├── osdlang.toml
+│   └── ...
+│
+├── modules/                  # Neutrino / DVR modules
+│   ├── ee_core.elf
+│   ├── ee_core_lang.elf
+│   ├── dvrfile_fhi.irx
+│   ├── dvrdrv.irx
+│   ├── dvrfile.irx
+│   └── ...
+│
+└── res/                      # XMB artwork / metadata
+    ├── info.sys
+    ├── jkt_001.png
+    └── jkt_002.png
+```
+
+*The folder tree is abbreviated. Keep all other files in `config/` and `modules/`.*
+
+`BOOT.CNF` does not need to exist immediately after installation; the Manager generates it when you select a game for the first time.
+
+If `res/` is missing its icons or `info.sys`, check the header injection outcome before continuing.
+
+---
+
+## 6. Launching PDIM from XMB
+
+1. Exit wLaunchELF-R3Z.
+2. Power off the Sony PSX DESR.
+3. Boot back into the original XMB.
+4. Open the Games section.
+
+You should see **PSX DVR ISO MANAGER**, with the PDIM HDD-and-DVD icon.
+
+<img width="4096" height="3072" alt="PDIM application in Sony PSX XMB" src="https://github.com/user-attachments/assets/9792cf70-ee0a-46c1-985b-9811784e0549" />
+
+Select it to start the application.
+
+<img width="4096" height="3072" alt="PSX DVR ISO MANAGER 1.0 HDD launched from XMB" src="https://github.com/user-attachments/assets/6b447da9-68c9-43ab-8ea9-3798e632f83b" />
+
+The Manager should display **PSX DVR ISO MANAGER — 1.0 HDD** and scan:
+
+```text
+dvr_pfs0:/ISO/
+```
+
+Highlight a game and press **X** to launch it.
+
+---
+
+## 7. How XMB launching works
+
+```text
+Sony PSX XMB
+    │
+    ▼
+PP.DVRISO (APA header)
+    │
+    ▼
+EXECUTE.ELF (KELF)
+    │
+    ▼
+EXECUTE.CNF
+    │
+    ▼
+DVR_ISO_MANAGER_HDD.ELF
+    │
+    ▼
+PSX DVR ISO MANAGER 1.0 HDD
+    │
+    ▼
+BOOT.CNF + BOOT.ELF
+    │
+    ▼
+Neutrino HDD FIX95
+    │
+    ▼
+dvr_pfs0:/ISO/ — PS2 game
+```
+
+This allows the Manager to be started directly from XMB without opening wLaunchELF every time. No USB drive is needed for normal operation after installation.
+
+---
+
+## 8. Updating PDIM
+
+Once the XMB entry works, future updates are simpler. Replace only:
+
+```text
+hdd0:PP.DVRISO/
+└── DVR_ISO_MANAGER_HDD.ELF
+```
+
+**Do not recreate the partition or repeat Inject Header.**
+
+Make a backup of the previous ELF, settings, modules and downloaded covers before upgrading.
+
+---
+
+## 9. Safety notes
+
+- A functioning APA/PFS disk is required.
+- Do not format the entire Sony PSX drive.
+- Create or modify only your own `PP.DVRISO` partition.
+- Choose **This partition only**.
+- Game ISOs stay in `dvr_pfs0:/ISO/` and are not moved to the application partition.
+- `EXECUTE.ELF` and `EXECUTE.CNF` are necessary for XMB booting.
+- Keep both Neutrino versions and the complete `config/` / `modules/` directories.
+- Removing `EXECUTE.ELF` alone does not restore the previous APA header.
+- XMB integration has been verified on a Sony PSX DESR-7000; other models may require additional testing.
+
+**Installation complete!** PSX DVR ISO MANAGER is now available directly from XMB.
+
+</details>
+
+<details>
+<summary><strong>Install and use PDIM from USB — click to expand</strong></summary>
+
+## Launching PSX DVR ISO MANAGER
+
+PDIM also launches PS2 games from the DVR partition using a USB drive, without creating a separate HDD application partition.
+
+**Download the complete USB package:**
+
+[**PSX DVR ISO MANAGER v0.8 USB — DOWNLOAD**](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/v0.8/PSX-DVR-ISO-Manager-v0.8-USB-COMPLETE.zip)
+
+> **Note:** This link refers to the previously published USB v0.8. USB 1.0 has also been tested on the DESR-7000 and uses the same installation layout. For 1.0, download the USB package from the **1.0 release**.
+
+The package already contains the OSDMenu/Neutrino executables, required modules and configuration files. You do not need to install earlier versions separately.
+
+### 1. Preparing USB
+
+1. Format a USB drive as **FAT32**.
+2. Download and extract the complete USB package on your computer.
+3. Locate the inner **`DESR_DVR`** folder.
+4. Copy the whole `DESR_DVR` folder to the root of your USB drive.
+5. Connect the USB drive to your Sony PSX DESR.
+
+Correct application path:
+
+`mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF`
+
+Do not copy the outer ZIP directory to USB.
+
+### 2. USB directory layout
 
 ```text
 mass0:/DESR_DVR/
-├── DVR_ISO_MANAGER.ELF           # Manager v0.8
-├── START_HERE_PL.txt              # First-install guide (Polish)
-├── START_HERE_EN.txt              # First-install guide (English)
-├── BOOT.ELF                      # OSDMenu launcher
-├── BOOT.CNF                      # Game launch configuration
-├── neutrino.elf                  # SYSTEM language
-├── neutrino_lang.elf             # ENGLISH language
-├── NET_PROBE.CNF                 # PC / console LAN settings
-├── ART/
-│   └── SLES_538.86_COV.png      # Example Game ID cover
-├── config/
-│   └── osdlang.toml              # Language settings (other configs omitted)
-└── modules/
-    └── ee_core_lang.elf          # ENGLISH support (other modules omitted)
+│
+├── DVR_ISO_MANAGER.ELF       # USB Manager 0.8 / 1.0
+│
+├── BOOT.ELF                  # OSDMenu Launcher
+├── BOOT.CNF                  # Game launch settings
+│
+├── neutrino.elf              # Neutrino SYSTEM
+├── neutrino_lang.elf         # Neutrino ENGLISH
+│
+├── NET_PROBE.CNF             # LAN configuration
+│
+├── ART/                      # Game artwork
+│   └── SLES_538.86_COV.png   # Example Game ID cover
+│
+├── COVERS.IDX                # Cover index
+├── COVER_SCAN.LOG            # ISO scan report
+│
+├── config/                   # Neutrino settings
+│   ├── system.toml
+│   ├── osdlang.toml
+│   └── ...                   # Other configurations
+│
+└── modules/                  # Neutrino / DVR modules
+    ├── ee_core.elf
+    ├── ee_core_lang.elf
+    ├── dvrfile_fhi.irx
+    └── ...                   # Remaining modules
 ```
 
-The listing is abbreviated; **the cleaned USB ZIP retains all required v0.3 modules and TOML configuration files**. `COVERS.IDX` and `COVER_SCAN.LOG` are generated on the first Triangle scan; `BOOT_RECOVERY.CNF` and `DVR_TEST.CNF` are created when needed. The game ISO files themselves must be on the DVR HDD under **`dvr_pfs0:/ISO/`** (mapped from the `__xcontents` partition). Manager does **not** write to the DVR partition, APA or ISO images.
+*This is a simplified list. Do not remove any other files from `config/` or `modules/`.*
 
-## Downloading missing covers with the PC app
+`COVERS.IDX` and `COVER_SCAN.LOG` are created automatically on the first scan and may not exist in a fresh archive.
 
-The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source is also provided under [pc-art-server](pc-art-server/README.md)). The PC handles HTTPS downloads and serves validated PNG files to the PSX using simple local HTTP.
+### 3. Starting the Manager
 
-1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the published assets under [v0.8 release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) and open it on your Windows PC.
-2. Enter the **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port** in the Windows application, then click **Start HTTP Server**. The sample addresses below are from a tested DESR-7000 setup; use the addresses of your own network.
-3. Make sure `mass0:/DESR_DVR/NET_PROBE.CNF` on the USB drive matches the settings:
+1. Start **wLaunchELF-R3Z**.
+2. Open the file browser.
+3. Navigate to USB (`mass0:`).
+4. Open `DESR_DVR`.
+5. Execute **`DVR_ISO_MANAGER.ELF`**.
+
+You may also start the ELF through UDPFS, but `DESR_DVR` and its configuration/artwork must still reside on USB.
+
+The Manager will display the ISO game list from the DVR partition.
+
+</details>
+
+## Downloading covers from a Windows PC
+
+The companion **PSX DVR ART Server v0.8** is a Windows `.exe` application (Python sources are also available at [pc-art-server](pc-art-server/README.md)). The PC retrieves cover images using HTTPS, while the PSX communicates with it over local HTTP.
+
+1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the [v0.8 release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) and run it on your Windows PC.
+2. Enter **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port**. Select **Start HTTP Server**. The example addresses below are from a tested DESR-7000 network; use your own settings.
+3. On USB, create or edit `mass0:/DESR_DVR/NET_PROBE.CNF`. For HDD, the matching file resides in the `PP.DVRISO` root:
 
    ```ini
    IP=192.168.0.240
@@ -101,49 +585,43 @@ The included **PSX DVR ART Server v0.8** runs as a Windows `.exe` (Python source
    SERVER_PORT=8000
    ```
 
-   **How to find your network settings:** Open **Command Prompt** or **PowerShell** on the PC, run `ipconfig /all` (with a **slash**, not `ipconfig -all`), and look at the adapter that connects the PC to the PSX's network.
+   **How to find the settings:** Run `ipconfig /all` in Windows CMD or PowerShell, and check the interface connected to your PSX network.
 
-   | Config setting | Where it comes from |
+   | Setting | Value |
    | --- | --- |
-   | `IP` | **Static IPv4 address manually assigned to the PSX DESR.** Pick an unused address on the same subnet as the PC; it is **not** the PC's IPv4 address and will not be listed by `ipconfig /all`. |
-   | `NETMASK` | **Subnet Mask** reported by `ipconfig /all` for that adapter. |
-   | `GATEWAY` | **Default Gateway**, typically your router, from `ipconfig /all`. |
-   | `SERVER_IP` | **IPv4 Address of the Windows PC** running PSX DVR ART Server, from `ipconfig /all`. |
-   | `SERVER_PORT` | **HTTP Port** configured in the Windows app (default `8000`). This value does **not** come from `ipconfig`. |
+   | `IP` | **The PSX console's static IPv4 address**; choose an unused address on the PC's subnet. It is **not** the PC address. |
+   | `NETMASK` | The interface's **Subnet Mask**. |
+   | `GATEWAY` | The network's **Default Gateway**, usually the router. |
+   | `SERVER_IP` | The **IPv4 address of the Windows PC** running the ART Server. |
+   | `SERVER_PORT` | The port configured in the Windows program (default `8000`). |
 
-   **Important:** `IP` and `SERVER_IP` must be different. Avoid a console IP already assigned to another device. If the PC's IPv4 address changes, update `SERVER_IP` and the application's PC IPv4 Address accordingly.
+   **Important:** `IP` and `SERVER_IP` must be different, unused addresses. If the computer's IP changes, update the settings.
 
-4. In Manager, press **Triangle** and wait for the scan. If covers are missing, select **X: DOWNLOAD** on the scan-result screen. Press **Circle** to skip instead.
-5. The PC retrieves the corresponding `<GAMEID>_COV.png` via HTTPS, caches it, and returns a validated, resized PNG over LAN HTTP. The console writes **only new** images to `mass0:/DESR_DVR/ART` and refreshes the index automatically. Existing covers are not replaced.
+4. In the Manager press **TRIANGLE** to scan. If artwork is missing, the prompt will offer a download.
+5. **X: DOWNLOAD** downloads the missing images; **O: SKIP** cancels. The PC caches the images and sends them to the console, where the Manager writes only new PNGs and rebuilds the index.
 
-**Cover Sources:** **Primary — OPL Manager Archive (Archive.org)** provides PS2 box-cover images, usually vertical. **Fallback — CosmicScale PSBBN Art Database (GitHub)** provides game artwork, often square, and is queried **only if the OPL source fails or has no valid PNG**. Square artwork is fitted into the console's 140×200 RGB format with black margins, without stretching. If neither source has artwork for a Game ID, the PC reports it as missing. The PC keeps a local cache in `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`.
+**Artwork sources:** Primary — **OPL Manager Archive (Archive.org)**, generally providing vertical PS2 cover art. Fallback — **CosmicScale PSBBN Art Database (GitHub)**, which may provide square images. The fallback is queried only when the primary returns no valid PNG. Square artwork is fitted into a 140×200 layout with black padding, without distortion. If no valid cover exists, the PC reports it as missing.
 
-**Security:** Use a trusted private LAN, allow the Windows HTTP server only on that network, and do not forward its port on your router. The console reads from DVR and writes new artwork/index files **only to USB**. Back up `BOOT.CNF`, the existing Manager ELF and your art folder before replacing a working installation.
+PC cache: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. See the [Windows ART Server documentation](pc-art-server/README.md) for further details and tests.
 
-## Screenshot
+**Security:** Use the server on a trusted private LAN without forwarding its port. Back up a working Manager ELF, `BOOT.CNF` and `ART/` before updates. New artwork is validated before saving; existing artwork is not overwritten.
 
-<img width="4096" height="2452" alt="1000055888" src="https://github.com/user-attachments/assets/dd491fb4-30a7-4120-9857-029a78d36b99" />
-<img width="4096" height="2864" alt="1000055889" src="https://github.com/user-attachments/assets/c5a5c06e-5f05-423e-844a-10007cee015c" />
-<img width="4096" height="2710" alt="1000055890" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
-<img width="4096" height="3072" alt="1000055891" src="https://github.com/user-attachments/assets/444d9328-27a6-46b2-9c41-ec29764f5023" />
-<img width="4096" height="2939" alt="1000055892" src="https://github.com/user-attachments/assets/3fb9f935-9e6d-4acb-b610-2abc85b59300" />
-<img width="756" height="563" alt="Zrzut ekranu 2026-11-01 000809" src="https://github.com/user-attachments/assets/c51621d8-efad-4acf-adf2-25108692f17c" />
+## Photos and screenshots
 
+The following screenshots show the current v1.0 interface and the XMB entry:
 
-## Build and development
+<img width="4096" height="3072" alt="PDIM application in Sony PSX XMB" src="https://github.com/user-attachments/assets/3ed2f6ea-2c6d-4011-bd5c-3612ea6c18ce" />
+<img width="4096" height="3072" alt="PSX DVR ISO MANAGER 1.0 HDD on DESR-7000" src="https://github.com/user-attachments/assets/452a6dfe-00df-40a4-a4c7-4738eb14d242" />
+<img width="4096" height="2710" alt="Manager game list" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
+<img width="756" height="563" alt="Windows ART Server and cover synchronization" src="https://github.com/user-attachments/assets/ff72eb3a-a41e-42b3-995e-bfb14f32d7a0" />
 
-The repository includes the PS2SDK/CMake Manager build with integrated LAN artwork sync, automated HTTP/PNG tests and a Windows PyInstaller workflow for the PC application. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for details.
+## Building
 
-## Known limitation and contributions
-
-**Historical USB v0.8 note:** the earlier XMB/HDD launch attempt failed with path-resolution error `-19`. The **separate HDD 1.0 variant** now launches from XMB; this earlier limitation does not apply to the USB installation procedure documented here.
-
-Contributions, issue reports and pull requests are welcome, particularly from developers working with Sony PSX DESR, PS2SDK and DVR hardware.
+This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN and PNG tests, and the PyInstaller configuration for the Windows executable. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for more information.
 
 ## Credits
 
 - [Neutrino](https://github.com/ps2max32/neutrino) and [pcm720's DVR support PR #228](https://github.com/ps2max32/neutrino/pull/228)
-- pcm720 — DVR support for Neutrino
 - Berion — technical assistance
 - [CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database) — fallback artwork source
-- OPL Manager artwork archive — primary artwork source
+- OPL Manager cover archive — primary artwork source
