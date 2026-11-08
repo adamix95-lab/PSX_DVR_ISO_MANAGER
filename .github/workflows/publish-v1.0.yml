@@ -1,3 +1,4 @@
+# Re-run after matching validated, reproducible USB/XMB archive checksums.
 name: Publish PSX DVR ISO MANAGER 1.0 (HDD + USB + XMB)
 on:
   push:
