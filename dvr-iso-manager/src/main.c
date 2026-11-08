@@ -399,7 +399,7 @@ static void draw(void) {
   scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_V12
-  scr_printf("V1.2 RO: TRIANGLE=NET  SQUARE=RTC CLOCK");
+  scr_printf("V1.2 RO: TRIANGLE=NET  SQUARE=NTP UTC");
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
   scr_printf("X: DISABLED   START: EXIT");
@@ -918,32 +918,17 @@ int main(int argc, char *argv[]) {
         continue;
       }
       if (new_press & PAD_SQUARE) {
-        sceCdCLOCK clock;
-        v12_tls_clock decoded;
-        int clock_rc;
-        memset(&clock,0,sizeof(clock));
+        v12_ntp_time now;
         scr_clear();
-        scr_printf("PSX DVR ISO MANAGER 1.2 - RTC PREFLIGHT\n");
-        scr_printf("Read only: no RTC setting / no disk writes\n");
+        scr_printf("PSX DVR ISO MANAGER 1.2 - NTP UTC PROBE\n");
+        scr_printf("Dead RTC supported. No RTC / disk modifications.\n");
+        scr_printf("Source: time.cloudflare.com (UDP/123)\n");
         scr_printf("--------------------------------------------\n");
-        clock_rc=sceCdReadClock(&clock);
-        scr_printf("sceCdReadClock rc=%d status=0x%02x\n",
-                   clock_rc,(unsigned)clock.stat);
-        if (clock_rc &&
-            v12_tls_clock_decode(clock.stat,clock.year,clock.month,
-                      clock.day,clock.hour,clock.minute,clock.second,
-                      &decoded)==0) {
-          scr_printf("RTC DATE: %04u-%02u-%02u %02u:%02u:%02u\n",
-            decoded.year,decoded.month,decoded.day,
-            decoded.hour,decoded.minute,decoded.second);
-          scr_printf("RTC PLAUSIBLE: PASS (NOT TRUSTED TIME)\n");
-        } else {
-          scr_printf("RTC PLAUSIBLE: FAIL; check clock/battery\n");
-          scr_printf("RTC RAW BCD: Y%02x M%02x D%02x h%02x m%02x s%02x\n",
-             clock.year,clock.month,clock.day,
-             clock.hour,clock.minute,clock.second);
-        }
-        scr_printf("No TLS was attempted. Certificate check unavailable.\n");
+        rc=desr_v12_ntp_probe(&now);
+        scr_printf("--------------------------------------------\n");
+        scr_printf("NETWORK TIME RESULT: %s (code %d)\n",
+                   rc==0 ? "PASS" : "FAIL",rc);
+        scr_printf("NTP not authenticated. NOT a trusted TLS clock.\n");
         scr_printf("CIRCLE: BACK   START: EXIT\n");
         v12_internet_screen=1;
         continue;
