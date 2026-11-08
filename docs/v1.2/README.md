@@ -128,6 +128,57 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## Stage N3A — Roughtime wire/network preflight (EXPERIMENTAL)
+
+Cloudflare operates the public `roughtime.cloudflare.com:2003` service,
+which signs time responses with Ed25519 using a published root public key.
+The reference [Cloudflare Roughtime protocol implementation](https://github.com/cloudflare/roughtime)
+is Apache-2.0 licensed, but its README warns against production use. Our
+probe is independently implemented from the public draft-08 message layout.
+
+The new v1.2 read-only build supports **SELECT**:
+
+- N1 remains on **TRIANGLE**: DNS + outbound TCP/443.
+- N2B remains on **SQUARE**: provisional NTP UTC over UDP/123.
+- N3A uses **SELECT**: resolve `roughtime.cloudflare.com`, send one
+  1024-byte IETF Roughtime draft-08 UDP request to **port 2003**, receive
+  a bounded response, check structural framing and whether the response
+  includes `SIG`, `SREP` and `CERT` tags.
+- **CIRCLE** returns to the browser; **START** exits.
+- **X and Quickboot remain disabled**, and the ELF writes no ART,
+  configuration, RTC or disk data.
+
+Expected success screen:
+
+```text
+PSX DVR ISO MANAGER 1.2 - N3A ROUGHTIME
+Cloudflare UDP/2003 (IETF draft-08 transport)
+...
+UDP RESPONSE: ... bytes
+ROUGHTIME FRAME: PASS, tags=... (UNVERIFIED)
+NO Ed25519 check. NO trusted time.
+N3A TRANSPORT RESULT: PASS (0)
+DO NOT USE THIS REPLY FOR TLS CERTIFICATES.
+```
+
+**Passing N3A proves only that the server answered and the packet has a
+recognizable shape. It does NOT authenticate the server or the time.**
+The request nonce in this transport-only test is generated from public,
+non-cryptographic state and MUST NOT be used in any signature-verification
+or TLS security claim. The test deliberately extracts no timestamp and
+never calls wolfSSL.
+
+If UDP/2003 is blocked, N1/N2B may still work. Timeouts or malformed
+frames are diagnostic failures, not evidence that PP.DVRISO12 is damaged.
+
+Next potential stage **N3B**: pin Cloudflare's documented root Ed25519
+public key, verify its delegated online certificate, the signature over
+SREP, Merkle inclusion of a **fresh, unpredictable** nonce, midpoint,
+radius and version. Reject unknown/rotated keys and unsigned data.
+**No trusted time is available until ALL these checks pass.** Even then,
+verify the Roughtime implementation and key-rotation policy before using
+it to validate production HTTPS.
+
 ## Stage N2C — TLS prerequisites and time callback (IN DEVELOPMENT)
 
 The time API used by wolfSSL is `wc_SetTimeCb()`. The experimental
