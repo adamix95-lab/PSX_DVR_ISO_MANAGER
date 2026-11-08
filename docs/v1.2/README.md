@@ -82,6 +82,48 @@ Before using any resulting ELF, confirm that it contains
 - N2A preserves **TRIANGLE: DNS/TCP443**, **X: disabled**,
   **CIRCLE: return** and **START: exit**.
 
+## Stage N2B — Time bootstrap for dead-RTC DESR (experimental)
+
+**Physical test is pending.** The maintainer confirmed that the DESR-7000
+RTC battery is depleted, so the development order is changed: attempt
+network UTC first, without relying on the console's hardware RTC.
+
+The v1.2 read-only Manager now supports **SQUARE: NTP UTC**. Pressing it
+performs a DNS lookup for `time.cloudflare.com`, sends one NTPv4/SNTP
+request on UDP port 123, checks response mode/stratum/leap indicator,
+matches the request token with the originate field, rejects truncated
+and out-of-era timestamps, and displays the resulting UTC date/time.
+It reports `NETWORK TIME RESULT: PASS (code 0)` on success.
+
+There are **no writes** to the RTC, NVRAM, `PP.DVRISO12`, `PP.DVRISO`
+or `dvr_pfs0:/ISO`. The existing `V12_NET.CNF` is reused unchanged.
+`TRIANGLE` still runs the proven N1 DNS/TCP443 probe, `X` remains
+disabled, `CIRCLE` returns to the menu, and `START` exits.
+
+- NTP server: `time.cloudflare.com`, **UDP/123** (not TCP/443).
+- Expected output: `NTP UTC: YYYY-MM-DD HH:MM:SS`,
+  `NTP STRATUM=...`, `NETWORK TIME RESULT: PASS (code 0)`.
+- All times shown are **UTC**, not local Poland time (UTC+1 in winter).
+- A router or ISP that blocks outbound UDP/123 can produce a timeout.
+  This is a network limitation, not evidence of broken RTC/NETFIX.
+- Typical errors: `-311` config unavailable, `-313` network init,
+  `-314` NTP DNS, `-312` UDP timeout/connect failure, `-316`
+  rejected response.
+
+**Security boundary:** plain NTP replies are **not cryptographically
+authenticated**. The request timestamp is a reply-matching token, not
+cryptographic entropy or proof of time integrity. The Manager treats the
+result as a provisional in-RAM UTC estimate **for display and diagnostics
+only**. Never disable certificate verification or automatically treat this
+NTP reply as a trusted wolfSSL certificate-validation clock. Authentic
+time (NTS, signed Roughtime, or another verified bootstrap strategy)
+remains an open design requirement for production native HTTPS.
+
+**Development plan:** after N2B succeeds on hardware, start the time
+bootstrap automatically as a first step of the future HTTPS download
+workflow (not at every Manager startup, to avoid offline startup hangs).
+The manual SQUARE action remains useful for diagnostics.
+
 ## Stage N2A — hardware RTC preflight (READY FOR TEST)
 
 **Built successfully:** [RTC-capable 1.2 HDD ELF / Actions run 42530395826](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42530395826).
@@ -203,9 +245,10 @@ The experimental-only modules are now in the tree:
 - [PS2 wolfSSL headers/toolchain audit](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527310888) — **PASS** for the cross-compiler using `WOLFSSL_USER_IO`, `WOLFSSL_NO_SOCK` and `NO_WRITEV`. The library exists in PS2SDK ports; certificate validation, secure entropy, DNS and live TLS are **not yet validated**.
 
 **Still not implemented:** the real wolfSSL backend, cryptographically
-verified TLS, trusted CA installation, secure entropy source,
-working certificate-time validation, remote image normalization and
-integration with HDD artwork writes. The new **DNS/TCP reachability probe**
+verified TLS, an authenticated/trusted time bootstrap for certificates,
+trusted CA installation, secure entropy source, remote image normalization
+and integration with HDD artwork writes. A provisional, unauthenticated NTP
+UTC diagnostic exists but has not yet been tested on physical DESR hardware. The new **DNS/TCP reachability probe**
 is implemented but still requires a physical DESR-7000 test.
 
 **Neutrino isolation:** the stable HDD Neutrino FIX95 wrapper also hardcoded
