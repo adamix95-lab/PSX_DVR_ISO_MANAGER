@@ -66,6 +66,22 @@ Before using any resulting ELF, confirm that it contains
 `hdd0:PP.DVRISO12` and that the displayed application variant says
 `1.2 HDD`.
 
+## Physical DESR-7000 results (maintainer, November 8, 2026)
+
+- **N1 — PASS on physical hardware.** The console reported exactly
+  `DNS / TCP443 RESULT: PASS (code 0)`. This confirms real DNS lookup and
+  successful outbound TCP/443 from the patched DESR network stack.
+- **TLS / certificate authentication / HTTPS / downloads — NOT TESTED** by N1.
+- **N2A — RTC clock preflight:** a new read-only check is available on
+  **SQUARE** in the experimental build after its CI run passes. It calls
+  `sceCdReadClock`, displays the PS2 RTC status and checks BCD date
+  plausibility (2025–2037, leap years, battery/status flags). It does
+  **not** change the RTC or read/write game/application data.
+- The RTC sanity result is only diagnostic; even a plausible clock is **not
+  authenticated time** and does not prove certificate validation works.
+- N2A preserves **TRIANGLE: DNS/TCP443**, **X: disabled**,
+  **CIRCLE: return** and **START: exit**.
+
 ## Stage N1 — Physical DNS + TCP/443 test (READ-ONLY)
 
 **No TLS handshake, HTTP request or PNG download happens in this test.**
@@ -74,7 +90,7 @@ short-lived TCP connection to port 443 of `raw.githubusercontent.com`.
 It **never** mounts the app partition read/write. `X` and `SQUARE` are
 disabled and it never launches Neutrino or writes BOOT/ART/CNF.
 
-**N1 STATUS: READY FOR PHYSICAL READ-ONLY TEST (DESR-7000).**
+**N1 STATUS: PASS ON DESR-7000 (NOVEMBER 8, 2026).**
 
 - [Verified N1 ELF — GitHub Actions run 42528063946](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42528063946) — **PASS**, artifact `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS` containing `DVR_ISO_MANAGER_V12_HDD.ELF`.
 - [Host parser and safety contract — run 42528083914](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42528083914) — **PASS**.
