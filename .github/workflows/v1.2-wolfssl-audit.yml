@@ -15,32 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/ps2homebrew/ps2homebrew:main
     steps:
-      - name: Check availability of native wolfSSL SDK port (informational)
+      - name: Check wolfSSL port and native EE compiler
         shell: sh
         run: |
           set -eu
-          echo "PS2SDK=${PS2SDK:-unset}"
-          ls -1 "$PS2DEV/ee/bin" | grep -E -- '-gcc
+          echo "PS2SDK=$PS2SDK"
+          EE_CC="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*gcc' | head -n 1)"
+          test -n "$EE_CC"
+          echo "EE_COMPILER=$EE_CC"
           if test -r "$PS2SDK/ports/include/wolfssl/ssl.h" &&
              test -r "$PS2SDK/ports/include/wolfssl/options.h" &&
              test -r "$PS2SDK/ports/lib/libwolfssl.a"; then
             echo "WOLFSSL_SDK=available"
             printf '%s\n' '#include <wolfssl/options.h>'                             '#include <wolfssl/ssl.h>'                             'int main(void) { return 0; }' > /tmp/v12_wolfssl_check.c
-            ee-gcc -std=c99 -Wall -Wextra -Werror -c /tmp/v12_wolfssl_check.c               -I"$PS2SDK/ports/include" -o /tmp/v12_wolfssl_check.o
+            "$EE_CC" -std=c99 -Wall -Wextra -Werror               -I"$PS2SDK/ports/include" -c /tmp/v12_wolfssl_check.c               -o /tmp/v12_wolfssl_check.o
             echo "WOLFSSL_HEADERS_EE_COMPILE=PASS"
           else
-            echo "WOLFSSL_SDK=unavailable; separate pinned PS2SDK-ports build required."
+            echo "WOLFSSL_SDK=unavailable; pinned PS2SDK-ports build required."
           fi
-          echo "NOTE: this audit does NOT establish working TLS, CA validation or entropy."
- || true
-          if test -r "$PS2SDK/ports/include/wolfssl/ssl.h" &&
-             test -r "$PS2SDK/ports/include/wolfssl/options.h" &&
-             test -r "$PS2SDK/ports/lib/libwolfssl.a"; then
-            echo "WOLFSSL_SDK=available"
-            printf '%s\n' '#include <wolfssl/options.h>'                             '#include <wolfssl/ssl.h>'                             'int main(void) { return 0; }' > /tmp/v12_wolfssl_check.c
-            ee-gcc -std=c99 -Wall -Wextra -Werror -c /tmp/v12_wolfssl_check.c               -I"$PS2SDK/ports/include" -o /tmp/v12_wolfssl_check.o
-            echo "WOLFSSL_HEADERS_EE_COMPILE=PASS"
-          else
-            echo "WOLFSSL_SDK=unavailable; separate pinned PS2SDK-ports build required."
-          fi
-          echo "NOTE: this audit does NOT establish working TLS, CA validation or entropy."
+          echo "NOTE: no claims of live TLS, CA validation, secure entropy or clock."
