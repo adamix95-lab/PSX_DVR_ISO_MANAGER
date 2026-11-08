@@ -1,10 +1,6 @@
 # PSX DVR ISO Manager 1.0 HDD — architecture, fixes and hardware results
 
-> **Update, 2026-11-07:** HDD 1.0 has also launched from the XMB Games entry on a physical DESR-7000 (PDIM icon, wLaunchELF_R3Z APA header injection). After removal of the display-only NETFIX suffix the Manager still worked. The HDD build is now a release candidate; the USB v1.0 build was also confirmed working on DESR-7000 on 2026-11-07 (without attributing the separate v0.8 cover/game tests to v1.0). See [release notes](RELEASE_NOTES_v1.0.0_EN.md) and [release checklist](../release-tools/v1_0/RELEASE_CHECKLIST.md). This does not imply all games/models are supported.
-
 [Polski / Polish](HDD_1_0_TECHNICAL_PL.md) · [Project README](../README.md) · [Manager sources](../dvr-iso-manager/) · [Neutrino integration](../neutrino-hdd-v1/) · [HDD NETFIX](../hdd-netfix/)
-
-> **Status as of 2026-11-06:** HDD 1.0 is **hardware-tested on a Sony PSX DESR-7000**, but **has not yet been published as a stable v1.0 release**. Validated development branch: `feature/v1.0-hdd`, commit `4ef4aba3a6347b3462a117890f992b13af0d38d3`. [Successful build and complete package](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42170404678).
 
 ## 1. Hardware verification
 
