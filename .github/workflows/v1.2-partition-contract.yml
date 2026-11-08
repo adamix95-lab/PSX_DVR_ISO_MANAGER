@@ -28,6 +28,9 @@ on:
       - 'dvr-iso-manager/include/v12_roughtime_wire.h'
       - 'dvr-iso-manager/src/net/v12_roughtime_wire.c'
       - 'dvr-iso-manager/tests/net/test_v12_roughtime_wire.c'
+      - 'dvr-iso-manager/tests/net/v12_roughtime_reference_verify.py'
+      - 'dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json'
+      - 'dvr-iso-manager/tests/fixtures/README.md'
       - 'dvr-iso-manager/src/lan_art_sync.c'
       - 'dvr-iso-manager/include/lan_art_sync.h'
       - 'neutrino-hdd-v1/patch_hdd_runtime_v12.py'
@@ -87,6 +90,15 @@ jobs:
             dvr-iso-manager/tests/net/test_v12_roughtime_wire.c \
             -o /tmp/v12_roughtime_wire_test
           /tmp/v12_roughtime_wire_test
+      - name: Setup Python for N3B signature tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install host-only Ed25519 verification dependency
+        run: python -m pip install --disable-pip-version-check cryptography==46.0.4
+      - name: Verify Roughtime Ed25519 delegation, signed response and Merkle proof
+        run: python dvr-iso-manager/tests/net/v12_roughtime_reference_verify.py
+
       - name: Host test bounded HTTPS downloader with mock verified TLS
         run: |
           cc -std=c99 -Wall -Wextra -Werror -pedantic \
