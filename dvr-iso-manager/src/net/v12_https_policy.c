@@ -74,10 +74,11 @@ int v12_https_validate_response(const uint8_t *data, size_t size,
   status = (data[9] - '0') * 100 + (data[10] - '0') * 10 +
            (data[11] - '0');
   if (status != 200 && status != 404) return -1; /* No redirects yet. */
-  for (line = 0; line + 1 < end; ++line)
+  for (line = 0; line + 1 < size; ++line)
     if (data[line] == '\r' && data[line + 1] == '\n') break;
-  if (line + 1 >= end) return -1;
-  line += 2;
+  if (line > end || line + 1 >= size) return -1;
+  /* The response may have no additional headers (valid for HTTP 404). */
+  line = (line == end) ? end : line + 2;
   while (line < end) {
     size_t stop = line, pos;
     while (stop + 1 < end &&
