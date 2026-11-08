@@ -25,6 +25,9 @@ int desr_v12_internet_probe(void);
 /* On-demand, UNAUTHENTICATED Cloudflare NTP UTC. Writes no files or RTC.
  * Returns time for display only; it is NOT trusted for TLS certificates. */
 int desr_v12_ntp_probe(v12_ntp_time *out);
+/* N3A: unsigned Roughtime UDP/2003 frame probe ONLY. This does NOT
+ * authenticate the reply or expose a time for TLS verification. */
+int desr_v12_roughtime_probe(void);
 #endif
 
 /* True after NETMAN/SMAP + PS2IP start, for read-only HDD diagnostics. */
