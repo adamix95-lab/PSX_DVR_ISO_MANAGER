@@ -6,7 +6,7 @@ int v12_https_fetch_art(v12_https_io *io, v12_art_source source,
                         const char *game_id, uint8_t *buffer, size_t capacity,
                         const uint8_t **png, size_t *png_size) {
   char host[96], path[192], request[384];
-  int req_len, n, opened = 0, result = -1;
+  int req_len, n, result = -1;
   size_t sent = 0, received = 0;
   v12_https_response meta;
   if (png) *png = NULL;
@@ -26,7 +26,6 @@ int v12_https_fetch_art(v12_https_io *io, v12_art_source source,
 
   /* If the backend cannot establish VERIFIED TLS, no request may be sent. */
   if (io->open_verified(io->ctx, host, 443U) != 0) goto cleanup;
-  opened = 1;
   while (sent < (size_t)req_len) {
     n = io->write_bytes(io->ctx, (const uint8_t *)request + sent,
                         (size_t)req_len - sent);
@@ -52,6 +51,6 @@ int v12_https_fetch_art(v12_https_io *io, v12_art_source source,
   }
 cleanup:
   /* close must also clean up sockets after a failed TLS handshake. */
-  if (opened || io->ctx) io->close(io->ctx);
+  io->close(io->ctx);
   return result;
 }
