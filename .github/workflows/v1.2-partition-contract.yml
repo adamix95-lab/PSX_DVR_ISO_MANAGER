@@ -25,6 +25,9 @@ on:
       - 'dvr-iso-manager/include/v12_ntp.h'
       - 'dvr-iso-manager/src/net/v12_ntp.c'
       - 'dvr-iso-manager/tests/net/test_v12_ntp.c'
+      - 'dvr-iso-manager/include/v12_roughtime_wire.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_wire.c'
+      - 'dvr-iso-manager/tests/net/test_v12_roughtime_wire.c'
       - 'dvr-iso-manager/src/lan_art_sync.c'
       - 'dvr-iso-manager/include/lan_art_sync.h'
       - 'neutrino-hdd-v1/patch_hdd_runtime_v12.py'
@@ -76,6 +79,14 @@ jobs:
             dvr-iso-manager/tests/net/test_v12_ntp.c \
             -o /tmp/v12_ntp_test
           /tmp/v12_ntp_test
+      - name: Host test untrusted Roughtime packet framing
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -pedantic \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_roughtime_wire.c \
+            dvr-iso-manager/tests/net/test_v12_roughtime_wire.c \
+            -o /tmp/v12_roughtime_wire_test
+          /tmp/v12_roughtime_wire_test
       - name: Host test bounded HTTPS downloader with mock verified TLS
         run: |
           cc -std=c99 -Wall -Wextra -Werror -pedantic \
