@@ -19,6 +19,9 @@ on:
       - 'dvr-iso-manager/include/v12_net_config.h'
       - 'dvr-iso-manager/src/net/v12_net_config.c'
       - 'dvr-iso-manager/tests/net/test_v12_net_config.c'
+      - 'dvr-iso-manager/include/v12_tls_clock.h'
+      - 'dvr-iso-manager/src/net/v12_tls_clock.c'
+      - 'dvr-iso-manager/tests/net/test_v12_tls_clock.c'
       - 'dvr-iso-manager/src/lan_art_sync.c'
       - 'dvr-iso-manager/include/lan_art_sync.h'
       - 'neutrino-hdd-v1/patch_hdd_runtime_v12.py'
@@ -54,6 +57,14 @@ jobs:
             dvr-iso-manager/tests/net/test_v12_net_config.c \
             -o /tmp/v12_net_config_test
           /tmp/v12_net_config_test
+      - name: Host test PS2 RTC sanity gating (no TLS bypass)
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -pedantic \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_tls_clock.c \
+            dvr-iso-manager/tests/net/test_v12_tls_clock.c \
+            -o /tmp/v12_tls_clock_test
+          /tmp/v12_tls_clock_test
       - name: Host test bounded HTTPS downloader with mock verified TLS
         run: |
           cc -std=c99 -Wall -Wextra -Werror -pedantic \
