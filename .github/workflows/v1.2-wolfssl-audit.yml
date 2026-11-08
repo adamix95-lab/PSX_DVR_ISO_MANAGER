@@ -28,7 +28,7 @@ jobs:
              test -r "$PS2SDK/ports/lib/libwolfssl.a"; then
             echo "WOLFSSL_SDK=available"
             printf '%s\n' '#include <wolfssl/options.h>'                             '#include <wolfssl/ssl.h>'                             'int main(void) { return 0; }' > /tmp/v12_wolfssl_check.c
-            "$EE_CC" -std=c99 -DWOLFSSL_USER_IO -DWOLFSSL_NO_SOCK -Wall -Wextra -Werror               -I"$PS2SDK/ports/include" -c /tmp/v12_wolfssl_check.c               -o /tmp/v12_wolfssl_check.o
+            "$EE_CC" -std=c99 -DWOLFSSL_USER_IO -DWOLFSSL_NO_SOCK -DNO_WRITEV -Wall -Wextra -Werror               -I"$PS2SDK/ports/include" -c /tmp/v12_wolfssl_check.c               -o /tmp/v12_wolfssl_check.o
             echo "WOLFSSL_HEADERS_EE_COMPILE=PASS"
           else
             echo "WOLFSSL_SDK=unavailable; pinned PS2SDK-ports build required."
