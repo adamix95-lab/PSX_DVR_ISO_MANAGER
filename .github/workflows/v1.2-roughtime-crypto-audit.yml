@@ -31,7 +31,7 @@ jobs:
           set -eu
           export V12_WOLFSSL_DIR="$GITHUB_WORKSPACE/v12-wolfssl-install"
           echo "V12_WOLFSSL_DIR=$V12_WOLFSSL_DIR" >> "$GITHUB_ENV"
-          CFLAGS="-DWOLFSSL_GETRANDOM -DNO_WRITEV" cmake \
+          CFLAGS="-DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\\(...\\)=0" cmake \
             -S wolfssl-src -B build-wolfssl-v12 \
             -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
             -DCMAKE_INSTALL_PREFIX="$V12_WOLFSSL_DIR" \
