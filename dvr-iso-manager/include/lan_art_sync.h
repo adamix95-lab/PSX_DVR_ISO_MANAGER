@@ -17,6 +17,12 @@ int desr_lan_art_download(void);
 int desr_lan_art_probe(const desr_cover_entry covers[], int count);
 #endif
 
+#ifdef DESR_HDD_V12
+/* On-demand, strictly read-only DNS + TCP/443 probe.
+ * Does not start TLS or transmit HTTP, never writes on the console. */
+int desr_v12_internet_probe(void);
+#endif
+
 /* True after NETMAN/SMAP + PS2IP start, for read-only HDD diagnostics. */
 int desr_lan_art_started(void);
 
