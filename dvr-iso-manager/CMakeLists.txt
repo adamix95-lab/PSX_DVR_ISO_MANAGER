@@ -100,3 +100,18 @@ if(DESR_V12_WOLFSSL_LINK_AUDIT)
   target_link_libraries(V12_WOLFSSL_LINK_AUDIT.ELF "$ENV{PS2SDK}/ports/lib/libwolfssl.a" m)
   target_compile_options(V12_WOLFSSL_LINK_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
 endif()
+
+# EXPERIMENTAL Ed25519-only Roughtime ABI audit. A separate wolfSSL port is
+# built by CI with Ed25519=yes and SHA512=yes into V12_WOLFSSL_DIR. This must
+# NOT change/rebuild the pinned NETFIX SDK or link into the v1.0/v1.2 Manager.
+option(DESR_V12_ROUGHTIME_CRYPTO_AUDIT "Build isolated wolfSSL Ed25519 link check" OFF)
+if(DESR_V12_ROUGHTIME_CRYPTO_AUDIT)
+  if("$ENV{V12_WOLFSSL_DIR}" STREQUAL "")
+    message(FATAL_ERROR "Set V12_WOLFSSL_DIR to isolated wolfSSL build install prefix")
+  endif()
+  add_executable(V12_ROUGHTIME_CRYPTO_AUDIT.ELF EXCLUDE_FROM_ALL src/v12_roughtime_crypto_link_audit.c)
+  target_compile_definitions(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
+  target_include_directories(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE "$ENV{V12_WOLFSSL_DIR}/include")
+  target_link_libraries(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE "$ENV{V12_WOLFSSL_DIR}/lib/libwolfssl.a" m)
+  target_compile_options(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
+endif()
