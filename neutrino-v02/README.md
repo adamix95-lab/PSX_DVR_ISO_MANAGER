@@ -31,14 +31,6 @@ Do not replace the entire `modules/` or `config/` directories. Add only the file
 Install the v0.2 `DVR_ISO_MANAGER.ELF` separately from the `Build DVR ISO Manager v0.2` workflow.
 Keep a backup of your current `BOOT.CNF` on your computer.
 
-## v0.2 Manager controls
-
-- **UP / DOWN** — select a game (ISO from the DVR directory).
-- **SELECT** — toggle between SYSTEM and ENGLISH. The verified SYSTEM mode is the default.
-- **Square (□)** — write and verify a separate `DVR_TEST.CNF`.
-- **X** — back up the original `BOOT.CNF`, write and verify the new `BOOT.CNF`, then launch OSDMenu `BOOT.ELF`.
-- **Triangle (△)** — rescan; **START** — exit.
-
 SYSTEM mode — the existing, working Neutrino:
 
 ```ini
