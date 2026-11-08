@@ -43,10 +43,13 @@ jobs:
           assert blob.startswith(b'\x7fELF')
           assert b'1.2 HDD' in blob
           assert b'hdd0:PP.DVRISO12' in blob
-          assert b'hdd0:PP.DVRISO12/BOOT.CNF' in blob
+          # READ-ONLY PREVIEW intentionally removes Quickboot/CNF strings
+          # from the linked ELF. The source-level contract separately checks
+          # that v1.2 CNF points to PP.DVRISO12 once Quickboot is enabled.
           assert b'hdd0:PP.DVRISO/BOOT.CNF' not in blob
+          assert b'hdd0:PP.DVRISO:pfs:' not in blob
           assert b'NETFIX: USB DEV9 / pinned SDK / isolated RX / TCP checksum' in blob
-          print('PASS: experimental isolated v1.2 HDD ELF; native HTTPS transport still pending')
+          print('PASS: v1.2 isolated READ-ONLY HDD ELF; Quickboot + HTTPS disabled pending tests')
           PY
       - uses: actions/upload-artifact@v4
         with:
