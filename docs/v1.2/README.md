@@ -129,6 +129,35 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## Stage N3B — Roughtime cryptographic verification (HOST REFERENCE PASS)
+
+**N3B is not ready for physical DESR testing yet.**
+
+- [N3B host tests: PASS — GitHub Actions run 42534048696](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42534048696).
+- `dvr-iso-manager/tests/net/v12_roughtime_reference_verify.py` uses
+  host Python `cryptography` Ed25519 to verify a public Cloudflare
+  IETF draft-08 test vector: the root-signed delegation certificate,
+  signed response, delegated key, version, NONC, signed time bounds,
+  radius, and nonce Merkle inclusion proof. A deliberately modified
+  response, wrong root or wrong nonce must fail. The fixture is
+  Apache-2.0 from the upstream Cloudflare Roughtime repository.
+- This is an **offline known-answer test** with synthetic test keys,
+  not a production server identity, not a verified PS2 C runtime.
+  The synthetic vector stores **private key seeds** for repeatability;
+  those are not keys to embed in the console.
+- The default wolfSSL PS2SDK port **does not include Ed25519
+  verification**. A separate PS2 wolfSSL build with
+  `WOLFSSL_ED25519=yes` and `WOLFSSL_SHA512=yes` is now tested by
+  `.github/workflows/v1.2-roughtime-crypto-audit.yml`.
+  It does not change the pinned HDD NETFIX SDK or the stable Manager.
+- Roughtime cryptographic verification still requires a **fresh,
+  unpredictable nonce** for replay resistance, an explicitly pinned
+  current server public key, and a careful server key-rotation policy.
+  These remain open implementation and security tasks.
+
+No N3B-enabled console ELF is distributed. The N3A output of
+`352 bytes` and `6 tags` is **still not authenticated**.
+
 ## Stage N3A — Roughtime wire/network preflight (PASS ON HARDWARE)
 
 **Host tests: PASS.** [GitHub Actions run 42532764928](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764928).
