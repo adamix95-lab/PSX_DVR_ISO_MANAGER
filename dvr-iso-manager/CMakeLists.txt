@@ -78,7 +78,8 @@ if(DESR_BUILD_HDD_NETFIX)
   # Experimental v1.2: separate executable and hard-isolated PP.DVRISO12.
   # EXCLUDE_FROM_ALL: cannot accidentally replace the stable 1.0 binary.
   # This target is deliberately NOT included in any 1.0 release packager.
-  add_executable(DVR_ISO_MANAGER_V12_HDD.ELF EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES})
+  add_executable(DVR_ISO_MANAGER_V12_HDD.ELF EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES}
+    src/net/v12_https_policy.c src/net/v12_https_client.c)
   target_compile_definitions(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE DESR_HDD_TEST=1 DESR_HDD_NETFIX=1 DESR_HDD_V12=1)
   target_include_directories(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
   target_link_libraries(DVR_ISO_MANAGER_V12_HDD.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
