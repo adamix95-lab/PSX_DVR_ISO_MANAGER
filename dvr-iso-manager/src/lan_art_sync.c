@@ -22,6 +22,8 @@
 #ifdef DESR_HDD_V12
 #include "v12_net_config.h"
 #include "v12_https_policy.h"
+#include "v12_ntp.h"
+#include <time.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/select.h>
@@ -231,4 +233,96 @@ int desr_v12_internet_probe(void) {
   scr_printf("TCP/443 CONNECTED. NO HTTP / TLS / ART WRITES.\n");
   return 0;
 }
+
+/* Plain NTP is NOT authenticated. This is a preliminary UTC estimate only;
+ * never write RTC/NVRAM or use it as sole basis for TLS trust. A failure
+ * leaves Manager usable and cannot alter storage. N2B uses UDP 123.
+ */
+int desr_v12_ntp_probe(v12_ntp_time *out) {
+  const char *hostname="time.cloudflare.com";
+  v12_net_config net;
+  probe_config cfg;
+  ip_addr_t dns;
+  struct addrinfo hints,*resolved=NULL,*cur;
+  uint8_t req[V12_NTP_PACKET_SIZE],reply[64];
+  static uint32_t sequence;
+  uint64_t tag;
+  int sock=-1,rc,ret=-312,tries=0;
+  if (!out) return -310;
+  memset(out,0,sizeof(*out));
+  if (v12_read_network_config(&net)<0) return -311;
+  memset(&cfg,0,sizeof(cfg));
+  memcpy(cfg.ip,net.ip,4);
+  memcpy(cfg.netmask,net.netmask,4);
+  memcpy(cfg.gateway,net.gateway,4);
+  if (network_init(&cfg)<0) return -313;
+  IP4_ADDR(&dns,net.dns[0],net.dns[1],net.dns[2],net.dns[3]);
+  dns_setserver(0,&dns);
+  memset(&hints,0,sizeof(hints));
+  hints.ai_family=AF_INET;
+  hints.ai_socktype=SOCK_DGRAM;
+  hints.ai_protocol=IPPROTO_UDP;
+  scr_printf("NTP DNS: %s\\n",hostname);
+  rc=getaddrinfo(hostname,"123",&hints,&resolved);
+  if (rc!=0 || !resolved) {
+    scr_printf("NTP DNS ERROR %d\\n",rc);
+    if (resolved) freeaddrinfo(resolved);
+    return -314;
+  }
+  ++sequence;
+  /* Only a reply-correlation token: this is NOT secure randomness. */
+  tag=(((uint64_t)(uint32_t)clock())<<32)
+     ^((uint64_t)(uintptr_t)&sequence<<4)
+     ^((uint64_t)sequence*UINT64_C(0x9e3779b97f4a7c15));
+  if(!tag) tag=1;
+  if(v12_ntp_prepare(req,tag)<0) {
+    freeaddrinfo(resolved);
+    return -315;
+  }
+  for(cur=resolved;cur && tries<2;cur=cur->ai_next) {
+    fd_set reads;
+    struct timeval tv;
+    int got;
+    if(cur->ai_family!=AF_INET || cur->ai_addrlen<sizeof(struct sockaddr_in))
+      continue;
+    ++tries;
+    sock=lwip_socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(sock<0) continue;
+    if(lwip_connect(sock,cur->ai_addr,cur->ai_addrlen)<0) {
+      lwip_close(sock);sock=-1;continue;
+    }
+    if(lwip_send(sock,req,sizeof(req),0)!=(int)sizeof(req)) {
+      lwip_close(sock);sock=-1;continue;
+    }
+    FD_ZERO(&reads);FD_SET(sock,&reads);
+    tv.tv_sec=5;tv.tv_usec=0;
+    if(lwip_select(sock+1,&reads,NULL,NULL,&tv)<=0 ||
+       !FD_ISSET(sock,&reads)) {
+      scr_printf("NTP: no UDP/123 reply (timeout)\\n");
+      lwip_close(sock);sock=-1;continue;
+    }
+    got=lwip_recv(sock,reply,sizeof(reply),0);
+    lwip_close(sock);sock=-1;
+    if(got<=0) continue;
+    if(v12_ntp_parse(reply,(size_t)got,req,out)<0) {
+      scr_printf("NTP: invalid/unsynced server response\\n");
+      ret=-316;
+      continue;
+    }
+    ret=0;
+    break;
+  }
+  if(sock>=0) lwip_close(sock);
+  freeaddrinfo(resolved);
+  if(ret==0) {
+    scr_printf("NTP UTC: %04u-%02u-%02u %02u:%02u:%02u\\n",
+      out->year,out->month,out->day,out->hour,out->minute,out->second);
+    scr_printf("NTP STRATUM=%u (UNAUTHENTICATED TIME)\\n",out->stratum);
+    scr_printf("PSX RTC unchanged; TLS certificate trust NOT established.\\n");
+  } else {
+    scr_printf("NTP FAILED code %d; RTC unchanged.\\n",ret);
+  }
+  return ret;
+}
+
 #endif /* DESR_HDD_V12 */
