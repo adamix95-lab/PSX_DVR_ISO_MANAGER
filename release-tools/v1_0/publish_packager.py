@@ -54,7 +54,7 @@ def rebuild_kelf(launcher, kelf_header):
 
 def main():
     a = argparse.ArgumentParser()
-    for p in ("hdd", "usb", "usb_v08", "kelf_header", "license", "out"):
+    for p in ("hdd", "usb", "usb_v08", "kelf_header", "license", "osd_license", "out"):
         a.add_argument("--" + p.replace("_","-"),type=Path,required=True)
     v = a.parse_args()
     v.out.mkdir(parents=True,exist_ok=True)
@@ -161,6 +161,7 @@ def main():
         "INSTALL_XMB_PL.txt":pl,
         "INSTALL_XMB_EN.txt":en,
         "LICENSES/hdl_dump_GPL-2.0.txt":v.license.read_bytes(),
+        "LICENSES/OSDMenu_AFL-3.0.txt":v.osd_license.read_bytes(),
         "REBUILD_SOURCES/kelf_reference.h":v.kelf_header.read_bytes(),
         "REBUILD_SOURCES/README.txt":b"Source: hdl-dump GPLv2 KELF template and original OSDMenu Launcher (AFL 3.0).\n"
     }
