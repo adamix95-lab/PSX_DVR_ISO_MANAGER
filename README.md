@@ -195,6 +195,9 @@ After successful startup you will see:
 
 # Install PSX DVR ISO MANAGER 1.0 HDD in XMB
 
+
+### Naturally, installing this manager as an application launched from the XMB involves modifying the APA/PFS partition, and there is always a risk that something could go wrong. Proceed with caution and care.
+
 PDIM 1.0 HDD can also appear as an application in the **Games** section of the original Sony PSX DESR XMB.
 
 It uses its own PDIM icon representing an HDD and a DVD disc and appears under the name **PSX DVR ISO MANAGER**.
