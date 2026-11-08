@@ -1,5 +1,5 @@
 /* PSX DVR ISO Manager v1: shared UI, runtime-specific app storage.
- * HDD preview is strictly read-only while PP.DVRISO writes are unverified.
+ * HDD preview is strictly read-only while application-partition writes are unverified.
  */
 
 #include "iso_utils.h"
@@ -420,7 +420,7 @@ static void draw_scan_art_question(int missing) {
   scr_setfontcolor(0xA0A0A0);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_TEST
-  scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
+  scr_printf("Missing PNGs are saved to the application ART directory.");
 #else
   scr_printf("Only new PNG files are written to USB ART.");
 #endif
@@ -671,7 +671,7 @@ static int launch_via_quickboot(void) {
 #ifdef DESR_HDD_TEST
   rc = hdd_enable_writes();
   if (rc < 0) {
-    snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+    snprintf(status, sizeof(status), "App partition RW mount failed: %d", rc);
     return -93;
   }
   rc = publish_hdd_cnf(cnf, len);
@@ -708,7 +708,7 @@ static int launch_via_quickboot(void) {
   scr_printf("ISO: %s  Language: %s\n", games[selected],
              force_english ? "ENGLISH" : "SYSTEM");
 #ifdef DESR_HDD_TEST
-  scr_printf("HDD PP.DVRISO BOOT.CNF verified.\n");
+  scr_printf("HDD %s BOOT.CNF verified.\n", DESR_APP_PARTITION);
   scr_printf("OSDMenu CNF: %s\n", DESR_APP_HDD_CNF_ARG);
 #else
   scr_printf("USB BOOT.CNF verified. Recovery backup preserved.\n");
@@ -723,7 +723,7 @@ static int launch_via_quickboot(void) {
      LoadELFFromFile has read BOOT.ELF into EE RAM. */
   /* Give hardware testers a readable last screen before OSDMenu resets IOP,
      as the successful DIAG Z launcher did. */
-  scr_printf("PP.DVRISO on PFS1; OSDMenu owns PFS0.\n");
+  scr_printf("%s on PFS1; OSDMenu owns PFS0.\n", DESR_APP_PARTITION);
   sleep(2);
   rc = LoadELFFromFile(USB_LAUNCHER, 1, hdd_launcher_args);
   scr_clear();
@@ -766,7 +766,7 @@ static int hdd_mount_readonly(void) {
     return -210;
   }
   rc = fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY);
-  scr_printf("1.0 HDD: PP.DVRISO RO MOUNT=%d\n", rc);
+  scr_printf("%s: %s RO MOUNT=%d\n", DESR_APP_VARIANT, DESR_APP_PARTITION, rc);
   if (rc < 0) return rc;
   hdd_mount_owned = 1;
   fd = fileXioDopen(DESR_APP_ROOT);
@@ -808,7 +808,7 @@ static int hdd_enable_writes(void) {
   }
   fileXioDclose(fd);
   hdd_writable = 1;
-  scr_printf("1.0 HDD: PP.DVRISO READ/WRITE OPT-IN OK\n");
+  scr_printf("%s: %s RW OPT-IN OK\n", DESR_APP_VARIANT, DESR_APP_PARTITION);
   return 0;
 }
 #endif
@@ -836,7 +836,7 @@ int main(int argc, char *argv[]) {
   rc = hdd_mount_readonly();
   if (rc < 0) {
     scr_printf("1.0 HDD: READ-ONLY PREFLIGHT FAILED %d\n", rc);
-    scr_printf("PP.DVRISO must exist; no auto-create or writes.\n");
+    scr_printf("%s must exist; no auto-create or writes.\n", DESR_APP_PARTITION);
     sleep(60);
     return 3;
   }
@@ -877,7 +877,7 @@ int main(int argc, char *argv[]) {
         int ok;
         scr_clear();
         scr_printf("PSX DVR HDD LAN RAM PROBE - READ ONLY\n");
-        scr_printf("PP.DVRISO remains PFS1 READ-ONLY.\n");
+        scr_printf("%s remains PFS1 READ-ONLY.\n", DESR_APP_PARTITION);
         scr_printf("All indexed games are fetched even if ART exists.\n");
         {
           int ids=desr_covers_resolve_ids(games,count,probe_all_ids);
@@ -1027,7 +1027,7 @@ int main(int argc, char *argv[]) {
 #ifdef DESR_HDD_TEST
         rc = hdd_enable_writes();
         if (rc < 0) {
-          snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+          snprintf(status, sizeof(status), "App partition RW mount failed: %d", rc);
           status_visible = 1;
           draw();
           continue;
