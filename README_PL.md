@@ -1,10 +1,10 @@
+<img width="1774" height="887" alt="Metaliczny baner PDIM w pomarańczowych tonach" src="https://github.com/user-attachments/assets/9ffed54c-e8ea-46e2-9af0-65e351b40cb3" />
+
+
 # PSX DVR ISO MANAGER
 
 [English](README.md)
 
-## v1.0.0 — HDD + USB
-
-**[Pobierz oficjalne wydanie 1.0 — HDD, USB i instalator XMB](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.0)** (wraz z serwerem okładek Windows i sumami SHA-256).
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. 
 
 **Główną wersją rozwojową jest HDD; USB pozostaje obsługiwane.** Oba warianty przeglądają i uruchamiają gry PS2 ISO zapisane na partycji DVR konsoli Sony PSX. Wariant HDD został sprawdzony na konsoli, łącznie z uruchamianiem aplikacji z XMB.
@@ -16,7 +16,7 @@
 
 **Dokumentacja:** [Opis wydania PL](docs/RELEASE_NOTES_v1.0.0_PL.md) · [English](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Techniczny opis HDD PL](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md) · [Lista czynności do publikacji](release-tools/v1_0/RELEASE_CHECKLIST.md).
 
-**Bezpieczeństwo:** Manager nie formatuje dysku ani nie zapisuje obrazów ISO. Opcjonalna iniekcja **nagłówka APA dla XMB** modyfikuje metadane partycji — wcześniej wykonaj kopię możliwą do przywrócenia; 
+**Bezpieczeństwo:** Manager nie formatuje dysku ani nie zapisuje obrazów ISO. Opcjonalna iniekcja **nagłówka APA dla XMB** modyfikuje metadane partycji — wcześniej wykonaj kopię zapasową, którą w razie potrzeby można przywrócić.
 
 ---
 
@@ -529,7 +529,7 @@ Przed aktualizacją wykonaj kopię dotychczasowego ELF-a i zachowaj konfiguracje
 </details>
 
 <details>
-<summary><strong> Instalacja i użytkowanie PDIM z USB — kliknij, aby rozwinąć</strong></summary>
+<summary><strong>Uruchamianie PDIM z USB — kliknij, aby rozwinąć</strong></summary>
 
 ## Uruchamianie PSX DVR ISO MANAGER
 PSX DVR ISO MANAGER umożliwia przeglądanie i uruchamianie gier PS2 z partycji DVR konsoli Sony PSX DESR. Wariant USB nie wymaga tworzenia osobnej partycji aplikacji na dysku twardym.
