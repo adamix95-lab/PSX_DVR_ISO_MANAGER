@@ -491,7 +491,7 @@ Make a backup of the previous ELF, settings, modules and downloaded covers befor
 </details>
 
 <details>
-<summary><strong>Install and use PDIM from USB — click to expand</strong></summary>
+<summary><strong>Launching PDIM from USB — click to expand</strong></summary>
 
 ## Launching PSX DVR ISO MANAGER
 
