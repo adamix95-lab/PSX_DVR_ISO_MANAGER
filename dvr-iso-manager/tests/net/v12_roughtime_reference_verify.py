@@ -22,7 +22,8 @@ import struct
 import sys
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey, Ed25519PrivateKey
+from cryptography.hazmat.primitives import serialization
 
 
 CERT_CONTEXT = b"RoughTime v1 delegation signature--\0"
@@ -175,7 +176,14 @@ def read_vector():
     assert vector["info"].startswith("draft-ietf-ntp-roughtime-08")
     request = bytes.fromhex(vector["request"][0])
     reply = bytes.fromhex(vector["replies"][0])
-    trusted_root = bytes.fromhex(vector["root_key"])
+    # Upstream vector's root_key/online_key fields are **private key SEEDS**
+    # used to create deterministic test responses, NOT public keys.
+    # Derive the public key exactly as the upstream Go vector test does.
+    seed = bytes.fromhex(vector["root_key"])
+    trusted_root = Ed25519PrivateKey.from_private_bytes(seed).public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
     nonce = require(framed(request), b"NONC", 32)  # same framing
     return request, reply, trusted_root, nonce
 
