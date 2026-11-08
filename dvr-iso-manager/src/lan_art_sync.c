@@ -262,10 +262,10 @@ int desr_v12_ntp_probe(v12_ntp_time *out) {
   hints.ai_family=AF_INET;
   hints.ai_socktype=SOCK_DGRAM;
   hints.ai_protocol=IPPROTO_UDP;
-  scr_printf("NTP DNS: %s\\n",hostname);
+  scr_printf("NTP DNS: %s\n",hostname);
   rc=getaddrinfo(hostname,"123",&hints,&resolved);
   if (rc!=0 || !resolved) {
-    scr_printf("NTP DNS ERROR %d\\n",rc);
+    scr_printf("NTP DNS ERROR %d\n",rc);
     if (resolved) freeaddrinfo(resolved);
     return -314;
   }
@@ -298,14 +298,14 @@ int desr_v12_ntp_probe(v12_ntp_time *out) {
     tv.tv_sec=5;tv.tv_usec=0;
     if(lwip_select(sock+1,&reads,NULL,NULL,&tv)<=0 ||
        !FD_ISSET(sock,&reads)) {
-      scr_printf("NTP: no UDP/123 reply (timeout)\\n");
+      scr_printf("NTP: no UDP/123 reply (timeout)\n");
       lwip_close(sock);sock=-1;continue;
     }
     got=lwip_recv(sock,reply,sizeof(reply),0);
     lwip_close(sock);sock=-1;
     if(got<=0) continue;
     if(v12_ntp_parse(reply,(size_t)got,req,out)<0) {
-      scr_printf("NTP: invalid/unsynced server response\\n");
+      scr_printf("NTP: invalid/unsynced server response\n");
       ret=-316;
       continue;
     }
@@ -315,12 +315,12 @@ int desr_v12_ntp_probe(v12_ntp_time *out) {
   if(sock>=0) lwip_close(sock);
   freeaddrinfo(resolved);
   if(ret==0) {
-    scr_printf("NTP UTC: %04u-%02u-%02u %02u:%02u:%02u\\n",
+    scr_printf("NTP UTC: %04u-%02u-%02u %02u:%02u:%02u\n",
       out->year,out->month,out->day,out->hour,out->minute,out->second);
-    scr_printf("NTP STRATUM=%u (UNAUTHENTICATED TIME)\\n",out->stratum);
-    scr_printf("PSX RTC unchanged; TLS certificate trust NOT established.\\n");
+    scr_printf("NTP STRATUM=%u (UNAUTHENTICATED TIME)\n",out->stratum);
+    scr_printf("PSX RTC unchanged; TLS certificate trust NOT established.\n");
   } else {
-    scr_printf("NTP FAILED code %d; RTC unchanged.\\n",ret);
+    scr_printf("NTP FAILED code %d; RTC unchanged.\n",ret);
   }
   return ret;
 }
