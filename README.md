@@ -621,7 +621,7 @@ The following screenshots show the current v1.0 interface and the XMB entry:
 
 ## Building
 
-This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN and PNG tests, and the PyInstaller configuration for the Windows executable. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README_PL.md) and [pc-art-server](pc-art-server/README.md) for more information.
+This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN and PNG tests, and the PyInstaller configuration for the Windows executable. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README.md) and [pc-art-server](pc-art-server/README.md) for more information.
 
 ## Credits
 
