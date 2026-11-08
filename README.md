@@ -1,10 +1,9 @@
+<img width="1774" height="887" alt="Metaliczny banner PDIM w pomarańczowych tonach" src="https://github.com/user-attachments/assets/9ffed54c-e8ea-46e2-9af0-65e351b40cb3" />
+
+
 # PSX DVR ISO MANAGER
 
 [Polski / Polish](README_PL.md)
-
-## v1.0.0 — HDD + USB
-
-**[Download the official 1.0 release — HDD, USB and XMB installer](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.0)** (including the Windows ART Server and SHA-256 checksums).
 
 **PSX DVR ISO Manager** lets you browse and launch PlayStation 2 ISO games from the DVR partition of a Sony PSX DESR console.
 
