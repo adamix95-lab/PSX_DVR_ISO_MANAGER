@@ -87,3 +87,15 @@ if(DESR_BUILD_HDD_NETFIX)
   target_compile_options(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE -Os -Wall -Wextra)
   target_link_options(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_HDD_NETFIX.map")
 endif()
+
+# Non-distributed ABI/link check for wolfSSL on the PS2 EE compiler.
+# Explicit opt-in only. This does not ship in 1.2 and is never an HTTPS
+# handshake or proof that entropy / RTC / CA trust is correctly configured.
+option(DESR_V12_WOLFSSL_LINK_AUDIT "Enable build-only wolfSSL EE API test" OFF)
+if(DESR_V12_WOLFSSL_LINK_AUDIT)
+  add_executable(V12_WOLFSSL_LINK_AUDIT.ELF EXCLUDE_FROM_ALL src/v12_wolfssl_link_audit.c)
+  target_compile_definitions(V12_WOLFSSL_LINK_AUDIT.ELF PRIVATE WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
+  target_include_directories(V12_WOLFSSL_LINK_AUDIT.ELF PRIVATE "$ENV{PS2SDK}/ports/include")
+  target_link_libraries(V12_WOLFSSL_LINK_AUDIT.ELF "$ENV{PS2SDK}/ports/lib/libwolfssl.a" m)
+  target_compile_options(V12_WOLFSSL_LINK_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
+endif()
