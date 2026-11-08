@@ -20,7 +20,19 @@ jobs:
         run: |
           set -eu
           echo "PS2SDK=${PS2SDK:-unset}"
-          command -v ee-gcc || true
+          ls -1 "$PS2DEV/ee/bin" | grep -E -- '-gcc
+          if test -r "$PS2SDK/ports/include/wolfssl/ssl.h" &&
+             test -r "$PS2SDK/ports/include/wolfssl/options.h" &&
+             test -r "$PS2SDK/ports/lib/libwolfssl.a"; then
+            echo "WOLFSSL_SDK=available"
+            printf '%s\n' '#include <wolfssl/options.h>'                             '#include <wolfssl/ssl.h>'                             'int main(void) { return 0; }' > /tmp/v12_wolfssl_check.c
+            ee-gcc -std=c99 -Wall -Wextra -Werror -c /tmp/v12_wolfssl_check.c               -I"$PS2SDK/ports/include" -o /tmp/v12_wolfssl_check.o
+            echo "WOLFSSL_HEADERS_EE_COMPILE=PASS"
+          else
+            echo "WOLFSSL_SDK=unavailable; separate pinned PS2SDK-ports build required."
+          fi
+          echo "NOTE: this audit does NOT establish working TLS, CA validation or entropy."
+ || true
           if test -r "$PS2SDK/ports/include/wolfssl/ssl.h" &&
              test -r "$PS2SDK/ports/include/wolfssl/options.h" &&
              test -r "$PS2SDK/ports/lib/libwolfssl.a"; then
