@@ -83,6 +83,9 @@ static desr_cover_entry covers[DESR_GAME_CAP];
 static desr_cover_entry probe_all_ids[DESR_GAME_CAP];
 #endif
 static char status[120] = "Starting...";
+#ifdef DESR_HDD_V12
+static int v12_internet_screen;
+#endif
 static int status_visible;
 static int art_prompt; /* X downloads only on the scan confirmation screen. */
 static int art_missing;
@@ -290,7 +293,11 @@ static void draw(void) {
     scr_setXY(4, 10);
     scr_printf("No ISO games found.");
     scr_setXY(4, 11);
+#ifdef DESR_HDD_V12
+    scr_printf("TRIANGLE: read-only Internet probe.");
+#else
     scr_printf("Press TRIANGLE to rescan.");
+#endif
   } else {
     first = (selected / DESR_PAGE_SIZE) * DESR_PAGE_SIZE;
     last = first + DESR_PAGE_SIZE;
@@ -388,10 +395,17 @@ static void draw(void) {
   scr_printf("-------------------------------------------------------");
   scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
+#ifdef DESR_HDD_V12
+  scr_printf("V1.2 READ ONLY: TRIANGLE = DNS + TCP/443 PROBE");
+  scr_setfontcolor(0xC8C8C8);
+  scr_setXY(2, 25);
+  scr_printf("X / SQUARE DISABLED   START: EXIT");
+#else
   scr_printf("UP/DOWN: GAME   LEFT/RIGHT: PAGE   X: LAUNCH");
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
   scr_printf("SELECT: LANG   TRIANGLE: INDEX   SQUARE: TEST   START: EXIT");
+#endif
   scr_setfontcolor(0xFFFFFF);
 }
 
@@ -873,9 +887,34 @@ int main(int argc, char *argv[]) {
       new_press = bits & ~prev_buttons;
       prev_buttons = bits;
       if (new_press & PAD_START) break;
+#ifdef DESR_HDD_V12
+      if (v12_internet_screen) {
+        if (new_press & PAD_CIRCLE) {
+          v12_internet_screen=0;
+          draw();
+        }
+        continue;
+      }
+#endif
 
 #ifdef DESR_HDD_PREVIEW
-#ifdef DESR_HDD_ART_PROBE
+#ifdef DESR_HDD_V12
+      if (new_press & PAD_TRIANGLE) {
+        scr_clear();
+        scr_printf("PSX DVR ISO MANAGER 1.2 - INTERNET PROBE\n");
+        scr_printf("APP: %s (PFS1 READ-ONLY)\n",DESR_APP_PARTITION);
+        scr_printf("ISO: dvr_pfs0:/ISO (READ-ONLY)\n");
+        scr_printf("No HTTPS yet. No HTTP requests. No ART/CNF writes.\n");
+        scr_printf("--------------------------------------------\n");
+        rc=desr_v12_internet_probe();
+        scr_printf("--------------------------------------------\n");
+        scr_printf("DNS / TCP443 RESULT: %s (code %d)\n",
+                   rc==0 ? "PASS" : "FAIL",rc);
+        scr_printf("CIRCLE: BACK TO MANAGER   START: EXIT\n");
+        v12_internet_screen=1;
+        continue;
+      }
+#elif defined(DESR_HDD_ART_PROBE)
       /* Dedicated RO LAN benchmark: TRIANGLE fetches every indexed Game ID
          into RAM and validates it. Never mount RW, scan/write INDEX or
          allow Quickboot/CNF writes. START cleanly unmounts our PFS1. */
@@ -925,7 +964,9 @@ int main(int argc, char *argv[]) {
 #endif /* not DESR_HDD_ART_PROBE */
       if (new_press & (PAD_CROSS | PAD_SQUARE)) {
         snprintf(status, sizeof(status),
-#ifdef DESR_HDD_ART_PROBE
+#ifdef DESR_HDD_V12
+                 "1.2 HDD: X/SQUARE disabled; TRIANGLE tests Internet only"
+#elif defined(DESR_HDD_ART_PROBE)
                  "HDD LAN PROBE READ ONLY: X/SQUARE launch & writes disabled"
 #else
                  "HDD preview: CNF / ART writes and launch disabled"
