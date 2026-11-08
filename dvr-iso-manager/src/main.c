@@ -399,10 +399,10 @@ static void draw(void) {
   scr_setfontcolor(0xFFFFFF);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_V12
-  scr_printf("V1.2 RO: TRIANGLE=NET  SQUARE=NTP UTC");
+  scr_printf("V1.2 RO: TRIANGLE TCP  SQUARE NTP  SELECT RT");
   scr_setfontcolor(0xC8C8C8);
   scr_setXY(2, 25);
-  scr_printf("X: DISABLED   START: EXIT");
+  scr_printf("X: DISABLED   CIRCLE: BACK   START: EXIT");
 #else
   scr_printf("UP/DOWN: GAME   LEFT/RIGHT: PAGE   X: LAUNCH");
   scr_setfontcolor(0xC8C8C8);
@@ -929,6 +929,21 @@ int main(int argc, char *argv[]) {
         scr_printf("NETWORK TIME RESULT: %s (code %d)\n",
                    rc==0 ? "PASS" : "FAIL",rc);
         scr_printf("NTP not authenticated. NOT a trusted TLS clock.\n");
+        scr_printf("CIRCLE: BACK   START: EXIT\n");
+        v12_internet_screen=1;
+        continue;
+      }
+      if (new_press & PAD_SELECT) {
+        scr_clear();
+        scr_printf("PSX DVR ISO MANAGER 1.2 - N3A ROUGHTIME\n");
+        scr_printf("Cloudflare UDP/2003 (IETF draft-08 transport)\n");
+        scr_printf("READ ONLY. Server time/signature NOT verified.\n");
+        scr_printf("--------------------------------------------\n");
+        rc=desr_v12_roughtime_probe();
+        scr_printf("--------------------------------------------\n");
+        scr_printf("N3A TRANSPORT RESULT: %s (%d)\n",
+                   rc==0?"PASS":"FAIL",rc);
+        scr_printf("DO NOT USE THIS REPLY FOR TLS CERTIFICATES.\n");
         scr_printf("CIRCLE: BACK   START: EXIT\n");
         v12_internet_screen=1;
         continue;
