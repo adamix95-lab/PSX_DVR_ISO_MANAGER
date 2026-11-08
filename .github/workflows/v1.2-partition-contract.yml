@@ -10,6 +10,9 @@ on:
       - 'dvr-iso-manager/CMakeLists.txt'
       - 'dvr-iso-manager/tests/test_v12_partition_contract.py'
       - '.github/workflows/v1.2-partition-contract.yml'
+      - 'dvr-iso-manager/include/v12_https_policy.h'
+      - 'dvr-iso-manager/src/net/v12_https_policy.c'
+      - 'dvr-iso-manager/tests/net/test_v12_https_policy.c'
   workflow_dispatch:
 
 permissions:
@@ -22,3 +25,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate v1.2 isolation and unchanged stable paths
         run: python3 dvr-iso-manager/tests/test_v12_partition_contract.py
+      - name: Host test native HTTPS allowlist and PNG response validation
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -pedantic \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/src/net/v12_https_policy.c \
+            dvr-iso-manager/tests/net/test_v12_https_policy.c \
+            -o /tmp/v12_https_policy_test
+          /tmp/v12_https_policy_test
