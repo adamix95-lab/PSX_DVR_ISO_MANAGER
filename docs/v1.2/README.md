@@ -73,7 +73,8 @@ Before using any resulting ELF, confirm that it contains
 | N1 — DNS/TCP443 | **PASS**, code `0` | Console resolves `raw.githubusercontent.com` and connects on TCP port 443 |
 | N2B — NTP UTC | **PASS**, code `0` | With a **depleted RTC battery**, console receives UTC `2026-11-08 22:45:22` from `time.cloudflare.com` over UDP/123; reported **stratum 3** |
 | N2A — hardware RTC | **Deferred** | Depleted battery: native RTC need not work to run network time probe |
-| N2C — wolfSSL HTTPS | **Not yet tested on hardware** | Secure entropy, peer certificate chain, hostname verification, authenticated time and TLS handshake remain to be proven |
+| N3A — Roughtime UDP/2003 | **PASS**, code `0` | Console received **352 bytes**, parser found **6 tags** and accepted framing; **signature and time are still UNVERIFIED** |
+| N2C/N3B — verified time / wolfSSL HTTPS | **Not yet tested on hardware** | Secure entropy, Ed25519 delegation/signature/nonce, trusted time, CA/hostname verification and TLS handshake remain to be proven |
 
 **NTP stratum 3 is a normal synchronized NTP server level, not an error.**
 The N2B time is **provisional and unauthenticated**. It was not written to
@@ -128,7 +129,7 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
-## Stage N3A — Roughtime wire/network preflight (READY FOR HARDWARE TEST)
+## Stage N3A — Roughtime wire/network preflight (PASS ON HARDWARE)
 
 **Host tests: PASS.** [GitHub Actions run 42532764928](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764928).
 **PS2 build: PASS.** [GitHub Actions run 42532764843](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764843).
@@ -137,9 +138,15 @@ containing `DVR_ISO_MANAGER_V12_HDD.ELF` (~1.6 MB archive). Replace only
 the experimental ELF on the FAT32 USB, launch from wLE-R3Z as before.
 Keep the same **PP.DVRISO12/V12_NET.CNF** as N1/N2B.
 
-**N3A on physical DESR-7000 has not yet been tested.** Please press
-**SELECT** exactly once and photograph the result. Do **not** interpret
-`FRAME: PASS` as a signature or time verification.
+**Physical DESR-7000: PASS.** SELECT produced:
+`UDP RESPONSE: 352 bytes`,
+`ROUGHTIME FRAME: PASS, tags=6 (UNVERIFIED)`,
+`N3A UDP/2003 RESULT: PASS (transport only) (code 0)`
+and `N3A TRANSPORT RESULT: PASS (0)`.
+
+This establishes **wire-format and network transport only**. No signatures,
+server authentication, fresh unpredictable nonce, trusted UTC or TLS
+certificate checking have yet succeeded.
 
 
 Cloudflare operates the public `roughtime.cloudflare.com:2003` service,
