@@ -62,6 +62,43 @@ Before using any resulting ELF, confirm that it contains
 `hdd0:PP.DVRISO12` and that the displayed application variant says
 `1.2 HDD`.
 
+## Progress: verified-in-RAM HTTPS request scaffolding
+
+The experimental-only modules are now in the tree:
+
+- `dvr-iso-manager/src/net/v12_https_policy.c` builds **allowlisted** OPL Archive
+  and CosmicScale requests from verified Game IDs. It rejects redirects,
+  unsupported transfer encodings, oversized bodies, invalid HTTP and PNG CRC.
+- `dvr-iso-manager/src/net/v12_https_client.c` builds an HTTP/1.0 GET and
+  reads a bounded response into **RAM only**, requiring a transport whose
+  `open_verified` has already validated TLS certificate chain, hostname,
+  certificate time and sufficient cryptographic entropy. It cannot write HDD
+  files and never accepts an unverified TLS handshake.
+- `dvr-iso-manager/tests/net/test_v12_https_policy.c` and
+  `test_v12_https_client.c` test known-good PNG, missing covers, truncated
+  responses, malicious Game IDs, overflow, partial I/O, redirects and
+  rejected TLS using a **mock** transport.
+- GitHub Actions runs these host tests and the dedicated
+  `DVR_ISO_MANAGER_V12_HDD.ELF` build target compiles the new C modules
+  without using them in stable 1.0.
+
+**Still not implemented:** the real wolfSSL backend, DNS, trusted CA
+installation, secure entropy source, working certificate-time validation,
+remote image normalization and integration with HDD artwork writes.
+**Do not claim that native HTTPS works on DESR yet.**
+
+### Upstream research (not copied)
+
+The reference launcher is now called
+[NULD (formerly ORBIT)](https://github.com/danielnuld/nuld) and is GPL-3.0.
+Its `net.c` uses wolfSSL but disables certificate verification
+(`WOLFSSL_VERIFY_NONE`) and substitutes jitter-based entropy for PS2
+`/dev/urandom`. Neither of these security shortcuts is acceptable for the
+verified-TLS-only v1.2 transport; the adapter must fail closed until an
+adequate solution exists. **No NULD source has been copied into this repo.**
+Before public binary release, audit licensing of wolfSSL and all linked
+components; comply with their respective source/attribution requirements.
+
 ## Planned native HTTPS cover downloads
 
 1. Review ORBIT's actual license and attribution obligations and evaluate
