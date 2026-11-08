@@ -55,7 +55,6 @@ int v12_rt_check_reply_frame(const uint8_t *packet,size_t size,
   if(base>size) return -1;
   for(i=0;i<n;i++) {
     uint32_t current,next;
-    const uint8_t *values;
     uint32_t tagv;
     size_t length;
     tagv=le32(packet+12U+4U+(size_t)(n-1U)*4U+(size_t)i*4U);
@@ -66,7 +65,6 @@ int v12_rt_check_reply_frame(const uint8_t *packet,size_t size,
                      (uint32_t)(size-base);
     if(next<current || (next&3U) || next>size-base) return -1;
     length=(size_t)(next-current);
-    values=packet+base+(size_t)current;
     if(tagv==tag("SIG\0")) {
       if(length!=64U) return -1;
       found_sig=1;
