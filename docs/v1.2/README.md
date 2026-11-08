@@ -146,10 +146,15 @@ The manual SQUARE action remains useful for diagnostics.
   The synthetic vector stores **private key seeds** for repeatability;
   those are not keys to embed in the console.
 - The default wolfSSL PS2SDK port **does not include Ed25519
-  verification**. A separate PS2 wolfSSL build with
-  `WOLFSSL_ED25519=yes` and `WOLFSSL_SHA512=yes` is now tested by
-  `.github/workflows/v1.2-roughtime-crypto-audit.yml`.
-  It does not change the pinned HDD NETFIX SDK or the stable Manager.
+  verification**. A completely separate PS2 wolfSSL build with
+  `WOLFSSL_ED25519=yes` and `WOLFSSL_SHA512=yes` has now **PASSED
+  cross-compilation + static linking**:
+  [N3B Ed25519+SHA512 CI run 42534544451](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42534544451).
+  The linked audit contains RFC 8032 verification test 1 and a SHA512 test;
+  CI checks the ELF is valid but **does not execute it on hardware**.
+  No binary is distributed. The build uses the same PS2SDK
+  `XINET_PTON` workaround as ps2sdk-ports and does not alter the pinned
+  NETFIX SDK or stable Manager.
 - Roughtime cryptographic verification still requires a **fresh,
   unpredictable nonce** for replay resistance, an explicitly pinned
   current server public key, and a careful server key-rotation policy.
