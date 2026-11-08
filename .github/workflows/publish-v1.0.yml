@@ -1,0 +1,118 @@
+name: Publish PSX DVR ISO MANAGER 1.0 (HDD + USB + XMB)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v1.0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image support
+        run: python -m pip install "Pillow>=10,<12"
+      - name: Fetch hardware-tested historical build artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p input dist
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/13563564084/zip" > input/hdd-artifact.zip
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/13564060654/zip" > input/usb-artifact.zip
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/13563234253/zip" > input/usb-v08-artifact.zip
+          for file in input/*artifact.zip; do unzip -t "$file" | tail -1; done
+      - name: Fetch pinned upstream KELF template and licenses
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 3 \
+            https://raw.githubusercontent.com/DanielFergisz/RepairBox-PSX-HDD-Setup/bd33f7ade34504b0c978155445973ddff0a6a7d1/third_party/hdl-dump/kelf.h \
+            -o input/kelf.h
+          curl -fLsS --retry 3 \
+            https://raw.githubusercontent.com/DanielFergisz/RepairBox-PSX-HDD-Setup/bd33f7ade34504b0c978155445973ddff0a6a7d1/third_party/hdl-dump/COPYING \
+            -o input/hdl-dump-GPL-2.0.txt
+          curl -fLsS --retry 3 \
+            https://raw.githubusercontent.com/pcm720/OSDMenu/main/launcher/LICENSE \
+            -o input/OSDMenu-AFL-3.0.txt
+      - name: Restore the exact original indexed XMB PDIM icon
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          root=Path('release-tools/v1_0')
+          contents=''.join((root / ('icon-part-%02d.b64' % i)).read_text().strip() for i in range(1,6))
+          assert len(contents)==8120
+          image=base64.b64decode(contents, validate=True)
+          assert len(image)==6088, len(image)
+          assert hashlib.sha256(image).hexdigest()=='e26fd4323a217f6f0641873a3ff6ea50c80080b01dbe418619b8900d9b924713'
+          assert image[:8]==b'\x89PNG\r\n\x1a\n'
+          (root / 'jkt_002.png').write_bytes(image)
+          print('Original PDIM 76x108 PNG8 verified:',len(image),'bytes')
+          PY
+      - name: Build and verify HDD, USB and XMB release packages
+        run: |
+          set -euo pipefail
+          python release-tools/v1_0/publish_packager.py \
+            --hdd input/hdd-artifact.zip \
+            --usb input/usb-artifact.zip \
+            --usb-v08 input/usb-v08-artifact.zip \
+            --kelf-header input/kelf.h \
+            --license input/hdl-dump-GPL-2.0.txt \
+            --osd-license input/OSDMenu-AFL-3.0.txt \
+            --out dist
+          python release-tools/v1_0/verify_release_assets.py dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDIM-v1.0.0-VERIFIED-RELEASE-ASSETS
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build-release-assets]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PDIM-v1.0.0-VERIFIED-RELEASE-ASSETS
+          path: dist
+      - name: Add compatible Windows ART Server
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release download v0.8 \
+            --pattern 'PSX-DVR-ART-Server-v0.8.exe' \
+            --dir dist
+          test -s dist/PSX-DVR-ART-Server-v0.8.exe
+          (cd dist && sha256sum *.zip *.exe > SHA256SUMS.txt)
+      - name: Create tag 1.0 and publish official release with binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -s dist/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip
+          test -s dist/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip
+          test -s dist/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip
+          test -s dist/SHA256SUMS.txt
+          if gh release view 1.0 >/dev/null 2>&1; then
+            echo "Release 1.0 exists; re-uploading verified assets."
+            gh release upload 1.0 dist/*.zip dist/*.exe dist/SHA256SUMS.txt --clobber
+          else
+            gh release create 1.0 \
+              dist/*.zip dist/*.exe dist/SHA256SUMS.txt \
+              --target "${GITHUB_SHA}" \
+              --title "PSX DVR ISO MANAGER 1.0" \
+              --notes-file docs/RELEASE_NOTES_v1.0.0_EN.md \
+              --latest
+          fi
+          gh release view 1.0 --json tagName,name,isDraft,isPrerelease,assets,url
