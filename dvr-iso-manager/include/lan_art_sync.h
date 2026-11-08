@@ -18,9 +18,13 @@ int desr_lan_art_probe(const desr_cover_entry covers[], int count);
 #endif
 
 #ifdef DESR_HDD_V12
+#include "v12_ntp.h"
 /* On-demand, strictly read-only DNS + TCP/443 probe.
  * Does not start TLS or transmit HTTP, never writes on the console. */
 int desr_v12_internet_probe(void);
+/* On-demand, UNAUTHENTICATED Cloudflare NTP UTC. Writes no files or RTC.
+ * Returns time for display only; it is NOT trusted for TLS certificates. */
+int desr_v12_ntp_probe(v12_ntp_time *out);
 #endif
 
 /* True after NETMAN/SMAP + PS2IP start, for read-only HDD diagnostics. */
