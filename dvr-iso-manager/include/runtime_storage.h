@@ -11,8 +11,8 @@
 /* Only an explicitly built experimental HDD target may mount PP.DVRISO12.
  * Keep production 1.0 paths unchanged when DESR_HDD_V12 is not defined.
  */
-#if defined(DESR_HDD_V12) && (!defined(DESR_HDD_TEST) || !defined(DESR_HDD_NETFIX))
-#error "DESR_HDD_V12 requires DESR_HDD_TEST and DESR_HDD_NETFIX"
+#if defined(DESR_HDD_V12) && (!defined(DESR_HDD_TEST) || !defined(DESR_HDD_NETFIX) || !defined(DESR_HDD_PREVIEW))
+#error "DESR_HDD_V12 requires DESR_HDD_TEST, NETFIX and READ-ONLY PREVIEW"
 #endif
 
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
@@ -32,7 +32,9 @@
 #define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO/BOOT.CNF"
 #endif
 #define DESR_APP_ROOT "pfs1:/"
-#ifdef DESR_HDD_TEST
+#if defined(DESR_HDD_V12)
+#define DESR_APP_READONLY 1
+#elif defined(DESR_HDD_TEST)
 #define DESR_APP_READONLY 0
 #else
 #define DESR_APP_READONLY 1
