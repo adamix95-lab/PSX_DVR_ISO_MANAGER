@@ -82,6 +82,43 @@ Before using any resulting ELF, confirm that it contains
 - N2A preserves **TRIANGLE: DNS/TCP443**, **X: disabled**,
   **CIRCLE: return** and **START: exit**.
 
+## Stage N2A — hardware RTC preflight (READY FOR TEST)
+
+**Built successfully:** [RTC-capable 1.2 HDD ELF / Actions run 42530395826](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42530395826).
+The `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS` artifact contains
+`DVR_ISO_MANAGER_V12_HDD.ELF` with the original N1 and a **new SQUARE action**.
+
+Using the **same** test `PP.DVRISO12`, `V12_NET.CNF`, USB and wLE setup
+already confirmed by N1:
+
+1. Replace only the experimental ELF on USB with the N2A build.
+2. Launch from wLE, verify the header reads `1.2 HDD`.
+3. Press **SQUARE**: reads `sceCdReadClock` and shows
+   `sceCdReadClock rc=...`, `status=...` and `RTC DATE` or
+   `RTC RAW BCD` plus `RTC PLAUSIBLE: PASS/FAIL`.
+4. Take a photo of the complete screen, then use **CIRCLE** to return or
+   **START** to exit. TRIANGLE still runs the previously passed N1 Internet
+   test, X/Quickboot is still disabled.
+
+**No console time is changed**, no HTTP/TLS handshake is started, and
+no app/DVR files are written by this build. The check validates only date
+format and plausible calendar range; even `PASS` is not authenticated
+network time and cannot replace hostname/CA/certificate validation.
+
+### wolfSSL integration evidence
+
+[wolfSSL EE API compile + static link audit run 42530578757](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42530578757): **PASS**.
+`V12_WOLFSSL_LINK_AUDIT.ELF` is built *inside CI only* using
+`WOLFSSL_VERIFY_PEER`, a hostname-check API and custom I/O callbacks.
+The ELF is **not released or uploaded** while downstream GPL/OSS licensing
+and cryptographic entropy remain under review. It does not make a TLS
+connection or authenticate a certificate.
+
+Next blocker is provisioning genuinely strong randomness for wolfSSL
+without reusing a deterministic seed; after that come CA trust and
+certificate-time checks, followed by the first verified TLS handshake.
+Never disable peer verification as a shortcut.
+
 ## Stage N1 — Physical DNS + TCP/443 test (READ-ONLY)
 
 **No TLS handshake, HTTP request or PNG download happens in this test.**
