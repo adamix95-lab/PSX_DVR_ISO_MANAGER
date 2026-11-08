@@ -657,7 +657,7 @@ Poniżej znajdują się te same zdjęcia i zrzuty ekranu aktualnego interfejsu M
 
 ## Kompilacja
 
-Repozytorium zawiera projekt CMake/PS2SDK, testy skanera, sieci i PNG zintegrowane z Managerem oraz konfigurację tworzenia Windows EXE przez PyInstaller. Dawny samodzielny Probe został wycofany. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README_PL.md) i [pc-art-server](pc-art-server/README.md).
+Repozytorium zawiera projekt CMake/PS2SDK, testy skanera, sieci i PNG zintegrowane z Managerem oraz konfigurację tworzenia Windows EXE przez PyInstaller. Dawny samodzielny Probe został wycofany. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README.md) i [pc-art-server](pc-art-server/README.md).
 
 ## Podziękowania
 
