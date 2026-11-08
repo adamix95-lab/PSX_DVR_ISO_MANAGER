@@ -8,7 +8,19 @@
  * DEV NOTE: This is an APPLICATION partition only. dvr_pfs0:/ISO remains
  * a separate Sony DVR file store and is never writable by the Manager.
  */
+/* Only an explicitly built experimental HDD target may mount PP.DVRISO12.
+ * Keep production 1.0 paths unchanged when DESR_HDD_V12 is not defined.
+ */
+#if defined(DESR_HDD_V12) && (!defined(DESR_HDD_TEST) || !defined(DESR_HDD_NETFIX))
+#error "DESR_HDD_V12 requires DESR_HDD_TEST and DESR_HDD_NETFIX"
+#endif
+
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
+#ifdef DESR_HDD_V12
+#define DESR_APP_VARIANT "1.2 HDD"
+#define DESR_APP_PARTITION "hdd0:PP.DVRISO12"
+#define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO12/BOOT.CNF"
+#else
 #ifdef DESR_HDD_NETFIX
 #define DESR_APP_VARIANT "1.0 HDD"
 #elif defined(DESR_HDD_ART_PROBE)
@@ -16,14 +28,15 @@
 #else
 #define DESR_APP_VARIANT "1.0 HDD"
 #endif
-#define DESR_APP_ROOT "pfs1:/"
 #define DESR_APP_PARTITION "hdd0:PP.DVRISO"
+#define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO/BOOT.CNF"
+#endif
+#define DESR_APP_ROOT "pfs1:/"
 #ifdef DESR_HDD_TEST
 #define DESR_APP_READONLY 0
 #else
 #define DESR_APP_READONLY 1
 #endif
-#define DESR_APP_HDD_CNF_ARG "hdd0:PP.DVRISO/BOOT.CNF"
 #define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"
 #define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"
 #else
