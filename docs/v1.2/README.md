@@ -66,32 +66,28 @@ Before using any resulting ELF, confirm that it contains
 `hdd0:PP.DVRISO12` and that the displayed application variant says
 `1.2 HDD`.
 
-## Physical DESR-7000 results (maintainer, November 8, 2026)
+## Physical DESR-7000 results (November 8, 2026)
 
-- **N1 — PASS on physical hardware.** The console reported exactly
-  `DNS / TCP443 RESULT: PASS (code 0)`. This confirms real DNS lookup and
-  successful outbound TCP/443 from the patched DESR network stack.
-- **TLS / certificate authentication / HTTPS / downloads — NOT TESTED** by N1.
-- **N2A — RTC clock preflight:** a new read-only check is available on
-  **SQUARE** in the experimental build after its CI run passes. It calls
-  `sceCdReadClock`, displays the PS2 RTC status and checks BCD date
-  plausibility (2025–2037, leap years, battery/status flags). It does
-  **not** change the RTC or read/write game/application data.
-- The RTC sanity result is only diagnostic; even a plausible clock is **not
-  authenticated time** and does not prove certificate validation works.
-- N2A preserves **TRIANGLE: DNS/TCP443**, **X: disabled**,
-  **CIRCLE: return** and **START: exit**.
+| Test | Physical console result | What it proves |
+| --- | --- | --- |
+| N1 — DNS/TCP443 | **PASS**, code `0` | Console resolves `raw.githubusercontent.com` and connects on TCP port 443 |
+| N2B — NTP UTC | **PASS**, code `0` | With a **depleted RTC battery**, console receives UTC `2026-11-08 22:45:22` from `time.cloudflare.com` over UDP/123; reported **stratum 3** |
+| N2A — hardware RTC | **Deferred** | Depleted battery: native RTC need not work to run network time probe |
+| N2C — wolfSSL HTTPS | **Not yet tested on hardware** | Secure entropy, peer certificate chain, hostname verification, authenticated time and TLS handshake remain to be proven |
 
-## Stage N2B — Time bootstrap for dead-RTC DESR (READY FOR HARDWARE TEST)
+**NTP stratum 3 is a normal synchronized NTP server level, not an error.**
+The N2B time is **provisional and unauthenticated**. It was not written to
+PSX RTC or console disk, and it must not be treated as a trusted wolfSSL
+certificate-validation clock.
 
-**CI build and host tests: PASS. Physical DESR hardware test: pending.**
+## Stage N2B — Time bootstrap for dead-RTC DESR (PASS ON HARDWARE)
+
+**CI: PASS. Physical DESR-7000: PASS (2026-11-08 22:45:22 UTC, stratum 3, code 0).**
 
 - [N2B ELF — GitHub Actions run 42531199387](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42531199387), artifact `V12-ISOLATED-HDD-EXPERIMENTAL-NO-TLS`, containing `DVR_ISO_MANAGER_V12_HDD.ELF`.
 - [Strict NTP codec, RTC and partition host tests — run 42531214285](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42531214285) — **PASS**.
-- **N2A physical RTC test can be skipped:** maintainer reported a depleted RTC battery; the network-based N2B is the next test.
- The maintainer confirmed that the DESR-7000
-RTC battery is depleted, so the development order is changed: attempt
-network UTC first, without relying on the console's hardware RTC.
+- **N2A RTC test is optional/deferred:** the console has a depleted RTC
+  battery. N2B demonstrated that network time retrieval works without it.
 
 The v1.2 read-only Manager now supports **SQUARE: NTP UTC**. Pressing it
 performs a DNS lookup for `time.cloudflare.com`, sends one NTPv4/SNTP
@@ -131,6 +127,30 @@ remains an open design requirement for production native HTTPS.
 bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
+
+## Stage N2C — TLS prerequisites and time callback (IN DEVELOPMENT)
+
+The time API used by wolfSSL is `wc_SetTimeCb()`. The experimental
+wolfSSL **CI-only link audit** now checks that this callback API can be
+compiled and linked for the PS2 EE target. The audit provides a deliberate
+epoch-zero *failure clock*: **not a usable time source**, but a way to ensure
+that a missing trusted time source does not silently become trusted.
+
+The documented plain-NTP result is not a cryptographic trust anchor.
+A secure bootstrap needs a *separately authenticated* time source or an
+equivalent robust trust mechanism. Certificate verification **must remain
+enabled** and cannot rely solely on the spoofable NTP result.
+
+WolfSSL also requires a cryptographically strong entropy source to seed its
+hash-based DRBG. No suitable hardware RNG has yet been proven on the
+DESR-7000. Random values derived only from `clock()`, addresses, COP0
+counters or deterministic jitter are **not accepted** as strong entropy.
+The real verified TLS handshake is blocked pending a security-reviewed
+solution. This is not a console test yet, and no TLS-enabled artifact
+has been published.
+
+Research: [wolfSSL porting guide: random seed](https://www.wolfssl.com/documentation/manuals/wolfssl-porting-guide/section02.html)
+and [wolfSSL custom time callback API](https://www.wolfssl.com/documentation/wolfSSL-Manual.pdf).
 
 ## Stage N2A — optional RTC diagnostic (deferred: battery depleted)
 
@@ -252,12 +272,12 @@ The experimental-only modules are now in the tree:
 - [Experimental HDD ELF with NETFIX, read-only preview and v1.2 partition](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527208156) — **PASS**. It intentionally contains no usable Quickboot or live HTTPS.
 - [PS2 wolfSSL headers/toolchain audit](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42527310888) — **PASS** for the cross-compiler using `WOLFSSL_USER_IO`, `WOLFSSL_NO_SOCK` and `NO_WRITEV`. The library exists in PS2SDK ports; certificate validation, secure entropy, DNS and live TLS are **not yet validated**.
 
-**Still not implemented:** the real wolfSSL backend, cryptographically
-verified TLS, an authenticated/trusted time bootstrap for certificates,
-trusted CA installation, secure entropy source, remote image normalization
-and integration with HDD artwork writes. A provisional, unauthenticated NTP
-UTC diagnostic exists but has not yet been tested on physical DESR hardware. The new **DNS/TCP reachability probe**
-is implemented but still requires a physical DESR-7000 test.
+**Still not implemented:** the live wolfSSL TLS transport with
+cryptographically verified certificates and hostname, an authenticated
+time source for certificate validation, strong RNG entropy, CA trust
+provisioning, remote image normalization and HDD artwork writes.
+The N1 connectivity and N2B **unauthenticated** network UTC tests have
+both been confirmed on the physical DESR-7000.
 
 **Neutrino isolation:** the stable HDD Neutrino FIX95 wrapper also hardcoded
 `hdd0:PP.DVRISO` for both targets and its `pfs0` mount. The new
