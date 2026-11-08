@@ -923,28 +923,28 @@ int main(int argc, char *argv[]) {
         int clock_rc;
         memset(&clock,0,sizeof(clock));
         scr_clear();
-        scr_printf("PSX DVR ISO MANAGER 1.2 - RTC PREFLIGHT\\n");
-        scr_printf("Read only: no RTC setting / no disk writes\\n");
-        scr_printf("--------------------------------------------\\n");
+        scr_printf("PSX DVR ISO MANAGER 1.2 - RTC PREFLIGHT\n");
+        scr_printf("Read only: no RTC setting / no disk writes\n");
+        scr_printf("--------------------------------------------\n");
         clock_rc=sceCdReadClock(&clock);
-        scr_printf("sceCdReadClock rc=%d status=0x%02x\\n",
+        scr_printf("sceCdReadClock rc=%d status=0x%02x\n",
                    clock_rc,(unsigned)clock.stat);
         if (clock_rc &&
             v12_tls_clock_decode(clock.stat,clock.year,clock.month,
                       clock.day,clock.hour,clock.minute,clock.second,
                       &decoded)==0) {
-          scr_printf("RTC DATE: %04u-%02u-%02u %02u:%02u:%02u\\n",
+          scr_printf("RTC DATE: %04u-%02u-%02u %02u:%02u:%02u\n",
             decoded.year,decoded.month,decoded.day,
             decoded.hour,decoded.minute,decoded.second);
-          scr_printf("RTC PLAUSIBLE: PASS (NOT TRUSTED TIME)\\n");
+          scr_printf("RTC PLAUSIBLE: PASS (NOT TRUSTED TIME)\n");
         } else {
-          scr_printf("RTC PLAUSIBLE: FAIL; check clock/battery\\n");
-          scr_printf("RTC RAW BCD: Y%02x M%02x D%02x h%02x m%02x s%02x\\n",
+          scr_printf("RTC PLAUSIBLE: FAIL; check clock/battery\n");
+          scr_printf("RTC RAW BCD: Y%02x M%02x D%02x h%02x m%02x s%02x\n",
              clock.year,clock.month,clock.day,
              clock.hour,clock.minute,clock.second);
         }
-        scr_printf("No TLS was attempted. Certificate check unavailable.\\n");
-        scr_printf("CIRCLE: BACK   START: EXIT\\n");
+        scr_printf("No TLS was attempted. Certificate check unavailable.\n");
+        scr_printf("CIRCLE: BACK   START: EXIT\n");
         v12_internet_screen=1;
         continue;
       }
