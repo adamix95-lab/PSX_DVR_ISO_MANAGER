@@ -19,6 +19,13 @@
 #define NEWLIB_PORT_AWARE
 #include <fileXio_rpc.h>
 #include <io_common.h>
+#ifdef DESR_HDD_V12
+#include "v12_net_config.h"
+#include "v12_https_policy.h"
+#include <fcntl.h>
+#include <netdb.h>
+#include <sys/select.h>
+#endif
 
 #define LAN_CFG DESR_APP_NET_CFG
 #define LAN_CFG_CAP 512
@@ -112,3 +119,116 @@ int desr_lan_art_probe(const desr_cover_entry covers[], int count) {
   return art_sync_probe_all(&cfg,covers,count);
 }
 #endif
+
+#ifdef DESR_HDD_V12
+/* READ-ONLY INTERNET PREFLIGHT: static IP + configurable DNS -> raw.github
+ * DNS -> TCP 443. No HTTP bytes, no TLS handshake and no HDD writes.
+ * Only the standalone 1.2 preview calls this function on TRIANGLE.
+ */
+static int v12_read_network_config(v12_net_config *out) {
+  char text[V12_NET_CONFIG_MAX + 1U];
+  int fd, total=0, n, close_rc;
+  fd=fileXioOpen(DESR_APP_ROOT "V12_NET.CNF", FIO_O_RDONLY, 0);
+  if (fd<0) {
+    scr_printf("V12_NET.CNF missing from PP.DVRISO12 (rc=%d)\n",fd);
+    return -301;
+  }
+  while (total<=(int)V12_NET_CONFIG_MAX) {
+    n=fileXioRead(fd, text+total,
+                  (int)(V12_NET_CONFIG_MAX+1U)-(int)total);
+    if (n<=0) break;
+    total+=n;
+  }
+  close_rc=fileXioClose(fd);
+  if (n<0 || close_rc<0 || total==0 ||
+      total>(int)V12_NET_CONFIG_MAX ||
+      v12_parse_net_config(text,(size_t)total,out)<0) {
+    scr_printf("Invalid V12_NET.CNF; use IP/NETMASK/GATEWAY/DNS only\n");
+    return -302;
+  }
+  return 0;
+}
+int desr_v12_internet_probe(void) {
+  v12_net_config net;
+  probe_config old_cfg;
+  struct addrinfo hints, *resolved=NULL, *cur;
+  ip_addr_t dns;
+  char host[96], path[192];
+  int rc, sock=-1, success=0, last_errno=0;
+  if (v12_read_network_config(&net)<0) return -301;
+  memset(&old_cfg,0,sizeof(old_cfg));
+  memcpy(old_cfg.ip,net.ip,4);
+  memcpy(old_cfg.netmask,net.netmask,4);
+  memcpy(old_cfg.gateway,net.gateway,4);
+  scr_printf("IP %u.%u.%u.%u  gateway %u.%u.%u.%u\n",
+             net.ip[0],net.ip[1],net.ip[2],net.ip[3],
+             net.gateway[0],net.gateway[1],net.gateway[2],net.gateway[3]);
+  if (network_init(&old_cfg)<0) return -303;
+  IP4_ADDR(&dns,net.dns[0],net.dns[1],net.dns[2],net.dns[3]);
+  dns_setserver(0,&dns);
+  scr_printf("DNS server %u.%u.%u.%u\n",
+             net.dns[0],net.dns[1],net.dns[2],net.dns[3]);
+  if (v12_https_target(V12_ART_COSMICSCALE,"SLES_538.86",
+                       host,sizeof(host),path,sizeof(path))<0)
+    return -304;
+  memset(&hints,0,sizeof(hints));
+  hints.ai_family=AF_INET;
+  hints.ai_socktype=SOCK_STREAM;
+  hints.ai_protocol=IPPROTO_TCP;
+  scr_printf("Resolving %s ...\n",host);
+  rc=getaddrinfo(host,"443",&hints,&resolved);
+  if (rc!=0 || !resolved) {
+    scr_printf("DNS FAILED: %d\n",rc);
+    if (resolved) freeaddrinfo(resolved);
+    return -305;
+  }
+  for (cur=resolved;cur;cur=cur->ai_next) {
+    fd_set writes;
+    struct timeval tv;
+    socklen_t so_len;
+    int so_error=0;
+    const struct sockaddr_in *peer;
+    const unsigned char *octets;
+    if (cur->ai_family!=AF_INET || cur->ai_addrlen<sizeof(struct sockaddr_in))
+      continue;
+    peer=(const struct sockaddr_in *)cur->ai_addr;
+    octets=(const unsigned char *)&peer->sin_addr.s_addr;
+    scr_printf("DNS OK %u.%u.%u.%u\n",
+               octets[0],octets[1],octets[2],octets[3]);
+    sock=lwip_socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+    if (sock<0) {last_errno=errno;continue;}
+    if (fcntl(sock,F_SETFL,O_NONBLOCK)<0) {
+      last_errno=errno;
+      lwip_close(sock);sock=-1;continue;
+    }
+    rc=lwip_connect(sock,cur->ai_addr,cur->ai_addrlen);
+    if (rc<0 && errno!=EINPROGRESS && errno!=EWOULDBLOCK &&
+        errno!=EALREADY) {last_errno=errno;lwip_close(sock);sock=-1;continue;}
+    if (rc<0) {
+      FD_ZERO(&writes);FD_SET(sock,&writes);
+      tv.tv_sec=8;tv.tv_usec=0;
+      if (lwip_select(sock+1,NULL,&writes,NULL,&tv)<=0 ||
+          !FD_ISSET(sock,&writes)) {
+        last_errno=ETIMEDOUT;lwip_close(sock);sock=-1;continue;
+      }
+      so_len=sizeof(so_error);
+      if (lwip_getsockopt(sock,SOL_SOCKET,SO_ERROR,&so_error,&so_len)<0 ||
+          so_error!=0) {
+        last_errno=so_error?so_error:errno;
+        lwip_close(sock);sock=-1;continue;
+      }
+    }
+    success=1;
+    lwip_close(sock);
+    sock=-1;
+    break;
+  }
+  freeaddrinfo(resolved);
+  if (!success) {
+    scr_printf("TCP/443 FAILED; errno=%d\n",last_errno);
+    return -306;
+  }
+  scr_printf("TCP/443 CONNECTED. NO HTTP / TLS / ART WRITES.\n");
+  return 0;
+}
+#endif /* DESR_HDD_V12 */
