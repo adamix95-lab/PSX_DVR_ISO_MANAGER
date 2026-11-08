@@ -367,10 +367,10 @@ int desr_v12_roughtime_probe(void) {
   memset(&hints,0,sizeof(hints));
   hints.ai_family=AF_INET;hints.ai_socktype=SOCK_DGRAM;
   hints.ai_protocol=IPPROTO_UDP;
-  scr_printf("Roughtime DNS: %s\\n",host);
+  scr_printf("Roughtime DNS: %s\n",host);
   rc=getaddrinfo(host,"2003",&hints,&resolved);
   if(rc!=0 || !resolved) {
-    scr_printf("Roughtime DNS FAILED: %d\\n",rc);
+    scr_printf("Roughtime DNS FAILED: %d\n",rc);
     if(resolved) freeaddrinfo(resolved);
     return -325;
   }
@@ -393,24 +393,24 @@ int desr_v12_roughtime_probe(void) {
     tv.tv_sec=6;tv.tv_usec=0;
     if(lwip_select(sock+1,&reads,NULL,NULL,&tv)<=0 ||
        !FD_ISSET(sock,&reads)) {
-      scr_printf("Roughtime UDP/2003: TIMEOUT\\n");
+      scr_printf("Roughtime UDP/2003: TIMEOUT\n");
       lwip_close(sock);sock=-1;continue;
     }
     got=lwip_recv(sock,response,sizeof(response),0);
     lwip_close(sock);sock=-1;
     if(got<=0) continue;
-    scr_printf("UDP RESPONSE: %d bytes\\n",got);
+    scr_printf("UDP RESPONSE: %d bytes\n",got);
     if(v12_rt_check_reply_frame(response,(size_t)got,&tags)!=0) {
-      scr_printf("ROUGHTIME FRAME: INVALID (NOT TRUSTED)\\n");
+      scr_printf("ROUGHTIME FRAME: INVALID (NOT TRUSTED)\n");
       ret=-326;continue;
     }
-    scr_printf("ROUGHTIME FRAME: PASS, tags=%u (UNVERIFIED)\\n",tags);
-    scr_printf("NO Ed25519 check. NO trusted time.\\n");
+    scr_printf("ROUGHTIME FRAME: PASS, tags=%u (UNVERIFIED)\n",tags);
+    scr_printf("NO Ed25519 check. NO trusted time.\n");
     ret=0;break;
   }
   if(sock>=0) lwip_close(sock);
   freeaddrinfo(resolved);
-  scr_printf("N3A UDP/2003 RESULT: %s (code %d)\\n",
+  scr_printf("N3A UDP/2003 RESULT: %s (code %d)\n",
              ret==0?"PASS (transport only)":"FAIL",ret);
   return ret;
 }
