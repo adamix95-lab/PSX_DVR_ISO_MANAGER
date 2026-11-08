@@ -3,7 +3,7 @@
 > **PUBLIC DEVELOPMENT BRANCH. NOT A RELEASE.**
 >
 > The `1.0` release and `main` remain unchanged. **Native HTTPS is NOT implemented yet.**
-> The first milestone is safe partition isolation before any internet or TLS work.
+> The current experimental ELF is **READ-ONLY**: no game launching, no `BOOT.CNF` writes, no ART downloads or RW mounts. This protects 1.0 while the v1.2 Neutrino and TLS paths are verified.
 
 ## Partition isolation
 
@@ -30,13 +30,15 @@ An absent `PP.DVRISO12` must cause a read-only mount failure.
    (suggested size: 256 MB; choose a larger size only if needed).
 3. **Do not touch `PP.DVRISO` or Sony's DVR partitions.** Never format or
    expand the entire disk. Never choose a bulk partition operation.
-4. Copy the required *runtime contents* (OSDMenu `BOOT.ELF`, both HDD
-   Neutrino executables, `config/`, `modules/` and appropriate network
-   configuration) into the new `PP.DVRISO12`. Do **not** copy an old
-   `BOOT.CNF` pointing at the production partition.
+4. For the **read-only v1.2 preview**, only copy test-specific files as
+   needed. Do **not** copy the HDD 1.0 Neutrino binaries into this partition:
+   their FIX95 wrapper is hard-coded to mount the production `PP.DVRISO`.
+   Separate v1.2 SYSTEM/ENGLISH Neutrino builds are provided as experimental
+   CI artifacts, not yet approved for live game launching. Never copy a
+   production `BOOT.CNF` or inject an XMB header.
 5. Compile the experimental v1.2 binary and launch it **manually through
-   wLE**, selecting `DVR_ISO_MANAGER_V12_HDD.ELF`. Start with a harmless
-   read-only inspection before permitting ART or boot-config writes.
+   wLE**, selecting `DVR_ISO_MANAGER_V12_HDD.ELF`. This ELF is **strictly
+   read-only** and blocks both Quickboot and all configuration/ART writes.
 6. Do **NOT** use the existing `1.0` XMB installer, `__Headers/PP.DVRISO`,
    `EXECUTE.ELF` or `EXECUTE.CNF` for v1.2. The XMB entry continues to
    launch stable 1.0 from `PP.DVRISO`.
@@ -55,8 +57,10 @@ cmake --build build-v12-hdd --target DVR_ISO_MANAGER_V12_HDD.ELF -j2
 
 Output: `build-v12-hdd/DVR_ISO_MANAGER_V12_HDD.ELF`.
 
-The v1.2 target is `EXCLUDE_FROM_ALL` and requires three compile flags:
-`DESR_HDD_TEST=1`, `DESR_HDD_NETFIX=1`, `DESR_HDD_V12=1`.
+The v1.2 target is `EXCLUDE_FROM_ALL` and uses four compile flags:
+`DESR_HDD_TEST=1`, `DESR_HDD_NETFIX=1`, `DESR_HDD_PREVIEW=1`,
+`DESR_HDD_V12=1`. The read-only mount is enforced by the preview UI **and**
+by a hard failure in `hdd_enable_writes()`.
 Production target names and the 1.0 GitHub release assets are unchanged.
 Before using any resulting ELF, confirm that it contains
 `hdd0:PP.DVRISO12` and that the displayed application variant says
@@ -85,6 +89,14 @@ The experimental-only modules are now in the tree:
 **Still not implemented:** the real wolfSSL backend, DNS, trusted CA
 installation, secure entropy source, working certificate-time validation,
 remote image normalization and integration with HDD artwork writes.
+
+**Neutrino isolation:** the stable HDD Neutrino FIX95 wrapper also hardcoded
+`hdd0:PP.DVRISO` for both targets and its `pfs0` mount. The new
+`neutrino-hdd-v1/patch_hdd_runtime_v12.py` retargets exactly three
+references to `hdd0:PP.DVRISO12` and fails on an unexpected upstream layout.
+Dedicated GitHub Actions build separate SYSTEM / ENGLISH Neutrino variants;
+these remain **untested on physical DESR**. Quickboot remains blocked until the
+complete v1.2 OSDMenu -> Neutrino -> ISO chain is verified.
 **Do not claim that native HTTPS works on DESR yet.**
 
 ### Upstream research (not copied)
