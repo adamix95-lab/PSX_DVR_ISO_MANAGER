@@ -40,13 +40,14 @@ def macro(dump: str, name: str) -> str:
 
 class TestV12PartitionIsolation(unittest.TestCase):
     def test_v12_hdd_is_distinct(self) -> None:
-        result = defines(DESR_HDD_TEST=1, DESR_HDD_NETFIX=1, DESR_HDD_V12=1)
+        result = defines(DESR_HDD_TEST=1, DESR_HDD_NETFIX=1, DESR_HDD_PREVIEW=1, DESR_HDD_V12=1)
         self.assertEqual(result.returncode, 0, result.stderr)
         values = result.stdout
         self.assertEqual(macro(values, "DESR_APP_VARIANT"), '"1.2 HDD"')
         self.assertEqual(macro(values, "DESR_APP_PARTITION"), '"hdd0:PP.DVRISO12"')
         self.assertEqual(macro(values, "DESR_APP_HDD_CNF_ARG"), '"hdd0:PP.DVRISO12/BOOT.CNF"')
         self.assertEqual(macro(values, "DESR_APP_ROOT"), '"pfs1:/"')
+        self.assertEqual(macro(values, "DESR_APP_READONLY"), "1")
         self.assertEqual(macro(values, "DESR_APP_ART_ROOT"), 'DESR_APP_ROOT "ART/"')
 
     def test_stable_hdd_is_unchanged(self) -> None:
@@ -68,6 +69,7 @@ class TestV12PartitionIsolation(unittest.TestCase):
             {"DESR_HDD_V12": 1, "DESR_HDD_TEST": 1},
             {"DESR_HDD_V12": 1, "DESR_HDD_NETFIX": 1},
             {"DESR_HDD_V12": 1, "DESR_HDD_PREVIEW": 1, "DESR_HDD_NETFIX": 1},
+            {"DESR_HDD_V12": 1, "DESR_HDD_TEST": 1, "DESR_HDD_NETFIX": 1},
         ):
             result = defines(**flags)
             self.assertNotEqual(result.returncode, 0, flags)
@@ -79,7 +81,7 @@ class TestV12PartitionIsolation(unittest.TestCase):
             cmake,
         )
         self.assertIn(
-            "target_compile_definitions(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE DESR_HDD_TEST=1 DESR_HDD_NETFIX=1 DESR_HDD_V12=1)",
+            "target_compile_definitions(DVR_ISO_MANAGER_V12_HDD.ELF PRIVATE DESR_HDD_TEST=1 DESR_HDD_NETFIX=1 DESR_HDD_PREVIEW=1 DESR_HDD_V12=1)",
             cmake,
         )
         self.assertIn("add_executable(DVR_ISO_MANAGER.ELF", cmake)
@@ -87,6 +89,7 @@ class TestV12PartitionIsolation(unittest.TestCase):
         self.assertIn('fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDONLY)', main)
         self.assertIn('fileXioMount("pfs1:", DESR_APP_PARTITION, FIO_MT_RDWR)', main)
         self.assertIn("(char *)DESR_APP_HDD_CNF_ARG", main)
+        self.assertIn("return -230;", main)  # Experimental RW remount veto
         self.assertNotIn('fileXioMount("pfs1:", "hdd0:PP.DVRISO"', main)
 
 
