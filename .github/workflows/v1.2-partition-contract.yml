@@ -1,0 +1,24 @@
+name: Validate experimental v1.2 HDD partition isolation
+
+on:
+  push:
+    branches:
+      - feature/v1.2-native-https
+    paths:
+      - 'dvr-iso-manager/include/runtime_storage.h'
+      - 'dvr-iso-manager/src/main.c'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/tests/test_v12_partition_contract.py'
+      - '.github/workflows/v1.2-partition-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-safety-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate v1.2 isolation and unchanged stable paths
+        run: python3 dvr-iso-manager/tests/test_v12_partition_contract.py
