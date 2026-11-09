@@ -74,6 +74,7 @@ Before using any resulting ELF, confirm that it contains
 | N2B — NTP UTC | **PASS**, code `0` | With a **depleted RTC battery**, console receives UTC `2026-11-08 22:45:22` from `time.cloudflare.com` over UDP/123; reported **stratum 3** |
 | N2A — hardware RTC | **Deferred** | Depleted battery: native RTC need not work to run network time probe |
 | N3A — Roughtime UDP/2003 | **PASS**, code `0` | Console received **352 bytes**, parser found **6 tags** and accepted framing; **signature and time are still UNVERIFIED** |
+| N3B-OFFLINE — Ed25519 / SHA-512 | **PASS**, code `0` | Standalone `V12_N3B_OFFLINE.ELF` executed on physical DESR-7000: delegation signature, signed response, Merkle/nonce verification passed; wrong root, nonce and altered data rejected |
 | N2C/N3B — verified time / wolfSSL HTTPS | **Not yet tested on hardware** | Secure entropy, Ed25519 delegation/signature/nonce, trusted time, CA/hostname verification and TLS handshake remain to be proven |
 
 **NTP stratum 3 is a normal synchronized NTP server level, not an error.**
@@ -129,9 +130,15 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
-## Stage N3B-OFFLINE — first DESR executable crypto test (READY FOR HARDWARE)
+## Stage N3B-OFFLINE — cryptographic self-test (PASS ON HARDWARE)
 
-**Host crypto runtime: PASS. PS2 EE ELF build: PASS. Physical DESR test: PENDING.**
+**Host runtime: PASS. PS2 EE build: PASS. Physical DESR-7000: PASS (code 0).**
+
+Hardware photograph confirms exactly: `ED25519 DELEGATION: PASS`,
+`ED25519 SIGNED RESPONSE: PASS`, `NONCE / MERKLE PROOF: PASS`,
+`WRONG ROOT/NONCE/TAMPER: REJECTED`, `N3B OFFLINE RESULT: PASS (code 0)`.
+This verifies the isolated crypto code actually runs on the EE with the
+synthetic public test vector. **It does NOT verify a live server.**
 
 - [N3B-OFFLINE GitHub Actions run 42570084969](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42570084969) — **PASS**.
 - In its **Artifacts** section download
@@ -184,7 +191,7 @@ license compatibility and attributions must be reviewed for a public
 
 ## Stage N3B — Roughtime cryptographic verification (HOST REFERENCE PASS)
 
-**Live N3B (authenticated server time) is NOT ready for hardware testing.** The separately packaged **N3B-OFFLINE** cryptographic self-test above is ready.
+**Live N3B (authenticated server time) is NOT ready for hardware testing.** The separate **N3B-OFFLINE** cryptographic self-test above is now hardware-confirmed PASS.
 
 - [N3B host tests: PASS — GitHub Actions run 42534048696](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42534048696).
 ### N3B — independent C implementation now tested
