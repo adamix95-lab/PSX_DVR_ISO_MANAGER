@@ -122,3 +122,28 @@ if(DESR_V12_ROUGHTIME_CRYPTO_AUDIT)
   target_link_libraries(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE "$ENV{V12_WOLFSSL_DIR}/lib/libwolfssl.a" m)
   target_compile_options(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
 endif()
+
+# N3B standalone crypto verifier using permissively licensed Monocypher.
+# No WolfSSL or network code is linked, and no HDD modules are initialized.
+# The source tree is checked out by the dedicated CI workflow with a pinned
+# commit; this is EXCLUDE_FROM_ALL and cannot change production targets.
+option(DESR_V12_MONOCYPHER_OFFLINE "Build standalone BSD/CC0 Ed25519 N3B test" OFF)
+if(DESR_V12_MONOCYPHER_OFFLINE)
+  if("$ENV{V12_MONOCYPHER_SRC}" STREQUAL "" OR
+     "$ENV{V12_RT_FIXTURE_DIR}" STREQUAL "")
+    message(FATAL_ERROR "Set V12_MONOCYPHER_SRC and V12_RT_FIXTURE_DIR")
+  endif()
+  add_executable(V12_N3B_OFFLINE.ELF EXCLUDE_FROM_ALL
+    src/v12_roughtime_offline_diag.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_roughtime_monocypher.c
+    "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c")
+  target_compile_definitions(V12_N3B_OFFLINE.ELF PRIVATE V12_PS2_RUNTIME=1)
+  target_include_directories(V12_N3B_OFFLINE.ELF PRIVATE
+    include "$ENV{V12_RT_FIXTURE_DIR}"
+    "$ENV{V12_MONOCYPHER_SRC}/src"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+  target_link_libraries(V12_N3B_OFFLINE.ELF PRIVATE libdebug.a m)
+  target_compile_options(V12_N3B_OFFLINE.ELF PRIVATE -Os -Wall -Wextra)
+endif()
