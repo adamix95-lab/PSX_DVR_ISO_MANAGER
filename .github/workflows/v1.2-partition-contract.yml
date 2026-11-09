@@ -42,6 +42,8 @@ on:
       - 'dvr-iso-manager/include/v12_rt_journal.h'
       - 'dvr-iso-manager/src/net/v12_rt_journal.c'
       - 'dvr-iso-manager/tests/net/test_v12_rt_journal.c'
+      - 'dvr-iso-manager/src/v12_n3c_pfs_probe.c'
+      - 'dvr-iso-manager/tests/test_v12_n3c_pfs_safety.py'
       - 'dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json'
       - 'dvr-iso-manager/tests/fixtures/README.md'
       - 'dvr-iso-manager/src/lan_art_sync.c'
@@ -62,6 +64,7 @@ jobs:
         run: |
           python3 dvr-iso-manager/tests/test_v12_partition_contract.py
           python3 dvr-iso-manager/tests/test_v12_neutrino_partition.py
+          python3 dvr-iso-manager/tests/test_v12_n3c_pfs_safety.py
       - name: Host test native HTTPS allowlist and PNG response validation
         run: |
           cc -std=c99 -Wall -Wextra -Werror -pedantic \
