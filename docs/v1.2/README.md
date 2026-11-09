@@ -129,9 +129,62 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## Stage N3B-OFFLINE — first DESR executable crypto test (READY FOR HARDWARE)
+
+**Host crypto runtime: PASS. PS2 EE ELF build: PASS. Physical DESR test: PENDING.**
+
+- [N3B-OFFLINE GitHub Actions run 42570084969](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42570084969) — **PASS**.
+- In its **Artifacts** section download
+  `V12-N3B-OFFLINE-PERMISSIVE-DIAGNOSTIC`. Inside are
+  `V12_N3B_OFFLINE.ELF`, `README-N3B-OFFLINE.txt`, and
+  `n3b-source/` containing the C code, public synthetic test fixture,
+  Monocypher source, licenses and build workflow.
+- This is a **standalone ELF**, **NOT** a replacement for
+  `DVR_ISO_MANAGER_V12_HDD.ELF` and **NOT** the 1.0 XMB program.
+  It uses Monocypher's BSD-2-Clause/CC0 Ed25519+SHA512 instead of GPL
+  wolfSSL; the test fixture comes from Apache-2.0 Cloudflare Roughtime.
+- It makes **no network calls, no RTC/NVRAM writes, no PFS/APA mounts
+  or writes**, and contains no Quickboot. No `PP.DVRISO12` or
+  `V12_NET.CNF` is required.
+
+### Physical DESR-7000 test
+
+1. Copy **only** `V12_N3B_OFFLINE.ELF` to FAT32 USB. Do not
+   overwrite either Manager 1.0 or Manager 1.2.
+2. Use **wLaunchELF-R3Z** to execute the standalone ELF from USB.
+3. The GS debug screen will show a signed synthetic test-vector
+   verification result. Expect:
+   ```text
+   PSX DVR ISO MANAGER 1.2 - N3B OFFLINE TEST
+   ED25519 DELEGATION: PASS
+   ED25519 SIGNED RESPONSE: PASS
+   NONCE / MERKLE PROOF: PASS
+   WRONG ROOT/NONCE/TAMPER: REJECTED
+   N3B OFFLINE RESULT: PASS (code 0)
+   NO TRUSTED LIVE TIME. NO HTTPS. NO DISK WRITES.
+   ```
+4. Take a photo of the complete screen. The program holds this
+   screen for approximately 90 seconds, then exits; no controller
+   buttons are required in this standalone diagnostic.
+5. On any `FAIL (code ...)`, report the exact number instead of
+   assuming TLS or hardware crypto works.
+
+**Security scope:** these are public artificial test signatures and
+keys. Passing only confirms that Ed25519/SHA512 and the Roughtime
+delegation/Merkle parser executed on the real EE. It does **NOT**
+authenticate a live server or replace strong nonce/seed provisioning,
+certified time, CA verification or real HTTPS.
+
+The baseline wolfSSL option remains under development. Because the
+installed PS2SDK contains AFL-2.0 components and GPL-3.0 wolfSSL
+linking has licensing implications, the isolated hardware diagnostic
+uses a permissive crypto library. This is not a final legal opinion;
+license compatibility and attributions must be reviewed for a public
+1.2 Manager release.
+
 ## Stage N3B — Roughtime cryptographic verification (HOST REFERENCE PASS)
 
-**N3B is not ready for physical DESR testing yet.**
+**Live N3B (authenticated server time) is NOT ready for hardware testing.** The separately packaged **N3B-OFFLINE** cryptographic self-test above is ready.
 
 - [N3B host tests: PASS — GitHub Actions run 42534048696](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42534048696).
 ### N3B — independent C implementation now tested
@@ -182,7 +235,7 @@ The manual SQUARE action remains useful for diagnostics.
   current server public key, and a careful server key-rotation policy.
   These remain open implementation and security tasks.
 
-No N3B-enabled console ELF is distributed. The N3A output of
+No **live authenticated-time N3B** ELF is distributed. The N3A output of
 `352 bytes` and `6 tags` is **still not authenticated**.
 
 ### Strong nonce design prototype — not yet deployed
