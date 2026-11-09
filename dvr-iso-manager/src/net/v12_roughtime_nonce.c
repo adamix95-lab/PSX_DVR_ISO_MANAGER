@@ -1,7 +1,7 @@
 #include "v12_roughtime_nonce.h"
 #include <string.h>
 
-/* 23 bytes plus a NUL terminator deliberately domain-separate HMAC usage. */
+/* 19 visible bytes plus a NUL separator domain-separate HMAC usage. */
 static const uint8_t domain[]="PSX-DVR-RT-NONCE-v1";
 
 int v12_rt_nonce_derive(const uint8_t secret[32],uint64_t counter,
