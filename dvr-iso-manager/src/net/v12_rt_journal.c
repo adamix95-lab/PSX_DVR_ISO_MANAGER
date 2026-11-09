@@ -102,9 +102,19 @@ int v12_rt_journal_select(const uint8_t slots[2][V12_RT_RECORD_BYTES],
   if(ok0 && ok1) {
     if(memcmp(a.reservation.key_id,b.reservation.key_id,16))
       return -1;
-    if(a.sequence==b.sequence && memcmp(slots[0],slots[1],
-                                        V12_RT_RECORD_BYTES))
-      return -1;
+    if(a.sequence==b.sequence) {
+      if(memcmp(slots[0],slots[1],V12_RT_RECORD_BYTES)) return -1;
+    } else {
+      /* Alternating slots must be consecutive in BOTH generation and
+       * reserved counter; a fabricated 'newer' but smaller counter is
+       * a rollback, not a valid recovery. Fail closed. */
+      const v12_rt_journal_state *hi = a.sequence>b.sequence?&a:&b;
+      const v12_rt_journal_state *lo = a.sequence>b.sequence?&b:&a;
+      if(lo->sequence+1U!=hi->sequence ||
+         lo->reservation.last_reserved+1U!=
+           hi->reservation.last_reserved)
+        return -1;
+    }
     which=a.sequence>=b.sequence?0U:1U;
     chosen=which==0?a:b;
   } else {
