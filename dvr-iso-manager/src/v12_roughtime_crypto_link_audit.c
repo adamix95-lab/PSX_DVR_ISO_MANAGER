@@ -5,6 +5,10 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#include "v12_roughtime_verify.h"
+#include "v12_roughtime_wolfcrypt.h"
+#include "v12_rt_test_vector.h"
+#include <string.h>
 
 #if !defined(HAVE_ED25519) || !defined(HAVE_ED25519_VERIFY) || \
     !defined(HAVE_ED25519_KEY_IMPORT)
@@ -52,5 +56,19 @@ static int audit_ed25519_and_sha512(void) {
 
 
 int main(void) {
-  return audit_ed25519_and_sha512();
+  v12_rt_crypto cb;
+  v12_rt_signed_time time={0,0};
+  uint8_t corrupted[sizeof(rt_fixture_reply)];
+  int rc=audit_ed25519_and_sha512();
+  if(rc!=0) return rc;
+  cb=v12_rt_wolfcrypt_backend();
+  if(v12_rt_verify_draft08(rt_fixture_reply,sizeof(rt_fixture_reply),
+        rt_fixture_root,rt_fixture_nonce,&cb,&time)!=0) return 24;
+  if(time.midpoint_utc!=UINT64_C(50) || time.radius_seconds!=5U)
+    return 25;
+  memcpy(corrupted,rt_fixture_reply,sizeof(corrupted));
+  corrupted[64]^=0x01; /* signed response or signature tamper */
+  if(v12_rt_verify_draft08(corrupted,sizeof(corrupted),
+       rt_fixture_root,rt_fixture_nonce,&cb,&time)==0) return 26;
+  return 0;
 }
