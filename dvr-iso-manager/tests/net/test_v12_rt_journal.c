@@ -63,6 +63,20 @@ int main(void) {
   assert(v12_rt_journal_select((const uint8_t (*)[64])slots,&result,&active)<0);
   memcpy(slots[0],different,64);
 
+  /* Consecutive generation MUST also reserve a consecutive nonce.
+   * A higher-generation/lower-counter replacement would repeat a nonce. */
+  state.sequence=4U;
+  state.reservation.last_reserved=40U; /* Rollback below the 43 in SLOT0 */
+  assert(v12_rt_journal_encode(&state,slots[1])==0);
+  assert(v12_rt_journal_select((const uint8_t (*)[64])slots,&result,&active)<0);
+  state.reservation.last_reserved=46U; /* Skipped reservations */
+  assert(v12_rt_journal_encode(&state,slots[1])==0);
+  assert(v12_rt_journal_select((const uint8_t (*)[64])slots,&result,&active)<0);
+  state.sequence=6U; /* Skipped journal generation */
+  state.reservation.last_reserved=44U;
+  assert(v12_rt_journal_encode(&state,slots[1])==0);
+  assert(v12_rt_journal_select((const uint8_t (*)[64])slots,&result,&active)<0);
+
   /* Different seed identity is a hard failure, even with later sequence. */
   state.sequence=4U;
   state.reservation.key_id[0]^=0x44;
