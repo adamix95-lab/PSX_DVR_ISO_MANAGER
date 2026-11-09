@@ -271,6 +271,33 @@ write, flush, readback and power-failure behavior; the seed must never
 be committed to the public repository or logged in diagnostics.
 There is no claim of authenticated live time or TLS yet.
 
+### N3C — two-slot journal record and corruption policy (host PASS)
+
+A **64-byte, versioned counter record** is now available in
+`dvr-iso-manager/src/net/v12_rt_journal.c` with an 8-byte magic,
+version, 16-byte public seed ID, 64-bit generation number, last
+reserved nonce counter, inverted counter, CRC32 and end marker.
+
+- The record contains **NO private seed bytes**. CRC32 only detects
+  accidental damage; it cannot prevent malicious tampering or rollback.
+- Two alternating slots are considered valid only if their generations
+  and key IDs are unambiguous. The parser **fails closed** on any
+  nonblank corrupted slot instead of silently falling back to an older
+  counter. One blank slot is accepted only at initial provisioning
+  (generation 1), not later.
+- A newer reservation must be durably written and flushed, then
+  re-read and confirmed **before** its nonce can be used in a request.
+  File-write flush/rename durability remains untested on real PFS.
+- [GitHub Actions N3C host test run 42573756836](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42573756836)
+  — **PASS**, including 512 single-bit corruptions, contradictory
+  slots, invalid versions and fail-closed behavior.
+
+The journal is a **pure in-memory encoding/selection library**.
+It has not been linked into the Manager or used to write a PSX disk.
+Next, a dedicated `PP.DVRISO12` PFS diagnostic can test durability
+using **dummy records without secret material**; only after those
+physical tests should a provisioning process be considered.
+
 ### Strong nonce design prototype — not yet deployed
 
 A new **host-tested** module,
