@@ -185,6 +185,35 @@ The manual SQUARE action remains useful for diagnostics.
 No N3B-enabled console ELF is distributed. The N3A output of
 `352 bytes` and `6 tags` is **still not authenticated**.
 
+### Strong nonce design prototype — not yet deployed
+
+A new **host-tested** module,
+`dvr-iso-manager/src/net/v12_roughtime_nonce.c`, can derive 32-byte
+Roughtime nonces using domain-separated HMAC-SHA256 from a provisioned
+256-bit secret and a 64-bit counter. The independent OpenSSL known-answer
+test checks that distinct counters produce distinct output and invalid
+inputs fail without modifying the output buffer:
+[host CI](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42567762336) — **PASS**.
+
+This is **not** a built-in random number generator, and is **not ready
+for use on DESR**. To be secure it requires (a) a unique seed generated
+once with a trusted operating-system CSPRNG, (b) confidential storage of
+that seed on the experimental application partition, and (c) a
+crash-safe, persistently reserved counter that is never reused across
+power failures, console resets, backups or restores. A restored disk
+image can roll the counter back; when this occurs the seed MUST be
+rotated. Merely mixing a timer, MAC, xorshift or packet jitter is NOT
+a replacement for a high-entropy seed. The Manager is still strictly
+read-only and does not create seed/counter files.
+
+A future standalone provisioning utility may create such a seed once
+on a user's trusted PC, but this would be a **one-time setup**, not a
+requirement to run a PC while later downloading covers. No secret key
+bytes should ever be uploaded to GitHub or included in diagnostics.
+A separate, domain-separated design is still needed for wolfSSL's
+cryptographic DRBG. Until these pieces and N3B live validation pass,
+**verified online time and HTTPS remain disabled**.
+
 ## Stage N3A — Roughtime wire/network preflight (PASS ON HARDWARE)
 
 **Host tests: PASS.** [GitHub Actions run 42532764928](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42532764928).
