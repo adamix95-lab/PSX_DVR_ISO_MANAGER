@@ -49,6 +49,7 @@ The **1.0 HDD** version launches PlayStation 2 games stored on the Sony PSX DESR
 The application itself, Neutrino configuration/modules and game artwork are stored on a separate HDD application partition named **`PP.DVRISO`**.
 
 This version has been successfully tested on a physical **Sony PSX DESR-7000**.
+The handling of the DVR partition/area by PDIM does not affect the operation of the network card – *Killzone* was launched, and a connection to the PS Rewired servers was established.
 
 ## 1. Requirements
 
