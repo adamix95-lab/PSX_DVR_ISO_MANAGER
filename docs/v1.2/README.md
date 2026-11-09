@@ -245,6 +245,32 @@ license compatibility and attributions must be reviewed for a public
 No **live authenticated-time N3B** ELF is distributed. The N3A output of
 `352 bytes` and `6 tags` is **still not authenticated**.
 
+### N3C — durable nonce reservation policy (host tests PASS)
+
+A new **offline-only** state machine in
+`dvr-iso-manager/src/net/v12_rt_reservation.c` consumes a freshly
+provisioned 256-bit secret, a 16-byte public key identifier and a
+persistently reserved 64-bit counter. It requires a storage adapter to
+perform compare-and-swap with a **crash-durable** write before exposing
+a nonce. It then **re-reads** the state and only derives the nonce when
+the stored key ID and counter match the newly reserved value.
+
+[Host GitHub Actions run 42573388346](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42573388346):
+**PASS**. Tests simulate failed loads and commits, stale readbacks,
+counter overflow, HMAC failure, and rollback of a partition snapshot.
+The rollback test deliberately demonstrates that restoring the **same**
+secret and counter would repeat a nonce; recovery therefore **must
+rotate to a new CSPRNG secret and identifier**.
+
+**This does not yet establish durable writes on DESR PFS.**
+The persistence callbacks are currently exercised against an in-memory
+mock. No seed or counter is provisioned on the console and this module
+is not linked into any shipping Manager or downloadable ELF.
+Before use, a dedicated hardware validation must establish actual PFS
+write, flush, readback and power-failure behavior; the seed must never
+be committed to the public repository or logged in diagnostics.
+There is no claim of authenticated live time or TLS yet.
+
 ### Strong nonce design prototype — not yet deployed
 
 A new **host-tested** module,
