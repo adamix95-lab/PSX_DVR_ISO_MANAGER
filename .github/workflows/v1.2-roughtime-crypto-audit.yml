@@ -5,6 +5,12 @@ on:
     branches: [feature/v1.2-native-https]
     paths:
       - 'dvr-iso-manager/src/v12_roughtime_crypto_link_audit.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/include/v12_roughtime_verify.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_wolfcrypt.c'
+      - 'dvr-iso-manager/include/v12_roughtime_wolfcrypt.h'
+      - 'dvr-iso-manager/tests/net/generate_v12_rt_test_header.py'
+      - 'dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json'
       - 'dvr-iso-manager/CMakeLists.txt'
       - '.github/workflows/v1.2-roughtime-crypto-audit.yml'
   workflow_dispatch:
@@ -49,10 +55,14 @@ jobs:
           test -f "$V12_WOLFSSL_DIR/include/wolfssl/options.h"
           grep -q 'define HAVE_ED25519' "$V12_WOLFSSL_DIR/include/wolfssl/options.h"
           echo "PASS: isolated EE wolfSSL has Ed25519 compile feature"
-      - name: Compile/link Ed25519 + SHA512 API test
+      - name: Compile/link N3B C Ed25519+SHA512 signed-vector verifier
         shell: sh
         run: |
           set -eu
+          export V12_RT_FIXTURE_DIR="$GITHUB_WORKSPACE/build-v12-rt-fixture"
+          mkdir -p "$V12_RT_FIXTURE_DIR"
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py \
+            "$V12_RT_FIXTURE_DIR/v12_rt_test_vector.h"
           cmake -S dvr-iso-manager -B build-roughtime-crypto \
             -DDESR_V12_ROUGHTIME_CRYPTO_AUDIT=ON
           cmake --build build-roughtime-crypto --target V12_ROUGHTIME_CRYPTO_AUDIT.ELF -j2
@@ -60,7 +70,7 @@ jobs:
           from pathlib import Path
           a=Path("build-roughtime-crypto/V12_ROUGHTIME_CRYPTO_AUDIT.ELF")
           assert a.read_bytes().startswith(b'\x7fELF')
-          print("PASS: PS2 EE Ed25519 verify + SHA512 static link; no execution/handshake")
+          print("PASS: PS2 EE full Roughtime verifier, Ed25519, SHA512 and fixture linked; execution pending")
           PY
       # No artifact is distributed: toolchain/ABI test only.
       # Next: runtime verification using test vectors, RNG audit, and licensing.
