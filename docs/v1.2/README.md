@@ -271,6 +271,29 @@ write, flush, readback and power-failure behavior; the seed must never
 be committed to the public repository or logged in diagnostics.
 There is no claim of authenticated live time or TLS yet.
 
+### N3C PFS physical write/verify probe — READY FOR DESR-7000
+
+**Static safety tests: PASS. PS2 EE WRITE_ONCE + VERIFY_RO builds: PASS.
+Physical console: NOT YET TESTED.**
+
+[GitHub Actions run 42575103152](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42575103152)
+contains artifact `V12-N3C-PFS-TEST-PP.DVRISO12`. It bundles two
+standalone ELFs, source, attribution and
+[complete safety instructions](./N3C_PFS_TEST.md).
+
+The first ELF can write **exactly two new, non-secret 64-byte files**
+to **`hdd0:PP.DVRISO12` ONLY**. It refuses overwrites, unexpected
+stat failures and missing partitions. It calls `fileXioSync()` after
+each record, unmounts RW and remounts RO for verification. The
+second ELF **only reads** these test records after a normal reboot.
+Neither is part of Manager 1.0 or Manager 1.2; the stable program
+remains read-only in this experimental branch.
+
+**Do not run the writer twice or cut power during its operation.**
+Back up APA critical data first. Even passing both tests proves only
+write/read visibility across a normal reboot — **not** atomic crash
+durability, strong entropy, trusted Roughtime, or HTTPS.
+
 ### N3C — two-slot journal record and corruption policy (host PASS)
 
 A **64-byte, versioned counter record** is now available in
