@@ -147,3 +147,27 @@ if(DESR_V12_MONOCYPHER_OFFLINE)
   target_link_libraries(V12_N3B_OFFLINE.ELF PRIVATE libdebug.a m)
   target_compile_options(V12_N3B_OFFLINE.ELF PRIVATE -Os -Wall -Wextra)
 endif()
+
+# Two strictly opt-in N3C PFS diagnostics. Both are independent of the
+# 1.0/1.2 Manager, no network and no secret seeds.
+# WRITE_ONCE may create only two new dummy 64-byte files on PP.DVRISO12;
+# VERIFY_RO mounts only READ-ONLY for a separate normal-reboot test.
+option(DESR_V12_N3C_PFS_DIAG "Enable standalone N3C dummy PFS diagnostic" OFF)
+if(DESR_V12_N3C_PFS_DIAG)
+  set(N3C_PFS_IRX
+    "${CMAKE_CURRENT_BINARY_DIR}/iomanX_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/fileXio_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/dev9_ns_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2atad_hdd_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2hdd_hdd_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2fs_hdd_irx.c")
+  foreach(target V12_N3C_PFS_WRITE_ONCE.ELF V12_N3C_PFS_VERIFY_RO.ELF)
+    add_executable(${target} EXCLUDE_FROM_ALL
+      src/v12_n3c_pfs_probe.c src/net/v12_rt_journal.c ${N3C_PFS_IRX})
+    target_include_directories(${target} PRIVATE include)
+    target_link_libraries(${target} PRIVATE fileXio cdvd patches libdebug.a m)
+    target_compile_options(${target} PRIVATE -Os -Wall -Wextra)
+  endforeach()
+  target_compile_definitions(V12_N3C_PFS_WRITE_ONCE.ELF PRIVATE V12_N3C_WRITE_ONCE=1)
+  target_compile_definitions(V12_N3C_PFS_VERIFY_RO.ELF PRIVATE V12_N3C_VERIFY_RO=1)
+endif()
