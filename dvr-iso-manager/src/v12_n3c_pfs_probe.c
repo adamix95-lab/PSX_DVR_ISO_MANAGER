@@ -56,7 +56,7 @@ typedef char n3c_pfs_len_check[(sizeof(pfs_arguments)==17)?1:-1];
 static int mounted;
 static int load(const char *label,void *data,unsigned size,
                 const char *arguments,int argc_bytes) {
-  int rv=-999;
+  int rv=0;
   int id=SifExecModuleBuffer(data,size,argc_bytes,(void *)arguments,&rv);
   scr_printf("IRX %-12s id=%d rv=%d\n",label,id,rv);
   return id<0?id:rv<0?rv:0;
