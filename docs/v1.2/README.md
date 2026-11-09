@@ -134,6 +134,28 @@ The manual SQUARE action remains useful for diagnostics.
 **N3B is not ready for physical DESR testing yet.**
 
 - [N3B host tests: PASS — GitHub Actions run 42534048696](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42534048696).
+### N3B — independent C implementation now tested
+
+- [Host **C** verifier and OpenSSL test run 42567182252](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42567182252) — **PASS**.
+  Added `dvr-iso-manager/src/net/v12_roughtime_verify.c` with strict
+  map parsing, pinned-key callback, delegation and SREP Ed25519 checks,
+  nonce binding and SHA512/32 Merkle verification. The callbacks are
+  injected by a cryptographic backend; the core has no sockets, RTC,
+  disk writes or TLS clock changes. Host tests accept the signed
+  Cloudflare Apache-2.0 test fixture and reject modified/wrong-key/
+  wrong-nonce responses.
+- [PS2 EE cross-compiled **full C verifier + wolfCrypt Ed25519/SHA512**
+  run 42567328578](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42567328578) — **PASS**.
+  The isolated N3B compile includes `v12_roughtime_wolfcrypt.c`
+  and a generated *public* signed test vector. The binary remains
+  **CI-only** and is not executed on hardware or included in the
+  Manager. No changes to the pinned HDD NETFIX SDK.
+- **Not yet solved:** unpredictable request nonces and secure TLS
+  session entropy, plus pinned production Roughtime root / rotation
+  policy. The N3A xorshift-based probe nonce is explicitly unsuitable
+  for authenticated time. No live signed-time trust or HTTPS client
+  is enabled, even though the offline known-answer verifier passes.
+
 - `dvr-iso-manager/tests/net/v12_roughtime_reference_verify.py` uses
   host Python `cryptography` Ed25519 to verify a public Cloudflare
   IETF draft-08 test vector: the root-signed delegation certificate,
