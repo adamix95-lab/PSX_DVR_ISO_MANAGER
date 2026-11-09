@@ -1,0 +1,76 @@
+name: Build N3C isolated dummy PFS durability probes (WRITE_ONCE + VERIFY_RO)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/src/v12_n3c_pfs_probe.c'
+      - 'dvr-iso-manager/src/net/v12_rt_journal.c'
+      - 'dvr-iso-manager/include/v12_rt_journal.h'
+      - 'dvr-iso-manager/tests/test_v12_n3c_pfs_safety.py'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - '.github/workflows/v1.2-n3c-pfs-probe.yml'
+      - 'docs/v1.2/N3C_PFS_TEST.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  n3c-pfs-diagnostics:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build same pinned HDD NETFIX SDK as working 1.2
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Validate isolated source policy before building
+        run: python3 dvr-iso-manager/tests/test_v12_n3c_pfs_safety.py
+      - name: Cross-compile separate PFS write-once and RO verification programs
+        run: |
+          set -eu
+          cmake -S dvr-iso-manager -B build-n3c-pfs -DDESR_V12_N3C_PFS_DIAG=ON
+          cmake --build build-n3c-pfs --target V12_N3C_PFS_WRITE_ONCE.ELF -j2
+          cmake --build build-n3c-pfs --target V12_N3C_PFS_VERIFY_RO.ELF -j2
+      - name: Validate ELF images contain no production partition or boot config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('V12_N3C_PFS_WRITE_ONCE.ELF', 'V12_N3C_PFS_VERIFY_RO.ELF'):
+              blob=Path('build-n3c-pfs',name).read_bytes()
+              assert blob.startswith(b'\x7fELF'), name
+              assert b'hdd0:PP.DVRISO12' in blob, name
+              assert b'hdd0:PP.DVRISO\x00' not in blob, name
+              assert b'hdd0:PP.DVRISO/' not in blob, name
+              assert b'dvr_pfs0:' not in blob, name
+              assert b'BOOT.CNF' not in blob, name
+              assert b'PDIM_N3C_TEST_SLOT0.BIN' in blob, name
+              assert b'PDIM_N3C_TEST_SLOT1.BIN' in blob, name
+              print(name, len(blob), 'bytes — isolated test partition only')
+          PY
+      - name: Package diagnostic with instructions and source
+        run: |
+          set -eu
+          mkdir -p dist/source dist/licenses
+          cp build-n3c-pfs/V12_N3C_PFS_WRITE_ONCE.ELF dist/
+          cp build-n3c-pfs/V12_N3C_PFS_VERIFY_RO.ELF dist/
+          cp docs/v1.2/N3C_PFS_TEST.md dist/README-N3C-PFS.md
+          cp dvr-iso-manager/src/v12_n3c_pfs_probe.c dist/source/
+          cp dvr-iso-manager/src/net/v12_rt_journal.c dist/source/
+          cp dvr-iso-manager/include/v12_rt_journal.h dist/source/
+          cp dvr-iso-manager/include/v12_rt_reservation.h dist/source/
+          cp dvr-iso-manager/tests/test_v12_n3c_pfs_safety.py dist/source/
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3C-PFS-TEST-PP.DVRISO12
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
