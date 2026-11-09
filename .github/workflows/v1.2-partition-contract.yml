@@ -33,6 +33,9 @@ on:
       - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
       - 'dvr-iso-manager/tests/net/generate_v12_rt_test_header.py'
       - 'dvr-iso-manager/tests/net/test_v12_roughtime_verify.c'
+      - 'dvr-iso-manager/include/v12_roughtime_nonce.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_nonce.c'
+      - 'dvr-iso-manager/tests/net/test_v12_roughtime_nonce.c'
       - 'dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json'
       - 'dvr-iso-manager/tests/fixtures/README.md'
       - 'dvr-iso-manager/src/lan_art_sync.c'
@@ -102,6 +105,14 @@ jobs:
         run: python -m pip install --disable-pip-version-check cryptography==46.0.4
       - name: Verify Roughtime Ed25519 delegation, signed response and Merkle proof
         run: python dvr-iso-manager/tests/net/v12_roughtime_reference_verify.py
+      - name: Host-only HMAC-SHA256 secure-seed nonce construction test
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -pedantic \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_roughtime_nonce.c \
+            dvr-iso-manager/tests/net/test_v12_roughtime_nonce.c \
+            -lcrypto -o /tmp/v12_rt_nonce_test
+          /tmp/v12_rt_nonce_test
       - name: Host C Roughtime verifier with independent OpenSSL backend
         run: |
           python dvr-iso-manager/tests/net/generate_v12_rt_test_header.py /tmp/v12_rt_test_vector.h
