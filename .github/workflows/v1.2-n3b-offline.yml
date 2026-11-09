@@ -1,0 +1,129 @@
+name: N3B offline DESR crypto self-test (permissive, no network)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/src/v12_roughtime_offline_diag.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_monocypher.c'
+      - 'dvr-iso-manager/include/v12_roughtime_monocypher.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/include/v12_roughtime_verify.h'
+      - 'dvr-iso-manager/tests/net/generate_v12_rt_test_header.py'
+      - 'dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - '.github/workflows/v1.2-n3b-offline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-permissive:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build prerequisites
+        run: apk add --no-cache build-base cmake python3
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: ps2sdk-license
+      - name: Generate public synthetic-vector header
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-v12-rt-fixture
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py \
+            build-v12-rt-fixture/v12_rt_test_vector.h
+      - name: Execute N3B verifier on host with permissive Monocypher
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            -Ibuild-v12-rt-fixture \
+            -Imonocypher-upstream/src \
+            -Imonocypher-upstream/src/optional \
+            dvr-iso-manager/src/v12_roughtime_offline_diag.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c \
+            -o /tmp/v12-n3b-offline-host
+          /tmp/v12-n3b-offline-host
+      - name: Cross-compile only standalone PS2 N3B verifier
+        shell: sh
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          export V12_RT_FIXTURE_DIR="$GITHUB_WORKSPACE/build-v12-rt-fixture"
+          cmake -S dvr-iso-manager -B build-v12-n3b \
+            -DDESR_V12_MONOCYPHER_OFFLINE=ON
+          cmake --build build-v12-n3b --target V12_N3B_OFFLINE.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          elf=Path("build-v12-n3b/V12_N3B_OFFLINE.ELF").read_bytes()
+          assert elf.startswith(b'\x7fELF')
+          assert b"N3B OFFLINE RESULT: PASS" in elf
+          assert b"V12_N3B_OFFLINE" not in elf or len(elf) > 12000
+          assert b"hdd0:PP.DVRISO" not in elf
+          assert b"NET_PROBE.CNF" not in elf
+          assert b"WOLFSSL_VERIFY_NONE" not in elf
+          print(f"PASS: standalone PS2 offline verifier ELF ({len(elf)} bytes), no application HDD path")
+          PY
+      - name: Bundle diagnostic, its source and third-party notices
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/n3b-source/monocypher/src/optional
+          mkdir -p dist/n3b-source/project/include dist/n3b-source/project/src
+          mkdir -p dist/n3b-source/testdata dist/n3b-source/licenses
+          cp build-v12-n3b/V12_N3B_OFFLINE.ELF dist/
+          cp dvr-iso-manager/src/v12_roughtime_offline_diag.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            dist/n3b-source/project/src/
+          cp dvr-iso-manager/include/v12_roughtime_verify.h \
+            dvr-iso-manager/include/v12_roughtime_monocypher.h \
+            dvr-iso-manager/include/v12_roughtime_wire.h \
+            dist/n3b-source/project/include/
+          cp build-v12-rt-fixture/v12_rt_test_vector.h dist/n3b-source/testdata/
+          cp dvr-iso-manager/tests/fixtures/roughtime_ietf_draft08_001.json \
+            dist/n3b-source/testdata/
+          cp monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/monocypher.h dist/n3b-source/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.h \
+            dist/n3b-source/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/n3b-source/licenses/MONOCYPHER-LICENCE.md
+          cp roughtime-upstream/LICENSE dist/n3b-source/licenses/ROUGHTIME-APACHE-2.0
+          cp ps2sdk-license/LICENSE dist/n3b-source/licenses/PS2SDK-AFL-2.0
+          cp dvr-iso-manager/CMakeLists.txt dist/n3b-source/project/
+          cp .github/workflows/v1.2-n3b-offline.yml dist/n3b-source/
+          printf '%s\n' \
+            'N3B-OFFLINE PS2 DIAGNOSTIC — NOT A RELEASE' \
+            'Runtime: screen-only Ed25519/SHA512 fixture verification.' \
+            'No internet, RTC or APA/PFS file operations.' \
+            'Test data are public synthetic keys, NOT live Cloudflare identity.' \
+            'Source and third-party licences are bundled in n3b-source/.' \
+            'Production 1.0 and PP.DVRISO remain unchanged.' \
+            > dist/README-N3B-OFFLINE.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3B-OFFLINE-PERMISSIVE-DIAGNOSTIC
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
