@@ -109,9 +109,16 @@ if(DESR_V12_ROUGHTIME_CRYPTO_AUDIT)
   if("$ENV{V12_WOLFSSL_DIR}" STREQUAL "")
     message(FATAL_ERROR "Set V12_WOLFSSL_DIR to isolated wolfSSL build install prefix")
   endif()
-  add_executable(V12_ROUGHTIME_CRYPTO_AUDIT.ELF EXCLUDE_FROM_ALL src/v12_roughtime_crypto_link_audit.c)
+  if("$ENV{V12_RT_FIXTURE_DIR}" STREQUAL "")
+    message(FATAL_ERROR "Set V12_RT_FIXTURE_DIR for public offline Roughtime test-vector header")
+  endif()
+  add_executable(V12_ROUGHTIME_CRYPTO_AUDIT.ELF EXCLUDE_FROM_ALL
+    src/v12_roughtime_crypto_link_audit.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_roughtime_wolfcrypt.c)
   target_compile_definitions(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
-  target_include_directories(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE "$ENV{V12_WOLFSSL_DIR}/include")
+  target_include_directories(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE
+    include "$ENV{V12_RT_FIXTURE_DIR}" "$ENV{V12_WOLFSSL_DIR}/include")
   target_link_libraries(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE "$ENV{V12_WOLFSSL_DIR}/lib/libwolfssl.a" m)
   target_compile_options(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
 endif()
