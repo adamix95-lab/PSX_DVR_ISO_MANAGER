@@ -171,3 +171,38 @@ if(DESR_V12_N3C_PFS_DIAG)
   target_compile_definitions(V12_N3C_PFS_WRITE_ONCE.ELF PRIVATE V12_N3C_WRITE_ONCE=1)
   target_compile_definitions(V12_N3C_PFS_VERIFY_RO.ELF PRIVATE V12_N3C_VERIFY_RO=1)
 endif()
+
+# An explicitly opt-in, read-only N3B live-signature diagnostic.
+# Strong nonce/freshness, authenticated time and TLS are NOT enabled.
+option(DESR_V12_ROUGHTIME_LIVE_DIAG "Build read-only N3B live signature probe" OFF)
+if(DESR_V12_ROUGHTIME_LIVE_DIAG)
+  if(NOT DESR_BUILD_HDD_NETFIX)
+    message(FATAL_ERROR "N3B live probe requires pinned NETFIX")
+  endif()
+  if("$ENV{V12_MONOCYPHER_SRC}" STREQUAL "")
+    message(FATAL_ERROR "Set V12_MONOCYPHER_SRC to pinned Monocypher checkout")
+  endif()
+  add_executable(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF EXCLUDE_FROM_ALL
+    ${SOURCES} ${HDD_PFS_SOURCES}
+    src/net/v12_https_policy.c src/net/v12_https_client.c
+    src/net/v12_net_config.c src/net/v12_tls_clock.c
+    src/net/v12_ntp.c src/net/v12_roughtime_wire.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_roughtime_live_sig.c
+    src/net/v12_roughtime_monocypher.c
+    "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c")
+  target_compile_definitions(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE
+    DESR_HDD_TEST=1 DESR_HDD_NETFIX=1 DESR_HDD_PREVIEW=1
+    DESR_HDD_V12=1 DESR_V12_RT_LIVE_SIG=1)
+  target_include_directories(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE
+    include "$ENV{PS2SDK}/ports/include"
+    "$ENV{V12_MONOCYPHER_SRC}/src"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+  target_link_libraries(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE
+    pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a
+    "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+  target_compile_options(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE -Os -Wall -Wextra)
+  target_link_options(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE
+    "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3B_LIVE_NETFIX.map")
+endif()

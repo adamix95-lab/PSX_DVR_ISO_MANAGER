@@ -935,15 +935,32 @@ int main(int argc, char *argv[]) {
       }
       if (new_press & PAD_SELECT) {
         scr_clear();
+#ifdef DESR_V12_RT_LIVE_SIG
+        scr_printf("PSX DVR ISO MANAGER 1.2 - N3B LIVE SIG\n");
+        scr_printf("Cloudflare UDP/2003; pinned Ed25519 root\n");
+        scr_printf("READ ONLY. Weak nonce; no trusted time.\n");
+#else
         scr_printf("PSX DVR ISO MANAGER 1.2 - N3A ROUGHTIME\n");
         scr_printf("Cloudflare UDP/2003 (IETF draft-08 transport)\n");
         scr_printf("READ ONLY. Server time/signature NOT verified.\n");
+#endif
         scr_printf("--------------------------------------------\n");
         rc=desr_v12_roughtime_probe();
         scr_printf("--------------------------------------------\n");
+#ifdef DESR_V12_RT_LIVE_SIG
+        /* The IRX/network logs scroll. Keep final result in view. */
+        scr_clear();
+        scr_printf("PSX DVR ISO MANAGER 1.2 - N3B LIVE SIG\n");
+        scr_printf("Cloudflare pinned Ed25519 public key\n");
+        scr_printf("LIVE SIGNATURE RESULT: %s (%d)\n",
+                   rc==0?"PASS (crypto only)":"FAIL",rc);
+        scr_printf("NO TRUSTED TIME: weak/replayable nonce.\n");
+        scr_printf("NO TLS, ART, PFS OR RTC WRITES.\n");
+#else
         scr_printf("N3A TRANSPORT RESULT: %s (%d)\n",
                    rc==0?"PASS":"FAIL",rc);
         scr_printf("DO NOT USE THIS REPLY FOR TLS CERTIFICATES.\n");
+#endif
         scr_printf("CIRCLE: BACK   START: EXIT\n");
         v12_internet_screen=1;
         continue;

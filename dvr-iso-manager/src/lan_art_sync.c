@@ -24,6 +24,9 @@
 #include "v12_https_policy.h"
 #include "v12_ntp.h"
 #include "v12_roughtime_wire.h"
+#ifdef DESR_V12_RT_LIVE_SIG
+#include "v12_roughtime_live_sig.h"
+#endif
 #include <time.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -404,14 +407,32 @@ int desr_v12_roughtime_probe(void) {
       scr_printf("ROUGHTIME FRAME: INVALID (NOT TRUSTED)\n");
       ret=-326;continue;
     }
+#ifdef DESR_V12_RT_LIVE_SIG
+    {
+      /* No claim of trusted time: N3A nonce is weak and replayable. */
+      int sig_rc=v12_roughtime_live_sig_verify(response,(size_t)got,nonce);
+      if(sig_rc!=0) {
+        scr_printf("N3B CRYPTO REJECTED: %d\n",sig_rc);
+        ret=-327;
+        continue;
+      }
+      scr_printf("N3B CRYPTO PASS; REPLAY NOT PREVENTED\n");
+    }
+#else
     scr_printf("ROUGHTIME FRAME: PASS, tags=%u (UNVERIFIED)\n",tags);
     scr_printf("NO Ed25519 check. NO trusted time.\n");
+#endif
     ret=0;break;
   }
   if(sock>=0) lwip_close(sock);
   freeaddrinfo(resolved);
+#ifdef DESR_V12_RT_LIVE_SIG
+  scr_printf("N3B SIGNATURE RESULT: %s (code %d)\n",
+             ret==0?"PASS (crypto only)":"FAIL",ret);
+#else
   scr_printf("N3A UDP/2003 RESULT: %s (code %d)\n",
              ret==0?"PASS (transport only)":"FAIL",ret);
+#endif
   return ret;
 }
 
