@@ -206,3 +206,43 @@ if(DESR_V12_ROUGHTIME_LIVE_DIAG)
   target_link_options(DVR_ISO_MANAGER_V12_N3B_LIVE.ELF PRIVATE
     "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3B_LIVE_NETFIX.map")
 endif()
+
+# N3B boot regression: small standalone read-only console diagnostic.
+# Excludes Manager UI/ART/ISO code and unused embedded IRX.
+option(DESR_V12_N3B_MINI "Build standalone N3B stages + live signature probe" OFF)
+if(DESR_V12_N3B_MINI)
+  if(NOT DESR_BUILD_HDD_NETFIX)
+    message(FATAL_ERROR "N3B MINI needs patched NETFIX PS2SDK")
+  endif()
+  if("$ENV{V12_MONOCYPHER_SRC}" STREQUAL "")
+    message(FATAL_ERROR "Set V12_MONOCYPHER_SRC to pinned Monocypher checkout")
+  endif()
+  set(N3B_MINI_IRX
+    "${CMAKE_CURRENT_BINARY_DIR}/iomanX_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/fileXio_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/dev9_ns_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2atad_hdd_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2hdd_hdd_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/ps2fs_hdd_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/netman_irx.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/smap_irx.c")
+  add_executable(V12_N3B_MINI_RO.ELF EXCLUDE_FROM_ALL
+    src/v12_n3b_standalone.c
+    src/net/v12_net_config.c
+    src/net/v12_roughtime_wire.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_roughtime_live_sig.c
+    src/net/v12_roughtime_monocypher.c
+    "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+    ${N3B_MINI_IRX})
+  target_include_directories(V12_N3B_MINI_RO.ELF PRIVATE
+    include
+    "$ENV{V12_MONOCYPHER_SRC}/src"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+  target_link_libraries(V12_N3B_MINI_RO.ELF PRIVATE
+    fileXio cdvd patches ps2ip netman libdebug.a m)
+  target_compile_options(V12_N3B_MINI_RO.ELF PRIVATE -Os -Wall -Wextra)
+  target_link_options(V12_N3B_MINI_RO.ELF PRIVATE
+    "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3B_MINI_RO.map")
+endif()
