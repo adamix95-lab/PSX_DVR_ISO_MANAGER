@@ -160,6 +160,29 @@ certificate-validating clock and not a success condition for TLS.
 A FAIL -327 still means verification failure requiring further diagnosis.
 The current request nonce is also weak and replayable.
 
+**Updated N3B forensic CI: PASS.** [Run 42767679238](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42767679238)
+built the new `DVR_ISO_MANAGER_V12_N3B_LIVE.ELF` with pinned NETFIX
+and published artifact `V12-N3B-LIVE-SIG-READONLY`. Its host tests
+confirm that a generated **352-byte, six-tag** signed fixture lacking
+NONC remains rejected by the strict IETF verifier, while the
+isolated forensic path verifies Ed25519 and Merkle; tampering and
+wrong keys/nonces are rejected. Physical DESR test PENDING.
+
+To check: copy only the new ELF from this run to FAT32 USB,
+run it with wLE-R3Z, retain `PP.DVRISO12/V12_NET.CNF`, press SELECT.
+The **expected investigative outcome** (not guaranteed) is:
+
+```text
+RESULT: NONC MISSING (code 1)
+Ed25519 and Merkle: FORENSIC PASS
+IETF PROTOCOL: NONCOMPLIANT
+NO TRUSTED TIME: weak/replayable nonce.
+```
+
+Any FAIL must be reported with its code. No TLS clock trust or
+cover download is enabled. `CIRCLE` returns to menu.
+
+
 ## N3B-LIVE-SIG — signature of a real Cloudflare Roughtime reply
 
 An **independent, opt-in, read-only** experimental Manager executable
