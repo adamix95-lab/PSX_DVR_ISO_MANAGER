@@ -6,6 +6,26 @@
 > read-only 1.2 Manager. No production XMB installer, BOOT.CNF, ART,
 > Neutrino or Sony DVR ISO partition is involved.
 
+## Hardware result — DESR-7000 PASS (2026-11-10)
+
+This is the actual physical-console result (not just CI evidence):
+
+| Test | Observed output | Interpretation |
+| --- | --- | --- |
+| A, verify RO before writing | `N3C PFS RESULT: FAIL (code -407)` | **Expected missing-record result** |
+| B, write once | `fileXioSync=0` and `JOURNAL VERIFIED: SLOT1 GEN=2 COUNT=1001` | PFS write, sync, immediate RO readback confirmed; final status line not seen |
+| C, verify RO after normal restart | `N3C PFS RESULT: PASS (code 0)` | **PASS: synthetic records persist and validate across a normal reboot** |
+
+The write-once diagnostic was already executed. **Do not repeat the
+WRITE_ONCE test** on the same files; it is intentionally designed to
+refuse overwriting the existing records. The final unmount result in
+test B was not seen, but test C proves successful independent mounting
+and validation after a normal reboot.
+
+This is **not** a guarantee of atomic persistence across sudden power loss,
+protection against cloning/rollback, a provisioned CSPRNG secret,
+authenticated time or verified HTTPS.
+
 ## What we are checking
 
 The PSX DESR-7000 has already passed N1 (DNS/TCP443), N2B
