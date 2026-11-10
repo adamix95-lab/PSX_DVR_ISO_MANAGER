@@ -1,0 +1,152 @@
+name: N3B TXRyan alternate strict Roughtime probe (read-only)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n3b-alternate-server.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n3b_standalone.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c'
+      - 'dvr-iso-manager/include/v12_roughtime_txryan_sig.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/tests/net/test_v12_roughtime_txryan_sig.c'
+      - 'dvr-iso-manager/tests/net/generate_v12_rt_test_header.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alternate-strict:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: Check hardcoded root against documented public TXRyan key
+        shell: sh
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,json,re
+          s=Path('dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c').read_text()
+          cfg=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          server=next(x for x in cfg['servers'] if x['name']=='time.txryan.com')
+          assert any(addr['address']=='time.txryan.com:2002' for addr in server['addresses'])
+          expected=base64.b64decode(server['publicKey'])
+          body=s.split('static const uint8_t txryan_root[32]=',1)[1].split('};',1)[0]
+          actual=bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',body))
+          assert len(actual)==32 and expected==actual,(actual.hex(),expected.hex())
+          print('PASS: TXRyan pinned root equals ecosystem.json')
+          PY
+      - name: Check read-only isolation and correct server selection
+        shell: sh
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('dvr-iso-manager/src/v12_n3b_standalone.c').read_text()
+          c=Path('dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c').read_text()
+          for banned in ('FIO_MT_RDWR','fileXioWrite(','fileXioFormat(',
+                         'fileXioRename(','fileXioRemove(','fileXioDevctl(',
+                         'dvr_pfs0:/ISO','hdd0:PP.DVRISO/'):
+              assert banned not in s,banned
+          assert '#define NAME "time.txryan.com"' in s
+          assert '#define PORT "2002"' in s
+          assert 'v12_rt_verify_draft08(' in c
+          assert 'v12_rt_diagnostic_missing_nonce_echo(' in c
+          print('PASS: no storage mutation and correct alternative pinned server')
+          PY
+      - name: Run Monocypher host negative tests
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-tx-vector
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py \
+            build-tx-vector/v12_rt_test_vector.h
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include -Ibuild-tx-vector \
+            -Imonocypher-upstream/src -Imonocypher-upstream/src/optional \
+            dvr-iso-manager/tests/net/test_v12_roughtime_txryan_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c \
+            -o /tmp/txryan-host-test
+          /tmp/txryan-host-test
+      - name: Rebuild NETFIX PS2SDK pinned toolchain
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Compile isolated alternative PS2 ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n3b-txryan \
+            -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_N3B_MINI=ON
+          cmake --build build-n3b-txryan --target V12_N3B_TXRYAN_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n3b-txryan/V12_N3B_TXRYAN_RO.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70))
+          assert len(e)<3200000,len(e)
+          for marker in (b'N3B MINI BOOT - STAGE 0',b'time.txryan.com',
+                         b'UDP/2002',b'STRICT CRYPTO: PASS (WEAK NONCE)',
+                         b'NONC MISSING: FORENSIC CRYPTO PASS'):
+              assert marker in e,marker
+          for banned in (b'roughtime.cloudflare.com',b'hdd0:PP.DVRISO/BOOT.CNF',
+                         b'dvr_pfs0:/ISO',b'WOLFSSL_VERIFY_NONE'):
+              assert banned not in e,banned
+          print(f'PASS: TXRyan-only stage-marked PS2 ELF, {len(e)} bytes')
+          PY
+      - name: Bundle only alternative standalone binary and source/licenses
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/monocypher/src/optional dist/licenses
+          cp build-n3b-txryan/V12_N3B_TXRYAN_RO.ELF dist/
+          cp dvr-iso-manager/src/v12_n3b_standalone.c \
+            dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_wire.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c dist/source/
+          cp monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.h \
+            dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          printf '%s\n' \
+            'N3B TXRYAN READ-ONLY PROBE - NOT A RELEASE' \
+            'Target: time.txryan.com UDP/2002 with published PINNED Ed25519 key.' \
+            'Run only V12_N3B_TXRYAN_RO.ELF from FAT32 USB using wLE-R3Z.' \
+            'Keep PP.DVRISO12/V12_NET.CNF; do not install in XMB.' \
+            'No buttons: starts automatically, holds final screen 120 sec.' \
+            'RET=0 means strict draft08 signed response; weak nonce means NO TRUSTED TIME.' \
+            'RET=1 means missing mandatory NONC, forensic only; NO TRUSTED TIME.' \
+            'Negative codes are failures; send stage screen.' \
+            'No HTTPS, no cover writes, no RTC/PFS/APA modifications.' \
+            > dist/README-TXRYAN.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3B-TXRYAN-READONLY-ALT
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
