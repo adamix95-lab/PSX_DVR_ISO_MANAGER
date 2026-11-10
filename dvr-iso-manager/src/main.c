@@ -952,8 +952,14 @@ int main(int argc, char *argv[]) {
         scr_clear();
         scr_printf("PSX DVR ISO MANAGER 1.2 - N3B LIVE SIG\n");
         scr_printf("Cloudflare pinned Ed25519 public key\n");
-        scr_printf("LIVE SIGNATURE RESULT: %s (%d)\n",
-                   rc==0?"PASS (crypto only)":"FAIL",rc);
+        if(rc==1) {
+          scr_printf("RESULT: NONC MISSING (code 1)\n");
+          scr_printf("Ed25519 and Merkle: FORENSIC PASS\n");
+          scr_printf("IETF PROTOCOL: NONCOMPLIANT\n");
+        } else {
+          scr_printf("LIVE SIGNATURE RESULT: %s (%d)\n",
+                     rc==0?"STRICT CRYPTO PASS":"FAIL",rc);
+        }
         scr_printf("NO TRUSTED TIME: weak/replayable nonce.\n");
         scr_printf("NO TLS, ART, PFS OR RTC WRITES.\n");
 #else

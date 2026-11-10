@@ -12,6 +12,8 @@ on:
       - 'dvr-iso-manager/include/v12_roughtime_live_sig.h'
       - 'dvr-iso-manager/src/net/v12_roughtime_monocypher.c'
       - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/include/v12_roughtime_verify.h'
+      - 'dvr-iso-manager/tests/net/generate_v12_rt_test_header.py'
       - 'dvr-iso-manager/tests/net/test_v12_roughtime_live_sig.c'
   workflow_dispatch:
 

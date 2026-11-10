@@ -20,17 +20,32 @@ int v12_roughtime_live_sig_verify(const uint8_t *reply,size_t n,
   v12_rt_signed_time verified={0,0};
   uint8_t bad_root[32],bad_nonce[32];
   if(!reply || !nonce) return -1;
+  int mode=0;
   if(v12_rt_verify_draft08(reply,n,cloudflare_roughtime_root,
-                           nonce,&cb,&verified)!=0) return -2;
+                           nonce,&cb,&verified)!=0) {
+    /* Do NOT relax the strict verifier. This read-only test invokes
+     * an explicitly UNTRUSTED forensic path only when NONC is absent. */
+    if(v12_rt_diagnostic_missing_nonce_echo(reply,n,
+          cloudflare_roughtime_root,nonce,&cb)!=0) return -2;
+    mode=1;
+  }
   memcpy(bad_root,cloudflare_roughtime_root,32);
   bad_root[0]^=1;
-  if(v12_rt_verify_draft08(reply,n,bad_root,nonce,&cb,&verified)==0)
+  if((mode==0 &&
+       v12_rt_verify_draft08(reply,n,bad_root,nonce,&cb,&verified)==0) ||
+     (mode==1 &&
+       v12_rt_diagnostic_missing_nonce_echo(reply,n,bad_root,nonce,&cb)==0))
     return -3;
   memcpy(bad_nonce,nonce,32);
   bad_nonce[0]^=1;
-  if(v12_rt_verify_draft08(reply,n,cloudflare_roughtime_root,
-                           bad_nonce,&cb,&verified)==0) return -4;
+  if((mode==0 &&
+       v12_rt_verify_draft08(reply,n,cloudflare_roughtime_root,
+                             bad_nonce,&cb,&verified)==0) ||
+     (mode==1 &&
+       v12_rt_diagnostic_missing_nonce_echo(reply,n,
+           cloudflare_roughtime_root,bad_nonce,&cb)==0))
+    return -4;
   /* No time output is exposed. In particular, not to wolfSSL or RTC. */
   memset(&verified,0,sizeof(verified));
-  return 0;
+  return mode; /* 0 strict PASS; +1 NONC absent (NOT trusted). */
 }

@@ -130,6 +130,36 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## N3B-LIVE-SIG — physical FAIL -327 diagnosed; protocol compatibility probe
+
+**Physical DESR-7000 on November 10, 2026: FAIL (-327).** Previous N3A
+transport PASS: 352 bytes, 6 top-level tags. The bundled *synthetic* signed
+IETF draft08 fixture is 392 bytes/7 tags. This exactly matches the 40-byte
+absence of a 32-byte NONC echo plus 8 bytes tag/offset overhead.
+Independent upstream issue [cloudflare/roughtime #72](https://github.com/cloudflare/roughtime/issues/72)
+opened April 24, 2026 reports official Go IETF client rejection
+`protocol: response is missing NONC tag` on the same Cloudflare host.
+This is the **probable cause**, not proven until the next physical test.
+
+The **strict** `v12_rt_verify_draft08()` still REJECTS a missing
+mandatory NONC, as required by the IETF draft. An explicitly separated
+`v12_rt_diagnostic_missing_nonce_echo()` mode independently checks
+the pinned Ed25519 delegation signature, SREP signature, and request
+nonce's signed Merkle inclusion **without accepting the malformed
+response as valid IETF**. It returns **no time value**. Host tests build
+a 352-byte synthetic *NONC-absent* vector from the original 392-byte
+signed fixture, require strict rejection and forensic crypto success,
+and reject bad roots/nonces/tampering.
+
+When the new ELF is built and tested, SELECT may report
+`RESULT: NONC MISSING (code 1)`,
+`Ed25519 and Merkle: FORENSIC PASS`,
+`IETF PROTOCOL: NONCOMPLIANT`.
+This is diagnostic progress, **not a trusted server time**, not a
+certificate-validating clock and not a success condition for TLS.
+A FAIL -327 still means verification failure requiring further diagnosis.
+The current request nonce is also weak and replayable.
+
 ## N3B-LIVE-SIG — signature of a real Cloudflare Roughtime reply
 
 An **independent, opt-in, read-only** experimental Manager executable

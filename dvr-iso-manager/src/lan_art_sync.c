@@ -411,12 +411,17 @@ int desr_v12_roughtime_probe(void) {
     {
       /* No claim of trusted time: N3A nonce is weak and replayable. */
       int sig_rc=v12_roughtime_live_sig_verify(response,(size_t)got,nonce);
-      if(sig_rc!=0) {
+      if(sig_rc<0) {
         scr_printf("N3B CRYPTO REJECTED: %d\n",sig_rc);
         ret=-327;
         continue;
       }
-      scr_printf("N3B CRYPTO PASS; REPLAY NOT PREVENTED\n");
+      if(sig_rc==1) {
+        scr_printf("N3B NONC ECHO ABSENT: cryptographic forensic PASS\n");
+        scr_printf("NONCOMPLIANT RESPONSE: NO TIME TRUST.\n");
+        ret=1;break;
+      }
+      scr_printf("N3B STRICT CRYPTO PASS; REPLAY NOT PREVENTED\n");
     }
 #else
     scr_printf("ROUGHTIME FRAME: PASS, tags=%u (UNVERIFIED)\n",tags);
@@ -428,7 +433,8 @@ int desr_v12_roughtime_probe(void) {
   freeaddrinfo(resolved);
 #ifdef DESR_V12_RT_LIVE_SIG
   scr_printf("N3B SIGNATURE RESULT: %s (code %d)\n",
-             ret==0?"PASS (crypto only)":"FAIL",ret);
+             ret==0?"STRICT CRYPTO PASS":
+             ret==1?"NONC ABSENT; FORENSIC CRYPTO ONLY":"FAIL",ret);
 #else
   scr_printf("N3A UDP/2003 RESULT: %s (code %d)\n",
              ret==0?"PASS (transport only)":"FAIL",ret);

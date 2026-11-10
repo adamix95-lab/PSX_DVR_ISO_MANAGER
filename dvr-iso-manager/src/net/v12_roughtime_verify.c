@@ -71,11 +71,12 @@ static int make_digest(const v12_rt_crypto *cb,const uint8_t *data,
   return 0;
 }
 
-int v12_rt_verify_draft08(const uint8_t *reply,size_t reply_size,
+static int verify_internal(const uint8_t *reply,size_t reply_size,
                           const uint8_t rootkey[32],
                           const uint8_t nonce[32],
                           const v12_rt_crypto *cb,
-                          v12_rt_signed_time *output) {
+                          v12_rt_signed_time *output,
+                          int require_absent_nonce_echo) {
   static const char cert_ctx[]="RoughTime v1 delegation signature--";
   static const char rep_ctx[]="RoughTime v1 response signature";
   rt_map top,cert,delegation,signedrep;
@@ -94,8 +95,15 @@ int v12_rt_verify_draft08(const uint8_t *reply,size_t reply_size,
      u32(reply+8)!=reply_size-12U) return -1;
   s.p=reply+12;s.n=reply_size-12U;
   if(parse(s,&top)<0) return -1;
-  if(fixed(&top,"VER\0",4,&ver)<0 || u32(ver.p)!=UINT32_C(0x80000008) ||
-     fixed(&top,"NONC",32,&nc)<0 || memcmp(nc.p,nonce,32))
+  if(fixed(&top,"VER\0",4,&ver)<0 ||
+     u32(ver.p)!=UINT32_C(0x80000008)) return -1;
+
+  /* Production path requires a correctly echoed NONC. The forensic path
+   * requires the field to be entirely ABSENT, never malformed. It still
+   * verifies request nonce against the authenticated Merkle ROOT. */
+  if(require_absent_nonce_echo) {
+    if(get(&top,"NONC",&nc)==0) return -1;
+  } else if(fixed(&top,"NONC",32,&nc)<0 || memcmp(nc.p,nonce,32))
     return -1;
 
   if(get(&top,"CERT",&certbytes)<0 || parse(certbytes,&cert)<0 ||
@@ -148,4 +156,29 @@ int v12_rt_verify_draft08(const uint8_t *reply,size_t reply_size,
   parsed.radius_seconds=uncertainty;
   *output=parsed;
   return 0;
+}
+
+
+/* Strict, spec-compliant verifier. This must remain the only entry point
+ * eligible for a future validated time source (after secure nonce work).
+ */
+int v12_rt_verify_draft08(const uint8_t *reply,size_t reply_size,
+                          const uint8_t rootkey[32],
+                          const uint8_t nonce[32],
+                          const v12_rt_crypto *cb,
+                          v12_rt_signed_time *output) {
+  return verify_internal(reply,reply_size,rootkey,nonce,cb,output,0);
+}
+
+/* Cloudflare April 2026 compatibility forensic: its beta server omits
+ * mandatory NONC echo. Verify cryptography WITHOUT accepting the reply
+ * as a valid IETF time response. Never return signed time to caller. */
+int v12_rt_diagnostic_missing_nonce_echo(const uint8_t *reply,size_t n,
+                                          const uint8_t root[32],
+                                          const uint8_t nonce[32],
+                                          const v12_rt_crypto *cb) {
+  v12_rt_signed_time discarded={0,0};
+  int rc=verify_internal(reply,n,root,nonce,cb,&discarded,1);
+  memset(&discarded,0,sizeof(discarded));
+  return rc;
 }

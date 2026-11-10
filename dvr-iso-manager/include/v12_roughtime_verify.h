@@ -37,4 +37,13 @@ int v12_rt_verify_draft08(const uint8_t *reply, size_t reply_size,
                           const uint8_t request_nonce[32],
                           const v12_rt_crypto *crypto,
                           v12_rt_signed_time *output);
+/* FORENSIC-ONLY: inspect Cloudflare draft08 responses that OMIT mandatory
+ * NONC echo. Still checks both Ed25519 signatures and the Merkle inclusion
+ * of the ORIGINAL request nonce. The absence violates IETF draft08.
+ * This function exposes NO timestamp. A zero result must NEVER be used
+ * for trusted time, anti-replay, TLS, certificate checks or RTC updates.
+ * Strict v12_rt_verify_draft08() is unchanged in semantics. */
+int v12_rt_diagnostic_missing_nonce_echo(const uint8_t *reply,
+    size_t reply_size,const uint8_t pinned_root_public[32],
+    const uint8_t request_nonce[32],const v12_rt_crypto *crypto);
 #endif
