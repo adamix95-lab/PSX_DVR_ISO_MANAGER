@@ -1,0 +1,126 @@
+name: N3B live Roughtime signature diagnostic (not trusted time)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n3b-live-sig.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/main.c'
+      - 'dvr-iso-manager/src/lan_art_sync.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_live_sig.c'
+      - 'dvr-iso-manager/include/v12_roughtime_live_sig.h'
+      - 'dvr-iso-manager/src/net/v12_roughtime_monocypher.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/tests/net/test_v12_roughtime_live_sig.c'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-reply:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: Ensure production public root key is pinned correctly
+        run: |
+          python3 - <<'PY'
+          import base64, json, re
+          from pathlib import Path
+          root=Path('dvr-iso-manager/src/net/v12_roughtime_live_sig.c').read_text()
+          ecosystem=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          expected=base64.b64decode(next(x['publicKey'] for x in ecosystem['servers'] if x['name']=='Cloudflare-Roughtime-2'))
+          src=root.split('static const uint8_t cloudflare_roughtime_root[32]=',1)[1].split('};',1)[0]
+          actual=bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',src))
+          assert len(actual)==32 and actual==expected,(actual.hex(),expected.hex())
+          print('PASS: pinned Cloudflare Ed25519 public root')
+          PY
+      - name: Test synthetic fixture with separate production-key rejection
+        run: |
+          set -eu
+          mkdir -p build-rt-vector
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py \
+            build-rt-vector/v12_rt_test_vector.h
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include -Ibuild-rt-vector \
+            -Imonocypher-upstream/src -Imonocypher-upstream/src/optional \
+            dvr-iso-manager/tests/net/test_v12_roughtime_live_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_live_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c \
+            -o /tmp/n3b-live-host
+          /tmp/n3b-live-host
+      - name: Rebuild pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Compile only the separate N3B LIVE read-only ELF
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-v12-n3b-live \
+            -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_ROUGHTIME_LIVE_DIAG=ON
+          cmake --build build-v12-n3b-live --target DVR_ISO_MANAGER_V12_N3B_LIVE.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          binary=Path('build-v12-n3b-live/DVR_ISO_MANAGER_V12_N3B_LIVE.ELF').read_bytes()
+          assert binary.startswith(b'\x7fELF')
+          for key in (b'hdd0:PP.DVRISO12',b'LIVE SIGNATURE RESULT:',
+                      b'NO TRUSTED TIME: weak/replayable nonce.'):
+              assert key in binary,key
+          for forbidden in (b'hdd0:PP.DVRISO/BOOT.CNF',
+                            b'hdd0:PP.DVRISO:pfs:',b'WOLFSSL_VERIFY_NONE'):
+              assert forbidden not in binary, forbidden
+          print('PASS: separate N3B live signed-reply ELF, no trusted clock or HDD writes')
+          PY
+      - name: Package diagnostic and external source/license notices
+        run: |
+          set -eu
+          mkdir -p dist/source dist/monocypher/src/optional dist/licenses
+          cp build-v12-n3b-live/DVR_ISO_MANAGER_V12_N3B_LIVE.ELF dist/
+          cp dvr-iso-manager/src/net/v12_roughtime_live_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c dist/source/
+          cp dvr-iso-manager/include/v12_roughtime_live_sig.h \
+            dvr-iso-manager/include/v12_roughtime_verify.h \
+            dvr-iso-manager/include/v12_roughtime_monocypher.h dist/source/
+          cp monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.h \
+            dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          printf '%s\n' \
+            'N3B-LIVE-SIG (experimental read-only diagnostic)' \
+            'SELECT: verify live Cloudflare Roughtime Ed25519 signatures.' \
+            'Weak request nonce: replay is possible; no trusted time.' \
+            'NEVER use this reply for TLS/HTTPS certificate validation.' \
+            'No PFS writes, ART downloads, RTC changes or game launch.' \
+            'Source: https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER' \
+            > dist/README-N3B-LIVE-SIG.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3B-LIVE-SIG-READONLY
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
