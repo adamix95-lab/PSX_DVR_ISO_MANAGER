@@ -166,7 +166,24 @@ compares ELF layouts: **minimal 2,582,008 bytes** versus
 **full N3B Manager 4,235,296 bytes** (39% reduction). This is
 strong evidence that the previous binary carried substantially more
 code and embedded modules, **not proof of the freeze cause**.
-The new MINI executable is still **UNTESTED on DESR hardware**.
+**Physical DESR-7000 result: PASS (2026-11-10).** The MINI ELF booted
+and completed all stages. The user observed the exact final screen:
+
+```text
+NONC MISSING: FORENSIC CRYPTO PASS
+INVALID IETF REPLY: NOT A TRUSTED CLOCK
+NO TLS / COVER / PFS WRITES / RTC
+RET=1
+```
+
+This proves the real Cloudflare response passed pinned Ed25519 root
+and delegation/response signatures, plus nonce-bound Merkle inclusion
+via the *forensic* verifier on physical EE hardware. The response is
+**noncompliant** because the required NONC echo is absent. This is
+**NOT strict Roughtime verification, trusted UTC, strong nonce, secure
+TLS, or HTTPS cover downloading**. The full Manager boot regression
+remains unproven in cause; the MINI diagnostic is a working workaround.
+Do **not** rerun N3C WRITE_ONCE. The diagnostic did not write to PFS.
 Launch the dedicated ELF from FAT32 USB via wLE-R3Z.
 It will run without pressing SELECT and reuse
 `PP.DVRISO12/V12_NET.CNF` in read-only mode. No RTC changes,
