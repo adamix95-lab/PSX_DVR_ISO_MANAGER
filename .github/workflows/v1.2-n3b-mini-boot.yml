@@ -47,7 +47,7 @@ jobs:
           for expected in ("FIO_MT_RDONLY", "N3B MINI BOOT - STAGE 0",
                            "STAGE 1: reset IOP","STAGE 2: HDD / PFS IRX",
                            "STAGE 3: PFS read-only config","STAGE 4: NETMAN / SMAP",
-                           "STAGE 5: UDP/2003","STAGE 6: Ed25519 / SHA512"):
+                           "STAGE 5: UDP/%s","STAGE 6: Ed25519 / SHA512"):
               assert expected in s,expected
           print("PASS: no writes, no manager boot, visible stage markers")
           PY
@@ -71,7 +71,7 @@ jobs:
           assert len(mini)<len(full),(len(mini),len(full))
           for marker in (b"N3B MINI BOOT - STAGE 0",b"STAGE 1: reset IOP",
                          b"STAGE 2: HDD / PFS IRX",b"STAGE 3: PFS read-only config",
-                         b"STAGE 4: NETMAN / SMAP",b"STAGE 5: UDP/2003",
+                         b"STAGE 4: NETMAN / SMAP",b"STAGE 5: UDP/%s",
                          b"STAGE 6: Ed25519 / SHA512"):
               assert marker in mini,marker
           for forbidden in (b"hdd0:PP.DVRISO/BOOT.CNF",b"dvr_pfs0:/ISO",

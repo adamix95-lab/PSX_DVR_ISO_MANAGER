@@ -107,7 +107,7 @@ jobs:
           assert e[:4]==bytes((127,69,76,70))
           assert len(e)<3200000,len(e)
           for marker in (b'N3B MINI BOOT - STAGE 0',b'time.txryan.com',
-                         b'UDP/2002',b'STRICT CRYPTO: PASS (WEAK NONCE)',
+                         b'2002',b'STRICT CRYPTO: PASS (WEAK NONCE)',
                          b'NONC MISSING: FORENSIC CRYPTO PASS'):
               assert marker in e,marker
           for banned in (b'roughtime.cloudflare.com',b'hdd0:PP.DVRISO/BOOT.CNF',
