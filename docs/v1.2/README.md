@@ -130,6 +130,41 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## N3B — GUI boot regression after forensic build (DESR-7000)
+
+**Physical test on DESR-7000: FAIL (2026-11-10).** The complete
+`DVR_ISO_MANAGER_V12_N3B_LIVE.ELF` containing the new forensic
+missing-NONC path displayed only **`PS` in the upper-left corner**
+and did not enter the Manager. This is a NEW **pre-menu boot failure**;
+it is not the previous on-network `-327` signature rejection.
+The initial Manager screen begins with `PSX DVR ISO Manager...`,
+so the observed `PS` suggests interruption during very early startup.
+The root cause remains **UNCONFIRMED**; possibilities include
+load-time memory layout/size or the debug screen code.
+
+Do **NOT** retest the faulty full N3B GUI build or repeat N3C
+WRITE_ONCE. To isolate the boot regression, a new separate
+`V12_N3B_MINI_RO.ELF` was added. It excludes the Manager UI,
+cover/ISO services and unrelated embedded IRX. It follows the
+known-good N3C PFS driver initialization sequence and the prior N3A
+network probe. Its early screen prints `N3B MINI BOOT - STAGE 0`
+before any IOP reset, then reports stage 1 (IOP reset), stage 2
+(HDD/PFS drivers), stage 3 (read-only config), stage 4
+(NETMAN/SMAP), stage 5 (UDP), stage 6 (Ed25519/SHA512). The result
+screen remains visible for 120 seconds. Error codes: -502 IOP/module,
+-503 RO config, -504 network, -505 DNS, -506 UDP,
+-507 frame, -508 signatures, -509 RO unmount. Positive
+`RET=1` means **missing NONC, forensic crypto only**, never trusted
+time. `RET=0` is strict signed-response verification with the
+still-insecure diagnostic nonce, also NOT a trusted clock.
+
+Build: [N3B minimal boot workflow](../../.github/workflows/v1.2-n3b-mini-boot.yml),
+artifact (only after CI PASS) `V12-N3B-MINI-READONLY-BOOTFIX`.
+Launch the dedicated ELF from FAT32 USB via wLE-R3Z.
+It will run without pressing SELECT and reuse
+`PP.DVRISO12/V12_NET.CNF` in read-only mode. No RTC changes,
+game launch, TLS/HTTP, ART, HDD/APA/PFS writes.
+
 ## N3B-LIVE-SIG — physical FAIL -327 diagnosed; protocol compatibility probe
 
 **Physical DESR-7000 on November 10, 2026: FAIL (-327).** Previous N3A
