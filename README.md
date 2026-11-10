@@ -67,7 +67,20 @@ You need a USB drive or UDPFS to transfer the files and start wLaunchELF, but on
 
 ---
 
-## 2. HDD file layout
+## 2. Creating the PP.DVRISO partition
+
+Start **wLaunchELF-R3Z 4.80**.
+
+1. Open **MISC → HDDManager**.
+2. Display the partitions on `hdd0:`.
+3. Check whether `PP.DVRISO` already exists.
+4. If missing, open the operations menu and choose **Create partition**.
+5. Enter the exact name: **`PP.DVRISO`**.
+6. Choose a sample capacity of **256 MB**.
+7. Confirm creation.
+8. Ensure it appears in the partition list with type **PFS**.
+
+## 3. HDD file layout
 
 After extracting the HDD package, locate the **`PP.DVRISO-FILES`** folder.
 
@@ -134,14 +147,14 @@ hdd0:PP.DVRISO/
 
 ---
 
-## 3. Where to store game ISOs
+## 4. Where to store game ISOs
 
 Game images are **not** stored on `PP.DVRISO`.
 
 The Manager uses the original Sony PSX DVR filesystem:
 
 ```text
-dvr_pfs0:/ISO/
+dvr_pfs0:/_xcontent/ISO/
 │
 ├── ICO.iso
 ├── MGS 2.ISO
@@ -156,7 +169,7 @@ The `PP.DVRISO` partition is reserved for the application, its configuration and
 
 ---
 
-## 4. Copying files to HDD
+## 5. Copying files to HDD
 
 1. Extract the complete **HDD 1.0** package on your computer.
 2. Copy `PP.DVRISO-FILES` to a FAT32 USB drive or make the files available via UDPFS.
@@ -169,7 +182,7 @@ The `PP.DVRISO` partition is reserved for the application, its configuration and
 
 ---
 
-## 5. Starting the Manager from HDD
+## 6. Starting the Manager from HDD
 
 After copying the files:
 
