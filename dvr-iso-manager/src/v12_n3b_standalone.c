@@ -30,12 +30,25 @@
 #include <io_common.h>
 #include "v12_net_config.h"
 #include "v12_roughtime_wire.h"
+#ifdef V12_N3B_TXRYAN
+#include "v12_roughtime_txryan_sig.h"
+#define VERIFY_RTPACKET v12_roughtime_txryan_sig_verify
+#else
 #include "v12_roughtime_live_sig.h"
+#define VERIFY_RTPACKET v12_roughtime_live_sig_verify
+#endif
 
 #define PART "hdd0:PP.DVRISO12"
 #define MOUNT "pfs1:"
 #define NET_CNF "pfs1:/V12_NET.CNF"
+#ifdef V12_N3B_TXRYAN
+/* Server explicitly selected at build time, never from network input. */
+#define NAME "time.txryan.com"
+#define PORT "2002"
+#else
 #define NAME "roughtime.cloudflare.com"
+#define PORT "2003"
+#endif
 
 #define IRX(name) \
   extern unsigned char name##_irx[] __attribute__((aligned(16))); \
@@ -164,7 +177,7 @@ static int live_signed_probe(void) {
   unsigned tags=0;
   uint32_t x;
   int rc,fd=-1,received,found=0,verdict=-506;
-  scr_printf("STAGE 5: UDP/2003 (weak test nonce)\n");
+  scr_printf("STAGE 5: UDP/%s (weak test nonce)\n",PORT);
   ++sequence;
   x=(uint32_t)clock() ^ ((uint32_t)(uintptr_t)&sequence) ^
     (UINT32_C(0x9e3779b9)*sequence);
@@ -179,7 +192,7 @@ static int live_signed_probe(void) {
   hints.ai_family=AF_INET;
   hints.ai_socktype=SOCK_DGRAM;
   hints.ai_protocol=IPPROTO_UDP;
-  rc=getaddrinfo(NAME,"2003",&hints,&resolved);
+  rc=getaddrinfo(NAME,PORT,&hints,&resolved);
   scr_printf("DNS rc=%d\n",rc);
   if(rc!=0 || !resolved) {
     if(resolved) freeaddrinfo(resolved);
@@ -217,7 +230,7 @@ static int live_signed_probe(void) {
     }
     scr_printf("FRAME tags=%u\n",tags);
     scr_printf("STAGE 6: Ed25519 / SHA512\n");
-    rc=v12_roughtime_live_sig_verify(response_packet,
+    rc=VERIFY_RTPACKET(response_packet,
                                     (size_t)received,nonce);
     scr_printf("CRYPTO diagnostic code=%d\n",rc);
     verdict=rc<0?-508:rc; /* 0 strict, 1 missing NONC forensic */
@@ -235,6 +248,7 @@ int main(void) {
   init_scr();
   scr_setCursor(0);
   scr_printf("N3B MINI BOOT - STAGE 0\n");
+  scr_printf("TARGET: %s UDP/%s\n",NAME,PORT);
   scr_printf("READ-ONLY: no HTTP, RTC, ART or game boot.\n");
   sleep(1);
   rc=init_io();
@@ -247,6 +261,7 @@ int main(void) {
   }
   scr_clear();
   scr_printf("N3B MINI - FINAL RESULT\n");
+  scr_printf("SERVER: %s UDP/%s\n",NAME,PORT);
   if(rc==1) {
     scr_printf("NONC MISSING: FORENSIC CRYPTO PASS\n");
     scr_printf("INVALID IETF REPLY: NOT A TRUSTED CLOCK\n");
