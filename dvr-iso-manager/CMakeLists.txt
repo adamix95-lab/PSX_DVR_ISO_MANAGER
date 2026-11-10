@@ -245,4 +245,26 @@ if(DESR_V12_N3B_MINI)
   target_compile_options(V12_N3B_MINI_RO.ELF PRIVATE -Os -Wall -Wextra)
   target_link_options(V12_N3B_MINI_RO.ELF PRIVATE
     "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3B_MINI_RO.map")
+  # Alternative PINNED Roughtime server, compiled separately from
+  # Cloudflare and from the full Manager. Zero PFS writes, no TLS clock.
+  add_executable(V12_N3B_TXRYAN_RO.ELF EXCLUDE_FROM_ALL
+    src/v12_n3b_standalone.c
+    src/net/v12_net_config.c
+    src/net/v12_roughtime_wire.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_roughtime_txryan_sig.c
+    src/net/v12_roughtime_monocypher.c
+    "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+    ${N3B_MINI_IRX})
+  target_compile_definitions(V12_N3B_TXRYAN_RO.ELF PRIVATE V12_N3B_TXRYAN=1)
+  target_include_directories(V12_N3B_TXRYAN_RO.ELF PRIVATE
+    include
+    "$ENV{V12_MONOCYPHER_SRC}/src"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+  target_link_libraries(V12_N3B_TXRYAN_RO.ELF PRIVATE
+    fileXio cdvd patches ps2ip netman libdebug.a m)
+  target_compile_options(V12_N3B_TXRYAN_RO.ELF PRIVATE -Os -Wall -Wextra)
+  target_link_options(V12_N3B_TXRYAN_RO.ELF PRIVATE
+    "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3B_TXRYAN_RO.map")
 endif()
