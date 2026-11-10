@@ -130,6 +130,47 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## N3B-ALT: TXRyan read-only strict-Roughtime interoperability probe
+
+The DESR-7000 **N3B MINI Cloudflare test passed the physical
+cryptographic forensic check, RET=1**, but Cloudflare omitted the
+mandatory IETF draft-08 NONC echo. Strict verification correctly fails;
+this reply CANNOT establish a trusted time source.
+
+To avoid weakening the protocol, a second dedicated
+`V12_N3B_TXRYAN_RO.ELF` uses `time.txryan.com:2002`, whose
+independently published **Ed25519 public key** is pinned (verified against
+`cloudflare/roughtime/ecosystem.json` in CI). The server reports support
+for old IETF Roughtime drafts including draft-08. This is a compatibility
+hypothesis, **not yet validated on the physical DESR-7000**.
+
+Source: `src/v12_n3b_standalone.c` with `V12_N3B_TXRYAN` build flag,
+`src/net/v12_roughtime_txryan_sig.c` and
+[alternate CI workflow](../../.github/workflows/v1.2-n3b-alternate-server.yml).
+The alternative ELF uses the N3C-proven RO PFS/IOP initialization and
+NETFIX network path, but **never mounts PFS RW**. No game boot, artwork
+downloads, HTTP/TLS, RTC writes or APA operations.
+
+**After CI success**, download artifact `V12-N3B-TXRYAN-READONLY-ALT`,
+copy only `V12_N3B_TXRYAN_RO.ELF` to FAT32 USB, launch from wLE-R3Z.
+Existing experimental `PP.DVRISO12/V12_NET.CNF` must be present. The
+diagnostic runs automatically (no SELECT) and displays its result for
+120 seconds. Report the full screen:
+
+- `RET=0` / `STRICT CRYPTO: PASS (WEAK NONCE)`: strict draft-08
+  signature, echo and Merkle validated against TXRyan. **Still not**
+  trusted time because the request nonce is predictable and replayable.
+- `RET=1` / `NONC MISSING`: only noncompliant forensic crypto PASS.
+- Negative `RET`: communication, unsupported version, invalid frame,
+  signature or setup failure; record the code, do not weaken checks.
+
+Even if RET=0, the next gate is persistent secure nonce provisioning
+(not solved by the N3C synthetic write/read PASS), then an authenticated
+UTC policy, strong TLS entropy, CA chain and hostname verification.
+RFC 10049 (October 2026) has since been published as Experimental;
+this isolated test intentionally uses the earlier IETF draft-08 wire
+format and is not an RFC 10049 implementation.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
