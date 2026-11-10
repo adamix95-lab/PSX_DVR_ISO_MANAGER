@@ -161,7 +161,7 @@ The original Cloudflare mini regression workflow was also rechecked:
 
 Download artifact `V12-N3B-TXRYAN-READONLY-ALT`,
 copy **only** `V12_N3B_TXRYAN_RO.ELF` to FAT32 USB and launch from
-wLE-R3Z. Physical DESR test is still **PENDING**.
+wLE-R3Z. Physical DESR-7000 N3B TXRyan test: **PASS (2026-11-10, RET=0 with WEAK NONCE)**.
 Existing experimental `PP.DVRISO12/V12_NET.CNF` must be present. The
 diagnostic runs automatically (no SELECT) and displays its result for
 120 seconds. Report the full screen:
@@ -180,6 +180,52 @@ RFC 10049 (October 2026) has since been published as Experimental;
 this isolated test intentionally uses the earlier IETF draft-08 wire
 format and is not an RFC 10049 implementation.
 
+## Stage N3D — private CSPRNG nonce on FAT32 USB (read-only)
+
+**DESR-7000 N3B TXRyan physical result: PASS (2026-11-10).**
+Observed: `STRICT CRYPTO: PASS (WEAK NONCE)` and `RET=0`.
+This validates TXRyan draft-08 NONC echo, pinned-key Ed25519 signatures
+and Merkle proof on real hardware, **not trusted UTC** because N3B
+still uses predictable xorshift nonce generation.
+
+**N3D hardware probe:** `V12_N3D_TXRYAN_USB_RO.ELF` is independently
+built and excludes the full Manager. It opens `mass0:/N3D.NONCE`
+(fallback `mass:/N3D.NONCE`) read-only after its own USB FAT IRX load,
+requires **exactly 32 raw bytes**, then performs one signed TXRyan
+Roughtime request. No predictable fallback and no timestamp is
+exposed to the RTC, TLS, HTTPS downloader or any other application.
+
+**How to test:**
+
+1. Download the N3D GitHub Actions artifact named
+   `V12-N3D-TXRYAN-USB-NONCE-RO`. Copy only
+   `V12_N3D_TXRYAN_USB_RO.ELF` to your FAT32 USB drive.
+2. On Windows with Python 3 run
+   `py tools/generate_n3d_nonce.py E:/N3D.NONCE`, using your actual
+   drive letter instead of `E:`. The file is generated locally with
+   Python `secrets.token_bytes(32)`; it is never uploaded or embedded
+   into a public binary. Do not generate a text/hex file.
+3. Keep the existing experimental `PP.DVRISO12/V12_NET.CNF` unchanged.
+   Start the test ELF in wLE-R3Z 4.80; no SELECT is needed.
+4. Report the full result. `RET=0` means strictly verified Roughtime
+   with a host-random USB nonce, **still NOT a trusted clock**.
+   `RET=1` means missing NONC (protocol failure). USB errors:
+   `-510` driver, `-511` missing/unmounted nonce file,
+   `-512` incorrect length, `-513` all-zero bytes, `-514` file close.
+5. **Never reuse N3D.NONCE.** Before every repeat test or after a
+   reboot, delete the old USB file and generate a fresh one.
+   The diagnostic never writes to USB/HDD to mark a nonce consumed.
+   Therefore accidental reuse after reboot cannot be automatically
+   detected; this is **not persistent anti-replay protection**.
+
+All storage access by this ELF is read-only; no new partition, RTC
+change, ART write, cover download, game boot, XMB installation or
+change to stable version 1.0. N3E authenticated time and N4 TLS
+certificate validation remain gated on sustainable freshness/replay
+guarantees and independent TLS entropy.
+
+Workflow: `.github/workflows/v1.2-n3d-usb-nonce.yml`.
+Physical N3D test: **PENDING**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
