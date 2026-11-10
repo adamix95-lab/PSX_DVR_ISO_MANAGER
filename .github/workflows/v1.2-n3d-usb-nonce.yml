@@ -1,0 +1,136 @@
+name: N3D TXRyan USB nonce (read-only)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n3d-usb-nonce.yml'
+      - 'dvr-iso-manager/src/v12_n3d_txryan_usb.c'
+      - 'dvr-iso-manager/tools/generate_n3d_nonce.py'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  n3d-usb:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: Host audit: strict TXRyan root, no write path, CSPRNG
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,json,re,subprocess,sys,tempfile
+          s=Path('dvr-iso-manager/src/v12_n3d_txryan_usb.c').read_text()
+          original=Path('dvr-iso-manager/src/v12_n3b_standalone.c').read_text()
+          for forbidden in ('FIO_MT_RDWR','fileXioWrite(','fileXioRemove(',
+                            'fileXioRename(','fileXioFormat(','fileXioDevctl(',
+                            'x^=x<<13','clock() ^','WOLFSSL_VERIFY_NONE'):
+              assert forbidden not in s,forbidden
+          assert 'x^=x<<13' in original
+          for required in ('mass0:/N3D.NONCE','FIO_O_RDONLY',
+                           'got!=32 || extra!=0','NO TRUSTED TIME',
+                           'STRICT CRYPTO: PASS (USB RANDOM NONCE)'):
+              assert required in s,required
+          e=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          server=next(x for x in e['servers'] if x['name']=='time.txryan.com')
+          assert any(a['address']=='time.txryan.com:2002' for a in server['addresses'])
+          root=base64.b64decode(server['publicKey'])
+          content=Path('dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c').read_text()
+          part=content.split('static const uint8_t txryan_root[32]=',1)[1].split('};',1)[0]
+          actual=bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',part))
+          assert root==actual
+          script='dvr-iso-manager/tools/generate_n3d_nonce.py'
+          with tempfile.TemporaryDirectory() as tmp:
+              a,b=Path(tmp)/'a',Path(tmp)/'b'
+              subprocess.run([sys.executable,script,str(a)],check=True)
+              subprocess.run([sys.executable,script,str(b)],check=True)
+              assert len(a.read_bytes())==len(b.read_bytes())==32
+              assert any(a.read_bytes()) and a.read_bytes()!=b.read_bytes()
+              assert subprocess.run([sys.executable,script,str(a)],
+                capture_output=True).returncode!=0
+          print('PASS: pinned identity, read-only nonce, CSPRNG distinct, no overwrite')
+          PY
+      - name: Host Ed25519 and SHA512 negative tests
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-n3d-vector
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py build-n3d-vector/v12_rt_test_vector.h
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include -Ibuild-n3d-vector -Imonocypher-upstream/src -Imonocypher-upstream/src/optional dvr-iso-manager/tests/net/test_v12_roughtime_txryan_sig.c dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c dvr-iso-manager/src/net/v12_roughtime_verify.c dvr-iso-manager/src/net/v12_roughtime_monocypher.c monocypher-upstream/src/monocypher.c monocypher-upstream/src/optional/monocypher-ed25519.c -o /tmp/n3d-crypto
+          /tmp/n3d-crypto
+      - name: Rebuild pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Cross compile isolated N3D TXRyan ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n3d -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_N3B_MINI=ON
+          cmake --build build-n3d --target V12_N3D_TXRYAN_USB_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          elf=Path('build-n3d/V12_N3D_TXRYAN_USB_RO.ELF').read_bytes()
+          assert elf[:4]==bytes((127,69,76,70))
+          assert len(elf)<3500000,len(elf)
+          for marker in (b'N3D USB BOOT - STAGE 0',
+                         b'time.txryan.com',b'N3D.NONCE',
+                         b'STRICT CRYPTO: PASS (USB RANDOM NONCE)',
+                         b'NO TRUSTED TIME: NEVER REUSE NONCE'):
+              assert marker in elf,marker
+          for forbidden in (b'roughtime.cloudflare.com',b'WEAK NONCE',
+                            b'dvr_pfs0:/ISO',b'WOLFSSL_VERIFY_NONE'):
+              assert forbidden not in elf,forbidden
+          print(f'PASS: isolated N3D ELF of {len(elf)} bytes')
+          PY
+      - name: Package N3D read-only artifact (without any nonce)
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses dist/monocypher/src/optional
+          cp build-n3d/V12_N3D_TXRYAN_USB_RO.ELF dist/
+          cp dvr-iso-manager/tools/generate_n3d_nonce.py dist/tools/
+          cp dvr-iso-manager/src/v12_n3d_txryan_usb.c dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c dvr-iso-manager/src/net/v12_roughtime_verify.c dvr-iso-manager/src/net/v12_roughtime_wire.c dvr-iso-manager/src/net/v12_roughtime_monocypher.c dist/source/
+          cp monocypher-upstream/src/monocypher.c monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c monocypher-upstream/src/optional/monocypher-ed25519.h dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat > dist/README-N3D.txt <<'EOF'
+          N3D TXRyan USB nonce diagnostic (READ-ONLY, no trusted UTC or HTTPS)
+          1. Copy V12_N3D_TXRYAN_USB_RO.ELF to FAT32 USB.
+          2. On your PC: py tools/generate_n3d_nonce.py E:/N3D.NONCE
+             Replace E: with actual USB letter. Never reuse this file.
+          3. Keep PP.DVRISO12/V12_NET.CNF; launch through wLE-R3Z 4.80.
+          4. RET=0 strict crypto with random USB nonce; NOT TRUSTED UTC.
+          5. -510 USB driver, -511 missing file, -512 wrong size,
+             -513 zero nonce, -514 failed close. No weak RNG fallback.
+          6. ALWAYS remove old N3D.NONCE and generate a NEW one before EVERY run.
+          7. No HDD/RTC/USB/PFS writes, no cover download, no XMB install.
+          EOF
+          test ! -e dist/N3D.NONCE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3D-TXRYAN-USB-NONCE-RO
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
