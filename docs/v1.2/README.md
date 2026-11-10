@@ -271,10 +271,30 @@ write, flush, readback and power-failure behavior; the seed must never
 be committed to the public repository or logged in diagnostics.
 There is no claim of authenticated live time or TLS yet.
 
-### N3C PFS physical write/verify probe — READY FOR DESR-7000
+### N3C PFS physical write/verify probe — PASS ON DESR-7000
 
 **Static safety tests: PASS. PS2 EE WRITE_ONCE + VERIFY_RO builds: PASS.
-Physical console: NOT YET TESTED.**
+Physical console: PASS (normal-reboot readback; NOT power-loss durability).**
+
+Physical hardware results, reported by the DESR-7000 tester (2026-11-10):
+- **TEST A**, `V12_N3C_PFS_VERIFY_RO.ELF` before first write:
+  `N3C PFS RESULT: FAIL (code -407)`. This is the EXPECTED
+  missing-record outcome and is therefore a **PASS for preflight**.
+- **TEST B**, `V12_N3C_PFS_WRITE_ONCE.ELF`, run once:
+  `fileXioSync=0` and
+  `JOURNAL VERIFIED: SLOT1 GEN=2 COUNT=1001`.
+  The final `N3C PFS RESULT` line was NOT visible/reported,
+  so the writer's final unmount status is **not independently proven**.
+  Dummy-file write, sync and immediate RO readback are confirmed.
+- **TEST C**, after normal console restart, `V12_N3C_PFS_VERIFY_RO.ELF`:
+  `N3C PFS RESULT: PASS (code 0)`.
+  This verifies both synthetic journal slots could be decoded and checked
+  via an isolated **read-only mount after a normal restart**.
+
+No seed/secret was created, and neither the test nor its results imply
+crash-atomic persistence, rollback protection, a secure nonce, trusted
+Roughtime time or HTTPS. **Do not rerun WRITE_ONCE** with these files
+present.
 
 [GitHub Actions run 42575103152](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42575103152)
 contains artifact `V12-N3C-PFS-TEST-PP.DVRISO12`. It bundles two
@@ -315,11 +335,15 @@ reserved nonce counter, inverted counter, CRC32 and end marker.
   — **PASS**, including 512 single-bit corruptions, contradictory
   slots, invalid versions and fail-closed behavior.
 
-The journal is a **pure in-memory encoding/selection library**.
-It has not been linked into the Manager or used to write a PSX disk.
-Next, a dedicated `PP.DVRISO12` PFS diagnostic can test durability
-using **dummy records without secret material**; only after those
-physical tests should a provisioning process be considered.
+The journal encoding/selection library is pure in-memory and is
+exercised by the standalone N3C PFS diagnostic; the **synthetic 64-byte
+records have now passed hardware readback after a normal reboot**.
+The journal and nonce-reservation state machine are **not integrated
+into the Manager or any live Roughtime/TLS client**. Actual power-loss
+atomicity and restoration of older HDD snapshots remain unproven.
+Next steps: audit a fail-closed PFS persistence adapter, design
+one-time CSPRNG seed provisioning and test the authenticated
+Roughtime/TLS bootstrap without relaxing certificate verification.
 
 ### Strong nonce design prototype — not yet deployed
 
