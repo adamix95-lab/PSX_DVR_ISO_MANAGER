@@ -151,8 +151,17 @@ The alternative ELF uses the N3C-proven RO PFS/IOP initialization and
 NETFIX network path, but **never mounts PFS RW**. No game boot, artwork
 downloads, HTTP/TLS, RTC writes or APA operations.
 
-**After CI success**, download artifact `V12-N3B-TXRYAN-READONLY-ALT`,
-copy only `V12_N3B_TXRYAN_RO.ELF` to FAT32 USB, launch from wLE-R3Z.
+**CI PASS:** [TXRyan alternate probe run 42902009176](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42902009176).
+The pinned server root, host wrong-root/tampering tests, source read-only
+contract and PS2 cross-build all passed. The isolated ELF is
+**2,582,124 bytes**, and the Actions artifact is
+`V12-N3B-TXRYAN-READONLY-ALT`.
+The original Cloudflare mini regression workflow was also rechecked:
+[run 42902009114](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42902009114) **PASS**.
+
+Download artifact `V12-N3B-TXRYAN-READONLY-ALT`,
+copy **only** `V12_N3B_TXRYAN_RO.ELF` to FAT32 USB and launch from
+wLE-R3Z. Physical DESR test is still **PENDING**.
 Existing experimental `PP.DVRISO12/V12_NET.CNF` must be present. The
 diagnostic runs automatically (no SELECT) and displays its result for
 120 seconds. Report the full screen:
