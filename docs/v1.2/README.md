@@ -130,6 +130,46 @@ bootstrap automatically as a first step of the future HTTPS download
 workflow (not at every Manager startup, to avoid offline startup hangs).
 The manual SQUARE action remains useful for diagnostics.
 
+## N3B-LIVE-SIG — signature of a real Cloudflare Roughtime reply
+
+An **independent, opt-in, read-only** experimental Manager executable
+`DVR_ISO_MANAGER_V12_N3B_LIVE.ELF` combines the N3A UDP/2003 transport
+already tested on DESR-7000 with the Monocypher Ed25519/SHA-512 backend
+which passed hardware verification in N3B-OFFLINE. It pins the **public**
+Cloudflare-Roughtime-2 root key from the upstream `ecosystem.json`,
+verifies root-signed delegation, online response signature, MIDP range,
+nonce equality and SHA-512/32 Merkle inclusion, and rejects a wrong root
+or mismatched nonce.
+
+**CRITICAL: signature PASS is NOT trusted time.** The N3A request nonce
+is derived from predictable local state; it has not been replaced with a
+secure, crash-safe provisioned nonce. An adversary could potentially
+replay a previously signed response. Therefore the live diagnostic
+intentionally does **not** expose its timestamp to TLS, RTC or other
+application logic. This test performs **no HTTPS, PNG transfer, disk
+write or game launch**.
+
+Build and host checks are run by
+[the dedicated GitHub Actions workflow](../../.github/workflows/v1.2-n3b-live-sig.yml).
+After a **successful** workflow run, download the
+`V12-N3B-LIVE-SIG-READONLY` artifact (NOT the ordinary 1.2 Manager).
+Place only `DVR_ISO_MANAGER_V12_N3B_LIVE.ELF` on FAT32 USB, launch
+through wLE-R3Z, reuse existing `PP.DVRISO12/V12_NET.CNF`, and
+press **SELECT**. Expected diagnostic:
+
+```text
+PSX DVR ISO MANAGER 1.2 - N3B LIVE SIG
+LIVE SIGNATURE RESULT: PASS (crypto only) (0)
+NO TRUSTED TIME: weak/replayable nonce.
+NO TLS, ART, PFS OR RTC WRITES.
+```
+
+Photograph the full screen. Use CIRCLE to return to the list. This
+probe remains **UNTESTED on physical DESR hardware** until actual
+feedback is received. If any error occurs, report the full result
+code (`-327` indicates signature rejection; `-326` invalid frame).
+Do not interpret `PASS` as sufficient for native HTTPS.
+
 ## Stage N3B-OFFLINE — cryptographic self-test (PASS ON HARDWARE)
 
 **Host runtime: PASS. PS2 EE build: PASS. Physical DESR-7000: PASS (code 0).**
