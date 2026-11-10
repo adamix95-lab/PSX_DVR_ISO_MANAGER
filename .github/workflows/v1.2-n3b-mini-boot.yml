@@ -1,0 +1,118 @@
+name: N3B minimal standalone boot/network diagnostic (read-only)
+
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - 'dvr-iso-manager/src/v12_n3b_standalone.c'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - '.github/workflows/v1.2-n3b-mini-boot.yml'
+      - 'dvr-iso-manager/src/net/v12_roughtime_live_sig.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_verify.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_monocypher.c'
+      - 'dvr-iso-manager/src/net/v12_roughtime_wire.c'
+      - 'dvr-iso-manager/src/net/v12_net_config.c'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  minimal-boot:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: apk add --no-cache cmake build-base python3 bash git patch binutils
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - name: Fail-closed source safety policy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("dvr-iso-manager/src/v12_n3b_standalone.c").read_text()
+          for bad in ("FIO_MT_RDWR","fileXioWrite(","fileXioFormat(",
+                      "fileXioRemove(","fileXioDevctl(","fileXioRename(",
+                      "dvr_pfs0:/ISO", "PP.DVRISO/BOOT.CNF"):
+              assert bad not in s,bad
+          for expected in ("FIO_MT_RDONLY", "N3B MINI BOOT - STAGE 0",
+                           "STAGE 1: reset IOP","STAGE 2: HDD / PFS IRX",
+                           "STAGE 3: PFS read-only config","STAGE 4: NETMAN / SMAP",
+                           "STAGE 5: UDP/2003","STAGE 6: Ed25519 / SHA512"):
+              assert expected in s,expected
+          print("PASS: no writes, no manager boot, visible stage markers")
+          PY
+      - name: Rebuild pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Compile minimal N3B and full Manager for binary-size comparison
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n3b-minimal \
+            -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_N3B_MINI=ON \
+            -DDESR_V12_ROUGHTIME_LIVE_DIAG=ON
+          cmake --build build-n3b-minimal --target V12_N3B_MINI_RO.ELF -j2
+          cmake --build build-n3b-minimal --target DVR_ISO_MANAGER_V12_N3B_LIVE.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          mini=Path("build-n3b-minimal/V12_N3B_MINI_RO.ELF").read_bytes()
+          full=Path("build-n3b-minimal/DVR_ISO_MANAGER_V12_N3B_LIVE.ELF").read_bytes()
+          assert mini.startswith(b'\x7fELF')
+          assert full.startswith(b'\x7fELF')
+          assert len(mini)<len(full),(len(mini),len(full))
+          for marker in (b"N3B MINI BOOT - STAGE 0",b"STAGE 1: reset IOP",
+                         b"STAGE 2: HDD / PFS IRX",b"STAGE 3: PFS read-only config",
+                         b"STAGE 4: NETMAN / SMAP",b"STAGE 5: UDP/2003",
+                         b"STAGE 6: Ed25519 / SHA512"):
+              assert marker in mini,marker
+          for forbidden in (b"hdd0:PP.DVRISO/BOOT.CNF",b"dvr_pfs0:/ISO",
+                            b"WOLFSSL_VERIFY_NONE"):
+              assert forbidden not in mini,forbidden
+          print(f"PASS: MINIMAL={len(mini)} bytes vs FULL={len(full)} bytes")
+          PY
+          readelf -l build-n3b-minimal/V12_N3B_MINI_RO.ELF
+          readelf -l build-n3b-minimal/DVR_ISO_MANAGER_V12_N3B_LIVE.ELF
+      - name: Upload small diagnostic with source and license
+        run: |
+          set -eu
+          mkdir -p dist/source dist/licenses dist/monocypher/src/optional
+          cp build-n3b-minimal/V12_N3B_MINI_RO.ELF dist/
+          cp dvr-iso-manager/src/v12_n3b_standalone.c dist/source/
+          cp dvr-iso-manager/src/net/v12_net_config.c \
+            dvr-iso-manager/src/net/v12_roughtime_wire.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_live_sig.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c dist/source/
+          cp monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.h \
+            dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          printf '%s\n' \
+            'N3B MINI RO DIAGNOSTIC — DO NOT INSTALL INTO XMB' \
+            'Standalone: no Manager UI, no game browser, no ART writes.' \
+            'Run ONLY V12_N3B_MINI_RO.ELF from FAT32 USB via wLE-R3Z.' \
+            'Uses existing PP.DVRISO12/V12_NET.CNF, mounted read-only.' \
+            'Shows staged boot and network/Ed25519 results automatically.' \
+            'No button is needed; final screen holds for 120 seconds.' \
+            'Expected: RET=1 means signed response omits NONC (NOT trusted).' \
+            'FAIL reports stage code; do not retry WRITE_ONCE from N3C.' \
+            'Not HTTPS. No secure entropy, RTC updates or disk writes.' \
+            > dist/README-N3B-MINI.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3B-MINI-READONLY-BOOTFIX
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
