@@ -158,8 +158,15 @@ screen remains visible for 120 seconds. Error codes: -502 IOP/module,
 time. `RET=0` is strict signed-response verification with the
 still-insecure diagnostic nonce, also NOT a trusted clock.
 
-Build: [N3B minimal boot workflow](../../.github/workflows/v1.2-n3b-mini-boot.yml),
-artifact (only after CI PASS) `V12-N3B-MINI-READONLY-BOOTFIX`.
+**CI PASS:** [N3B minimal boot workflow — run 42769359257](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42769359257),
+artifact `V12-N3B-MINI-READONLY-BOOTFIX`, containing
+`V12_N3B_MINI_RO.ELF`. The build compiles against the pinned
+hardware-tested NETFIX SDK, checks read-only source isolation, and
+compares ELF layouts: **minimal 2,582,008 bytes** versus
+**full N3B Manager 4,235,296 bytes** (39% reduction). This is
+strong evidence that the previous binary carried substantially more
+code and embedded modules, **not proof of the freeze cause**.
+The new MINI executable is still **UNTESTED on DESR hardware**.
 Launch the dedicated ELF from FAT32 USB via wLE-R3Z.
 It will run without pressing SELECT and reuse
 `PP.DVRISO12/V12_NET.CNF` in read-only mode. No RTC changes,
