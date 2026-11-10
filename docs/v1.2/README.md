@@ -225,6 +225,7 @@ change to stable version 1.0. N3E authenticated time and N4 TLS
 certificate validation remain gated on sustainable freshness/replay
 guarantees and independent TLS entropy.
 
+**N3D CI: PASS (2026-11-10)** — [GitHub Actions run 42908977872](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42908977872), artifact `V12-N3D-TXRYAN-USB-NONCE-RO`. Isolated ELF size: **2,664,476 bytes**. Host pinned-key, nonce generator overwrite/uniqueness, Ed25519 negative tests, NETFIX PS2SDK cross-compilation, and no-write markers all passed. The build PASS does **not** prove USB/FAT IOP initialization or Roughtime execution on hardware.
 Workflow: `.github/workflows/v1.2-n3d-usb-nonce.yml`.
 Physical N3D test: **PENDING**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
