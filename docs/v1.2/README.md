@@ -141,8 +141,9 @@ To avoid weakening the protocol, a second dedicated
 `V12_N3B_TXRYAN_RO.ELF` uses `time.txryan.com:2002`, whose
 independently published **Ed25519 public key** is pinned (verified against
 `cloudflare/roughtime/ecosystem.json` in CI). The server reports support
-for old IETF Roughtime drafts including draft-08. This is a compatibility
-hypothesis, **not yet validated on the physical DESR-7000**.
+for old IETF Roughtime drafts including draft-08. This compatibility
+**was confirmed on physical DESR-7000 (2026-11-10, RET=0)**; the nonce
+remains weak, and no trusted time is established.
 
 Source: `src/v12_n3b_standalone.c` with `V12_N3B_TXRYAN` build flag,
 `src/net/v12_roughtime_txryan_sig.c` and
