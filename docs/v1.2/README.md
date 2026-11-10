@@ -149,10 +149,12 @@ intentionally does **not** expose its timestamp to TLS, RTC or other
 application logic. This test performs **no HTTPS, PNG transfer, disk
 write or game launch**.
 
-Build and host checks are run by
-[the dedicated GitHub Actions workflow](../../.github/workflows/v1.2-n3b-live-sig.yml).
-After a **successful** workflow run, download the
-`V12-N3B-LIVE-SIG-READONLY` artifact (NOT the ordinary 1.2 Manager).
+**CI PASS:** [GitHub Actions run 42726532384](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42726532384)
+completed successfully: production root-key pin, host Ed25519
+fixture/negative tests and independent PS2 NETFIX cross-build.
+
+Download its `V12-N3B-LIVE-SIG-READONLY` artifact from the Actions
+page (NOT the ordinary 1.2 Manager).
 Place only `DVR_ISO_MANAGER_V12_N3B_LIVE.ELF` on FAT32 USB, launch
 through wLE-R3Z, reuse existing `PP.DVRISO12/V12_NET.CNF`, and
 press **SELECT**. Expected diagnostic:
