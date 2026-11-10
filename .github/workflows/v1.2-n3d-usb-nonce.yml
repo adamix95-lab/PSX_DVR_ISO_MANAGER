@@ -34,7 +34,7 @@ jobs:
           repository: cloudflare/roughtime
           ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
           path: roughtime-upstream
-      - name: Host audit: strict TXRyan root, no write path, CSPRNG
+      - name: "Host audit: strict TXRyan root, no write path, CSPRNG"
         shell: sh
         run: |
           set -eu
