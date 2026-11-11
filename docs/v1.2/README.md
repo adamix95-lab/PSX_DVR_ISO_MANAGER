@@ -246,6 +246,64 @@ Do NOT use this test as a TLS certificate clock or claim that native
 HTTPS / cover downloading is implemented. For N3E, first specify and
 test replay resistance, time uncertainty/monotonicity policy and
 independent strong entropy for TLS while preserving RO/1.0 isolation.
+## Stage N3E — signed UTC interval diagnostic (read-only)
+
+**Prerequisite confirmed: N3D on physical DESR-7000 (2026-11-11):**
+`STRICT CRYPTO: PASS (USB RANDOM NONCE)`, `RET=0`.
+N3E is a separate test binary, **not an upgrade to production Manager 1.0**.
+
+The isolated `V12_N3E_TXRYAN_UTC_RO.ELF` reuses the N3D-proven
+read-only PFS/IOP, FAT32 USB and NETFIX transport path. It demands a
+**new, privately generated, 32-byte USB nonce in `N3E.NONCE`**.
+Only the fully strict IETF draft-08 TXRyan response (pinned root,
+delegation, response signature, echoed NONC and Merkle inclusion) can
+provide the signed `MIDP` and `RADI`. Missing NONC is a hard error;
+there is no forensic fallback.
+
+N3E displays the signed **Unix UTC seconds** as
+`YYYY-MM-DD HH:MM:SS`, the signed radius (seconds), and lower/upper
+bounds of the server-asserted time interval. The separate, pure
+host-testable formatter rejects timestamps outside 2020–2099,
+zero/overlarge radius (must be 1–300 seconds), overflow and bounds
+that exceed the supported dates. Such failures are `-515`.
+This check is a conservative diagnostic policy, **not** evidence of
+secure freshness, bounded network delay, safe monotonic time or TLS
+entropy. Per IETF draft-08, `MIDP` and `RADI` are in *seconds*;
+do not apply an obsolete microsecond-based Roughtime conversion.
+
+Hardware procedure:
+
+1. Download `V12-N3E-TXRYAN-UTC-READONLY` from the independent N3E
+   Actions workflow. For simpler retrieval, the workflow also tries
+   to publish the ELF under `test/n3e-direct-download/diagnostics/n3e/`.
+   Use the direct-download branch **only after checking the file exists**.
+2. Put `V12_N3E_TXRYAN_UTC_RO.ELF` on FAT32 USB. In Windows with
+   Python 3, generate a **new** private 32-byte file using
+   `py tools/generate_n3d_nonce.py E:/N3E.NONCE`
+   (replace `E:` with the actual drive letter).
+   The generator refuses to overwrite. **Remove the previous file and
+   generate a new one before EVERY attempt, including after reboot.**
+   Never share or commit the nonce.
+3. Keep `PP.DVRISO12/V12_NET.CNF` unchanged, launch ELF using
+   wLE-R3Z 4.80; it runs automatically.
+4. Record full screen: `UTC MIDP`, `RADI`, `UTC LOW`, `UTC HIGH`,
+   and `RET`. `RET=0` means a cryptographically verified *signed UTC
+   interval for this diagnostic request*, **not a trusted TLS clock**.
+   `-508` means strict signature/protocol rejection; `-515` means
+   unacceptable time/radius; USB error codes `-510..-514` are
+   inherited from N3D.
+
+**Security boundary:** N3E never sets RTC, TLS time, or changes any
+disk data. It does not download covers or launch games. The USB nonce
+can still be reused after reboot; the test cannot automatically prevent
+replay across separate executions. Before enabling wolfSSL certificate
+validation, we must specify durable nonce/freshness requirements,
+bounded age/uncertainty, verified CA/hostname and *independent* strong
+TLS handshake randomness. Do not interpret an N3E PASS as native HTTPS.
+
+Workflow: `.github/workflows/v1.2-n3e-signed-utc.yml`.
+Physical N3E: **PENDING**.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
