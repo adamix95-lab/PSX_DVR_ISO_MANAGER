@@ -1,0 +1,193 @@
+name: N3E TXRyan signed UTC diagnostic (read-only)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n3e-signed-utc.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n3e_txryan_usb.c'
+      - 'dvr-iso-manager/src/net/v12_n3e_txryan.c'
+      - 'dvr-iso-manager/src/net/v12_n3e_utc.c'
+      - 'dvr-iso-manager/include/v12_n3e_txryan.h'
+      - 'dvr-iso-manager/include/v12_n3e_utc.h'
+      - 'dvr-iso-manager/tests/net/test_v12_n3e_utc.c'
+      - 'dvr-iso-manager/tests/net/test_v12_n3e_txryan.c'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n3e-strict-utc:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: "Audit N3E: root pin, fail closed, read-only isolation, one-use nonce"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,json,re,subprocess,sys,tempfile
+          src=Path('dvr-iso-manager/src/v12_n3e_txryan_usb.c').read_text()
+          policy=Path('dvr-iso-manager/src/net/v12_n3e_txryan.c').read_text()
+          earlier=Path('dvr-iso-manager/src/v12_n3d_txryan_usb.c').read_text()
+          assert 'STRICT CRYPTO: PASS (USB RANDOM NONCE)' in earlier
+          for banned in ('fileXioWrite(', 'fileXioRemove(', 'fileXioFormat(',
+                         'fileXioRename(', 'fileXioDevctl(', 'FIO_MT_RDWR',
+                         'x^=x<<13', 'clock() ^', 'WOLFSSL_VERIFY_NONE',
+                         'v12_rt_diagnostic_missing_nonce_echo('):
+              assert banned not in src,banned
+              assert banned not in policy,banned
+          for required in ('mass0:/N3E.NONCE', 'FIO_O_RDONLY',
+                           'v12_n3e_txryan_strict(', 'NOT TRUSTED FOR TLS',
+                           'NO TLS / COVER / PFS WRITES / RTC',
+                           'STRICT SIGNED UTC: PASS (DIAGNOSTIC)'):
+              assert required in src,required
+          data=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          srv=next(s for s in data['servers'] if s['name']=='time.txryan.com')
+          assert any(a['address']=='time.txryan.com:2002' for a in srv['addresses'])
+          expected=base64.b64decode(srv['publicKey'])
+          def pin(path,marker):
+              s=Path(path).read_text().split(marker,1)[1].split('};',1)[0]
+              return bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',s))
+          assert len(expected)==32
+          assert pin('dvr-iso-manager/src/net/v12_n3e_txryan.c','static const uint8_t pinned_root[32]=')==expected
+          assert pin('dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c','static const uint8_t txryan_root[32]=')==expected
+          with tempfile.TemporaryDirectory() as td:
+              dst=Path(td)/'N3E.NONCE'
+              script='dvr-iso-manager/tools/generate_n3d_nonce.py'
+              subprocess.run([sys.executable,script,str(dst)],check=True)
+              assert len(dst.read_bytes())==32 and any(dst.read_bytes())
+              assert subprocess.run([sys.executable,script,str(dst)],capture_output=True).returncode!=0
+          print('PASS: independent pinned root, strict-only, READ-ONLY, no reused nonce generator fallback')
+          PY
+      - name: Host pure UTC positive and negative tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/tests/net/test_v12_n3e_utc.c \
+            dvr-iso-manager/src/net/v12_n3e_utc.c \
+            -o /tmp/n3e-utc
+          /tmp/n3e-utc
+      - name: Host crypto strict-only and negative fixtures
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-n3e-vector
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py build-n3e-vector/v12_rt_test_vector.h
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include -Ibuild-n3e-vector \
+            -Imonocypher-upstream/src -Imonocypher-upstream/src/optional \
+            dvr-iso-manager/tests/net/test_v12_n3e_txryan.c \
+            dvr-iso-manager/src/net/v12_n3e_txryan.c \
+            dvr-iso-manager/src/net/v12_n3e_utc.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c \
+            -o /tmp/n3e-crypto
+          /tmp/n3e-crypto
+      - name: Rebuild pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build isolated N3E signed UTC diagnostic ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n3e \
+            -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_N3B_MINI=ON
+          cmake --build build-n3e --target V12_N3E_TXRYAN_UTC_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          elf=Path('build-n3e/V12_N3E_TXRYAN_UTC_RO.ELF').read_bytes()
+          assert elf[:4]==bytes((127,69,76,70))
+          assert len(elf)<3500000,len(elf)
+          for marker in (b'N3E UTC BOOT - STAGE 0', b'time.txryan.com',
+                         b'N3E.NONCE', b'STRICT SIGNED UTC: PASS (DIAGNOSTIC)',
+                         b'UTC MIDP:', b'RADI:', b'NOT TRUSTED FOR TLS'):
+              assert marker in elf,marker
+          for banned in (b'roughtime.cloudflare.com',b'WEAK NONCE',
+                         b'dvr_pfs0:/ISO',b'WOLFSSL_VERIFY_NONE'):
+              assert banned not in elf,banned
+          print(f'PASS: isolated N3E ELF, {len(elf)} bytes')
+          PY
+      - name: Bundle test ELF and sources, never nonce file
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses dist/monocypher/src/optional
+          cp build-n3e/V12_N3E_TXRYAN_UTC_RO.ELF dist/
+          cp dvr-iso-manager/tools/generate_n3d_nonce.py dist/tools/
+          cp dvr-iso-manager/src/v12_n3e_txryan_usb.c \
+             dvr-iso-manager/src/net/v12_n3e_txryan.c \
+             dvr-iso-manager/src/net/v12_n3e_utc.c \
+             dvr-iso-manager/src/net/v12_roughtime_verify.c \
+             dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+             dvr-iso-manager/src/net/v12_roughtime_wire.c dist/source/
+          cp monocypher-upstream/src/monocypher.c monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+             monocypher-upstream/src/optional/monocypher-ed25519.h \
+             dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat > dist/README-N3E.txt <<'EOF'
+          N3E TXRyan signed UTC diagnostic, strictly READ ONLY; NOT TLS READY.
+          1. Copy V12_N3E_TXRYAN_UTC_RO.ELF to FAT32 USB.
+          2. Generate PRIVATE FRESH nonce per attempt on Windows with Python 3:
+             py tools/generate_n3d_nonce.py E:/N3E.NONCE
+             Replace E: with your USB drive letter; old file must be deleted.
+          3. Keep existing PP.DVRISO12/V12_NET.CNF, run ELF from wLE-R3Z 4.80.
+          4. Photograph signed UTC MIDP, radius, lower/upper and RET.
+          5. RET=0: verified server-signed UTC interval (DIAGNOSTIC only).
+          6. -508: signature/protocol fail; -515: signed-time policy fail.
+          7. NEVER reuse N3E.NONCE, including after reboot.
+          8. No trusted TLS time, TLS entropy, HTTPS, covers, RTC or disk writes.
+          EOF
+          test ! -e dist/N3E.NONCE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N3E-TXRYAN-UTC-READONLY
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish only ELF and generator to direct-download test branch
+        shell: sh
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n3e-direct-download:refs/remotes/origin/test/n3e-direct-download"
+          git worktree add --detach /tmp/n3e-direct origin/test/n3e-direct-download
+          git config --global --add safe.directory /tmp/n3e-direct
+          cd /tmp/n3e-direct
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n3e
+          cp "$GITHUB_WORKSPACE/build-n3e/V12_N3E_TXRYAN_UTC_RO.ELF" diagnostics/n3e/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/tools/generate_n3d_nonce.py" diagnostics/n3e/
+          cp "$GITHUB_WORKSPACE/dist/README-N3E.txt" diagnostics/n3e/README.txt
+          sha256sum diagnostics/n3e/V12_N3E_TXRYAN_UTC_RO.ELF > diagnostics/n3e/SHA256SUMS
+          git add diagnostics/n3e/V12_N3E_TXRYAN_UTC_RO.ELF \
+                  diagnostics/n3e/generate_n3d_nonce.py \
+                  diagnostics/n3e/README.txt diagnostics/n3e/SHA256SUMS
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n3e): publish strict signed UTC read-only ELF"
+            git push origin "HEAD:refs/heads/test/n3e-direct-download"
+          fi
