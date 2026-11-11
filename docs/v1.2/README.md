@@ -227,7 +227,25 @@ guarantees and independent TLS entropy.
 
 **N3D CI: PASS (2026-11-10)** — [GitHub Actions run 42908977872](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/42908977872), artifact `V12-N3D-TXRYAN-USB-NONCE-RO`. Isolated ELF size: **2,664,476 bytes**. Host pinned-key, nonce generator overwrite/uniqueness, Ed25519 negative tests, NETFIX PS2SDK cross-compilation, and no-write markers all passed. The build PASS does **not** prove USB/FAT IOP initialization or Roughtime execution on hardware.
 Workflow: `.github/workflows/v1.2-n3d-usb-nonce.yml`.
-Physical N3D test: **PENDING**.
+**Physical N3D test: PASS (DESR-7000, 2026-11-11; user-reported).**
+Observed on console:
+
+```text
+STRICT CRYPTO: PASS (USB RANDOM NONCE)
+NO TRUSTED TIME: NEVER REUSE NONCE
+RET = 0
+```
+
+This validates that the read-only USB-supplied nonce path, NETFIX UDP
+transport to TXRyan, and strict draft-08 signature/nonce/Merkle
+checks completed on physical DESR hardware. The nonce was supplied
+from a file produced by the host CSPRNG generator. **This is still
+not a trusted time source:** the program does not enforce nonce
+single-use across runs/reboots, nor supply authenticated UTC to TLS.
+Do NOT use this test as a TLS certificate clock or claim that native
+HTTPS / cover downloading is implemented. For N3E, first specify and
+test replay resistance, time uncertainty/monotonicity policy and
+independent strong entropy for TLS while preserving RO/1.0 isolation.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
