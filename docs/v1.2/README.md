@@ -301,8 +301,26 @@ validation, we must specify durable nonce/freshness requirements,
 bounded age/uncertainty, verified CA/hostname and *independent* strong
 TLS handshake randomness. Do not interpret an N3E PASS as native HTTPS.
 
+**N3E CI confirmed PASS (2026-11-11):** [run 43100820517](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43100820517).
+Host root-pin/RO checks, UTC/radius positive and negative tests,
+cryptographic negative fixtures, NETFIX SDK rebuild and PS2 EE build
+passed. The workflow also successfully published a direct-download copy:
+
+- [N3E ELF — direct RAW download](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n3e-direct-download/diagnostics/n3e/V12_N3E_TXRYAN_UTC_RO.ELF)
+- [Local nonce generator](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n3e-direct-download/diagnostics/n3e/generate_n3d_nonce.py)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n3e-direct-download/diagnostics/n3e/SHA256SUMS)
+
+ELF size: **2,665,480 bytes**.
+SHA-256: `c58273749325fda0e2a536c4b4a2523ea235ac272fcc650a0128365a9a3b2524`.
+The generator name still includes `n3d` because it is deliberately
+reused to create `N3E.NONCE`; specify the N3E filename on invocation.
+No nonce file is ever committed. The direct-download branch is solely
+a test file distribution mechanism; it is NOT a 1.2 release.
+
 Workflow: `.github/workflows/v1.2-n3e-signed-utc.yml`.
-Physical N3E: **PENDING**.
+**Physical N3E: PENDING** — do not confuse CI cross-compilation with a
+physical console test.
+
 
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
