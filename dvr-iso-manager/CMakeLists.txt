@@ -293,5 +293,27 @@ if(DESR_V12_N3B_MINI)
   target_compile_options(V12_N3D_TXRYAN_USB_RO.ELF PRIVATE -Os -Wall -Wextra)
   target_link_options(V12_N3D_TXRYAN_USB_RO.ELF PRIVATE
     "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3D_TXRYAN_USB_RO.map")
+  # N3E read-only signed UTC diagnostic, using the physical N3D boot/USB path.
+  # Time remains diagnostic in RAM only; no wolfSSL clock or RTC writes.
+  add_executable(V12_N3E_TXRYAN_UTC_RO.ELF EXCLUDE_FROM_ALL
+    src/v12_n3e_txryan_usb.c
+    src/net/v12_net_config.c
+    src/net/v12_roughtime_wire.c
+    src/net/v12_roughtime_verify.c
+    src/net/v12_n3e_txryan.c
+    src/net/v12_n3e_utc.c
+    src/net/v12_roughtime_monocypher.c
+    "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+    ${N3D_USB_IRX})
+  target_include_directories(V12_N3E_TXRYAN_UTC_RO.ELF PRIVATE include
+    "$ENV{V12_MONOCYPHER_SRC}/src"
+    "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+  target_link_libraries(V12_N3E_TXRYAN_UTC_RO.ELF PRIVATE
+    fileXio cdvd patches ps2ip netman libdebug.a m)
+  target_compile_options(V12_N3E_TXRYAN_UTC_RO.ELF PRIVATE -Os -Wall -Wextra)
+  target_link_options(V12_N3E_TXRYAN_UTC_RO.ELF PRIVATE
+    "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N3E_TXRYAN_UTC_RO.map")
+
 
 endif()
