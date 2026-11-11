@@ -10,7 +10,7 @@ on:
       - 'dvr-iso-manager/src/net/v12_roughtime_txryan_sig.c'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   n3d-usb:
     runs-on: ubuntu-latest
@@ -134,3 +134,43 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 30
+      - name: Publish ELF directly to dedicated test branch
+        shell: sh
+        run: |
+          set -eu
+          # Publish only the verified executable and a helper; never copy
+          # local N3D.NONCE or alter main, stable 1.0, or XMB installers.
+          test -f build-n3d/V12_N3D_TXRYAN_USB_RO.ELF
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n3d-direct-download:refs/remotes/origin/test/n3d-direct-download"
+          git worktree add --detach /tmp/n3d-direct origin/test/n3d-direct-download
+          git config --global --add safe.directory /tmp/n3d-direct
+          cd /tmp/n3d-direct
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n3d
+          cp "$GITHUB_WORKSPACE/build-n3d/V12_N3D_TXRYAN_USB_RO.ELF" diagnostics/n3d/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/tools/generate_n3d_nonce.py" diagnostics/n3d/
+          cat > diagnostics/n3d/README.txt <<'EOF'
+          PSX DVR ISO MANAGER 1.2 N3D TXRyan USB nonce probe
+          READ-ONLY DIAGNOSTIC, NOT A RELEASE; NO TRUSTED UTC OR HTTPS
+          - Download V12_N3D_TXRYAN_USB_RO.ELF directly from this branch.
+          - Place ELF on FAT32 USB; keep existing PP.DVRISO12/V12_NET.CNF.
+          - On Windows with Python 3: py generate_n3d_nonce.py E:/N3D.NONCE
+            Replace E: with FAT32 pendrive's correct drive letter.
+          - N3D.NONCE must be exactly 32 raw random bytes; keep it private.
+          - Boot ELF through wLE-R3Z 4.80, report the on-screen RET code.
+          - New PC-generated nonce REQUIRED for EVERY attempt; never reuse.
+          - ELF does not write to HDD, RTC, PFS, USB, APA, or XMB.
+          - No XMB installation, game boot, TLS or artwork downloading.
+          - RET=0 checks strict signatures and Merkle with USB random nonce;
+            NOT trusted UTC: this one-use discipline is NOT enforced on reboot.
+          EOF
+          sha256sum diagnostics/n3d/V12_N3D_TXRYAN_USB_RO.ELF > diagnostics/n3d/SHA256SUMS
+          git add diagnostics/n3d/V12_N3D_TXRYAN_USB_RO.ELF \
+            diagnostics/n3d/generate_n3d_nonce.py diagnostics/n3d/README.txt \
+            diagnostics/n3d/SHA256SUMS
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n3d): publish read-only TXRyan ELF for direct download"
+            git push origin "HEAD:refs/heads/test/n3d-direct-download"
+          fi
