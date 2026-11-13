@@ -31,6 +31,8 @@ jobs:
           test -s "$PS2SDK/ports/lib/libwolfssl.a"
           # Keep stock wolfSSL untouched; use separate PREFIX and build.
           prefix="$GITHUB_WORKSPACE/n4b-wolfssl-install"
+          # Use the same CFLAGS escaping convention as ps2sdk-ports.
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0'
           cmake -S wolfssl-n4b -B build-n4b-wolfssl \
             -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
             -DCMAKE_INSTALL_PREFIX="$prefix" \
@@ -40,8 +42,7 @@ jobs:
             -DWOLFSSL_CRYPT_TESTS=OFF \
             -DWOLFSSL_EXAMPLES=OFF \
             -DWOLFSSL_CURL=ON \
-            -DWARNING_C_FLAGS=-w \
-            "-DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON(...)=0"
+            -DWARNING_C_FLAGS=-w
           cmake --build build-n4b-wolfssl -j2
           cmake --install build-n4b-wolfssl
           test -s "$prefix/lib/libwolfssl.a"
