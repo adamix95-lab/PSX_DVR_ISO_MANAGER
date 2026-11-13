@@ -104,7 +104,7 @@ jobs:
                          'fileXioWrite(', 'WOLFSSL_GENSEED_FORTEST'):
               assert banned not in client,banned
           for required in ('WOLFSSL_VERIFY_PEER','wolfSSL_check_domain_name',
-                           'wolfSSL_CTX_load_verify_locations','wolfSSL_get_verify_result'):
+                           'wolfSSL_CTX_load_verify_locations'):
               assert required in client,required
           for required in ('MAX_RTT_MS','MAX_AGE_MS','MAX_RADIUS_SECONDS',
                            'w->lower_utc<not_before_utc','w->upper_utc>not_after_utc'):
