@@ -502,7 +502,22 @@ provisioning at each session, protection against nonce reuse
 bounded time uncertainty and valid session clock, and connection
 timeouts. Stable version 1.0 and all HDD partitions remain untouched.
 
-N4B CI: **PENDING**. N4B hardware test: **NOT YET AUTHORIZED**.
+**N4B CI: PASS — seed gate host tests and wolfSSL port audit.**
+
+- [Stock SDK callback probe: run 43389228179](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43389228179): PASS on host gate tests; installed PS2SDK wolfSSL **lacks `WC_RNG_SEED_CB`**, so the stock link audit is correctly SKIPPED. This is a **BLOCKED** finding, not stock wolfSSL seed readiness.
+- [Isolated PS2 wolfSSL custom-callback build: run 43389749015](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43389749015): PASS. Separately rebuilt wolfSSL `v5.8.2-stable` at pinned commit `decea12e223869c8f8f3ab5a53dc90b69f436eb2`, with `WC_RNG_SEED_CB=1` and official PS2 ports flags. Symbol audit found `wc_SetSeed_Cb` inside **isolated** `libwolfssl.a`, absent from the stock library. Cross-compiled and linked `V12_N4B_ISOLATED_RNG_AUDIT.ELF` (3,361,240 bytes). **Not executed or published**; no SDK overwrite.
+- [Host wolfSSL DRBG runtime: run 43390145828](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43390145828): PASS. On Linux with separately built wolfSSL 5.8.2, ephemeral `/dev/urandom` CSPRNG bytes were supplied through the one-shot callback. Hash DRBG instantiated, generated two different blocks, and a second instantiation with the consumed source failed closed. No seed bytes were logged or uploaded. **This is not PS2 execution**.
+
+**Hardware N4B: NOT YET TESTED.** No downloadable N4B ELF is being
+published due to the need for a license-reviewed distribution bundle
+and physical RNG/provisioning integration. N4B has now proven callback
+ABI in a PS2 cross-link and behavior on a host, but not a complete
+DRBG seed callback runtime on physical DESR. There is still no
+certificate-validating TLS session, trusted TLS clock, HTTPS transport
+or cover download. Remaining N4C gates: fresh per-session entropy
+on console, crash/reboot non-reuse policy, CA root and hostname
+verification, TLS failure-mode tests and transport timeouts.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
