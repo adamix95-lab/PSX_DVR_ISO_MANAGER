@@ -1,0 +1,115 @@
+name: N4C host TLS CA hostname and signed-time policy (no DESR ELF)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4c-host-tls.yml'
+      - 'dvr-iso-manager/include/v12_n4c_cert_time.h'
+      - 'dvr-iso-manager/src/net/v12_n4c_cert_time.c'
+      - 'dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c'
+      - 'dvr-iso-manager/tests/net/v12_n4c_local_tls_client.c'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  n4c-host:
+    runs-on: ubuntu-latest
+    container: alpine:3.23
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make gcc musl-dev git openssl
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-host
+      - name: Verify bounded signed UTC policy and certificate validity interval
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4c_cert_time.c \
+            dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c \
+            -o /tmp/n4c-time
+          /tmp/n4c-time
+      - name: Build host wolfSSL 5.8.2 with seed callback and Hash DRBG
+        shell: sh
+        run: |
+          set -eu
+          cmake -S wolfssl-host -B build-n4c-host \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4c-wolfssl" \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=OFF -DWARNING_C_FLAGS=-w \
+            -DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1
+          cmake --build build-n4c-host -j2
+          cmake --install build-n4c-host
+          test -s n4c-wolfssl/lib/libwolfssl.a
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -DWC_RNG_SEED_CB=1 -In4c-wolfssl/include \
+            dvr-iso-manager/tests/net/v12_n4c_local_tls_client.c \
+            n4c-wolfssl/lib/libwolfssl.a -lm -lpthread \
+            -o /tmp/n4c-client
+      - name: "Host-only TLS test: valid CA and hostname pass, wrong CA/name fail"
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p /tmp/n4c-pki
+          cd /tmp/n4c-pki
+          openssl req -new -x509 -nodes -newkey rsa:2048 -days 2 \
+            -keyout ca.key -out ca.pem -subj '/CN=N4C local test CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign'
+          openssl req -new -x509 -nodes -newkey rsa:2048 -days 2 \
+            -keyout wrong-ca.key -out wrong-ca.pem -subj '/CN=Wrong test CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign'
+          openssl req -new -nodes -newkey rsa:2048 \
+            -keyout server.key -out server.csr -subj '/CN=localhost'
+          cat >server-ext.cnf <<'EOF'
+          [server_ext]
+          basicConstraints = critical,CA:FALSE
+          keyUsage = critical,digitalSignature,keyEncipherment
+          extendedKeyUsage = serverAuth
+          subjectAltName = DNS:localhost
+          EOF
+          openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key \
+            -CAcreateserial -days 2 -out server.pem \
+            -extfile server-ext.cnf -extensions server_ext
+          # Local loopback server: NO Internet access or production cert.
+          openssl s_server -accept 127.0.0.1:19443 \
+            -cert server.pem -key server.key -tls1_2 -quiet \
+            >/tmp/n4c-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          sleep 1
+          /tmp/n4c-client localhost ca.pem 19443 1
+          /tmp/n4c-client wrong.example ca.pem 19443 0
+          /tmp/n4c-client localhost wrong-ca.pem 19443 0
+          echo 'PASS: N4C local TLS validated CA + SAN, rejected wrong name and wrong root'
+          # Only public CA certificates and keys generated in this CI job;
+          # never package or publish test private keys.
+      - name: Audit strict fail-closed API and no artifacts
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          client=Path('dvr-iso-manager/tests/net/v12_n4c_local_tls_client.c').read_text()
+          policy=Path('dvr-iso-manager/src/net/v12_n4c_cert_time.c').read_text()
+          for banned in ('WOLFSSL_VERIFY_NONE','wolfSSL_CTX_set_verify(ctx,0',
+                         'fileXioWrite(', 'WOLFSSL_GENSEED_FORTEST'):
+              assert banned not in client,banned
+          for required in ('WOLFSSL_VERIFY_PEER','wolfSSL_check_domain_name',
+                           'wolfSSL_CTX_load_verify_locations','wolfSSL_get_verify_result'):
+              assert required in client,required
+          for required in ('MAX_RTT_MS','MAX_AGE_MS','MAX_RADIUS_SECONDS',
+                           'w->lower_utc<not_before_utc','w->upper_utc>not_after_utc'):
+              assert required in policy,required
+          print('PASS: strict CA/domain checks; bounded UTC interval; no hardcoded trust bypass')
+          PY
+          test ! -e dist/N4C.ELF
+          echo "No PS2 ELF, no downloadable wolfSSL binary, no real HTTPS covers."

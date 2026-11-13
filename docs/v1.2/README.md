@@ -518,6 +518,45 @@ or cover download. Remaining N4C gates: fresh per-session entropy
 on console, crash/reboot non-reuse policy, CA root and hostname
 verification, TLS failure-mode tests and transport timeouts.
 
+## Stage N4C — certificate-time interval and localhost TLS validation (HOST ONLY)
+
+**Scope:** protect the eventual TLS certificate validation without claiming
+that PS2 hardware TLS exists. The current N4B PS2 cross-link and Linux
+DRBG checks are PASS, but there is no verified wolfSSL TLS session on DESR.
+
+The new independent `v12_n4c_cert_time` C99 policy accepts only a
+caller-verified STRICT Roughtime response and nonwrapping monotonic
+timestamps. It conservatively expands the signed UTC uncertainty by
+measured request roundtrip and elapsed time; fails closed for signed radius
+outside 1..15 s, RTT above 6 s, age above 30 s, invalid order/wrap,
+and dates outside 2025 through 2037 (PS2 32-bit time_t concerns).
+Certificate NotBefore/NotAfter must contain the *entire* conservative
+UTC interval, not just the MIDP. This module does not authenticate
+the nonce or implement the monotonic source; callers MUST prove those
+separately. It has no RTC, disk or network I/O, and **never sets**
+`wc_SetTimeCb()`.
+
+CI `.github/workflows/v1.2-n4c-host-tls.yml` builds wolfSSL 5.8.2
+**only on an isolated host runner**, generates ephemeral local CA/server
+certificates for `localhost`, and uses a loopback-only OpenSSL TLS 1.2
+server to assert that correct CA + hostname succeeds, wrong hostname
+fails, and unrelated CA fails. It uses the CI host clock and its CSPRNG;
+**this is NOT console-supplied Roughtime or a PS2 network handshake**.
+Private test keys never leave CI. No PS2 wolfSSL ELF or bundle is
+distributed. GPLv3 source and corresponding license obligations must
+be examined before shipping a linked wolfSSL application; see
+https://www.wolfssl.com/license/.
+
+Strict outstanding gates: confirm physically fresh host-generated
+nonce, reliable monotonic elapsed clock and no replay after reboot;
+integrate a validated certificate-time policy with the actual wolfSSL
+verification path (entire interval), validate CA-chain/hostname against
+actual HTTPS host, provide distinct fresh per-session TLS DRBG seed
+with reseed failure handling and timeouts, perform a read-only physical
+TLS handshake, then implement bounded artwork RAM download.
+No app PFS/RTC writes, XMB installer or changes to production 1.0.
+
+N4C CI: **PENDING**. N4C PSX physical TLS: **NOT YET TESTED**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
