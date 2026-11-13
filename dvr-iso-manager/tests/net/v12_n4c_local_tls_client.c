@@ -3,7 +3,7 @@
  * NO connection to real Internet. NO PS2 ELF. NO native Manager integration.
  *
  * Strictly require a CA-signed server certificate AND DNS hostname.
- * Never use WOLFSSL_VERIFY_NONE or skip the date check.
+ * Never disable peer certificate verification or skip the date check.
  * Clock here is CI host OS clock, not the unauthenticated PSX RTC.
  */
 #include <wolfssl/options.h>
