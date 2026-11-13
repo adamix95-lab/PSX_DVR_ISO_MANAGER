@@ -597,6 +597,40 @@ binary/source/license set before a public downloadable wolfSSL ELF.
 N4D is an isolated **wolfCrypt DRBG / host-CSPRNG-seed diagnostic**;
 it does not perform HTTPS, change XMB, mount PFS read/write or
 write to HDD/RTC. The compilation/test stays separate from 1.0.
+
+**N4D source and CI:** `dvr-iso-manager/src/v12_n4d_wolfcrypt_rng_ro.c`,
+`dvr-iso-manager/tools/generate_n4d_seed.py`,
+`.github/workflows/v1.2-n4d-wolfcrypt-rng.yml`.
+
+The standalone test reads exactly 64 raw host-CSPRNG bytes from
+`mass0:/N4D.SEED` (fallback `mass:/N4D.SEED`), provisions the
+single-use wolfCrypt Hash DRBG callback, generates two blocks in RAM
+without printing them, then verifies the consumed source cannot
+initialize a new DRBG. It displays the stage and `RET` code for
+120 seconds. It does not connect to any server, set the time,
+download artwork, or write to USB/HDD/PFS.
+
+For a local diagnostic run, generate a **new** private binary file
+from a Windows PC with Python 3:
+
+```powershell
+py .\generate_n4d_seed.py E:/N4D.SEED
+```
+
+Replace `E:` with the FAT32 USB letter. The seed generator rejects
+overwrites; remove any old file before every attempt, including
+after a failed launch. **Do not share or upload the N4D.SEED file.**
+
+Expected success lines include `DRBG INITIALIZATION: PASS`,
+`TWO RANDOM BLOCKS: PASS`, `REUSED SEED: REJECTED`, and `RET=0`.
+Fail codes: `-601` IOP/driver setup; `-603` seed file absent;
+`-604` invalid length/read; `-605` seed rejection; `-606/-607`
+wolfSSL init/callback; `-608/-609` DRBG init/generate;
+`-610` reuse incorrectly accepted; `-611` repeated blocks.
+
+CI state: **PENDING** until full PS2 cross-build finishes.
+Physical N4D: **NOT YET TESTED**.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
