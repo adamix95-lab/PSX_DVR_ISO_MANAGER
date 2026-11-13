@@ -743,6 +743,54 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4E NETDIAG physical RET=-649 — wolfSSL ASN_SIG_CONFIRM_E (-155)
+
+**Physical DESR-7000 result (2026-11-13):**
+
+```text
+ROUGHTIME SIGNED UTC: PASS
+N4E ERROR: -649
+TLS BOUND: LOW
+SSL connect=-1 err=-155
+TCP connected=1 DNS rc=0
+IO RX=6 TX=2 FAIL=0
+RNG consumed=1
+RET=-649
+```
+
+`-155` is wolfSSL v5.8.2 `ASN_SIG_CONFIRM_E`, a **certificate
+signature confirmation failure**, not evidence of transport or RNG
+failure. CA, hostname, certificate dates and peer verification remain
+ENABLED: no verify-none bypasses are permitted.
+
+The live `raw.githubusercontent.com` certificate was reported in Nov
+2026 as issued from Let's Encrypt **YR1**, chaining through **Root
+YR → ISRG Root X1**. A previous locally generated Mozilla/certifi
+`N4E.CA` had 119 CA roots, including trusted **ISRG Root X1**, but
+no self-signed **Root YR**. The missing newer root or intermediate
+might be the cause, but the exact failure in the chain is unproven.
+
+For isolated comparison, a manually generated test bundle contains
+three versions of `N4E.CA`: 00 = original 119 roots;
+01 = X1 root + Root YR **cross-signed by X1**;
+02 = X1 + cross-signed YR + YR1 intermediate. Both additional
+certificates are from the **official**
+[Let's Encrypt website repository](https://github.com/letsencrypt/website/tree/main/static/certs/gen-y).
+The two RSA signature edges (X1→YR and YR→YR1) were verified
+offline using Python cryptography before bundling. These files are
+**DIAGNOSTIC trust bundles, NOT production trust-store updates**.
+
+Run first with 01, retaining the existing NETDIAG ELF and replacing
+only `N4E.CA` on FAT32 USB. Generate a NEW `N4E.ENT` on the host
+before each attempt (including failures). If 01 yields `-155`,
+repeat with 02, another NEW entropy file, and photograph the whole
+final screen. A change in result supports a certificate-path issue;
+persistent `-155` points to a deeper signature verification issue
+(e.g. wolfCrypt algorithm/PS2 implementation or an unexpected chain).
+
+The official default YR1 chain published by Let's Encrypt is:
+`EE ← YR1 ← Root YR ← ISRG Root X1`.
+No hardware storage, RTC, installer XMB or stable v1.0 edits.
 ## N4E NETDIAG — physical TLS1.2 handshake failure RET=-649
 
 **Physical DESR-7000 user result: `RET=-649` (2026-11-13).**
