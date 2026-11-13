@@ -131,6 +131,8 @@ static n5a_http_result n5a_http_info={0};
 static int n5a_http_parse_error=0,n5a_http_tls_error=0;
 static unsigned n5a_http_wire_bytes=0,n5a_http_wrote=0;
 static int n5a_get_pass=0;
+static int n5c_http_active=0;
+static int n5c_phase=0,n5c_write_calls=0,n5c_read_calls=0;
 
 static int load_irx(const char *name,void *ptr,unsigned length,
                     const char *args,int argslen) {
@@ -389,19 +391,27 @@ static int live_signed_probe(const uint8_t nonce[32],
  * Connect itself is bounded by normal lwIP stack behavior and is not
  * a production-grade nonblocking connection timeout policy.
  */
+/* N5C: trace calls without ever printing TLS buffers or secrets.
+ * select() has a finite timeout; a blocking lwip_send/recv may still
+ * stall inside the syscall. These ENTER markers distinguish that case.
+ */
 static int tls_recv(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   int fd=ctx?*(int *)ctx:-1,rc;
   fd_set rfds;
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
+  if(n5c_http_active) scr_printf("N5C RX SELECT enter cap=%d\n",sz);
   FD_ZERO(&rfds); FD_SET(fd,&rfds);
-  tv.tv_sec=8;tv.tv_usec=0;
+  tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,&rfds,NULL,NULL,&tv);
+  if(n5c_http_active) scr_printf("N5C RX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&rfds)) {
     diag_io_fail=-701;return WOLFSSL_CBIO_ERR_GENERAL;
   }
+  if(n5c_http_active) scr_printf("N5C RX RECV enter\n");
   rc=lwip_recv(fd,buffer,sz,0);
+  if(n5c_http_active) scr_printf("N5C RX RECV ret=%d\n",rc);
   if(rc==0) {diag_io_fail=-702;return WOLFSSL_CBIO_ERR_CONN_CLOSE;}
   if(rc<0) {diag_io_fail=-703;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_rx+=1;
@@ -413,13 +423,17 @@ static int tls_send(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
+  if(n5c_http_active) scr_printf("N5C TX SELECT enter bytes=%d\n",sz);
   FD_ZERO(&wfds); FD_SET(fd,&wfds);
-  tv.tv_sec=8;tv.tv_usec=0;
+  tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,NULL,&wfds,NULL,&tv);
+  if(n5c_http_active) scr_printf("N5C TX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&wfds)) {
     diag_io_fail=-704;return WOLFSSL_CBIO_ERR_GENERAL;
   }
+  if(n5c_http_active) scr_printf("N5C TX SEND enter\n");
   rc=lwip_send(fd,buffer,sz,0);
+  if(n5c_http_active) scr_printf("N5C TX SEND ret=%d\n",rc);
   if(rc<=0) {diag_io_fail=-705;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_tx+=1;
   return rc;
@@ -468,30 +482,44 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
   int rc=0,read_count=0,recv_closed=0;
   n5a_http_result parsed={0};
   if(!ssl)return -710;
-  scr_printf("STAGE 10: HTTPS GET -> RAM ONLY\n");
+  n5c_http_active=1;
+  scr_printf("STAGE 10: N5C HTTPS I/O TRACE\n");
   while(sent<sizeof(n5a_http_get_request)-1U) {
+    n5c_phase=1;
+    ++n5c_write_calls;
+    if(n5c_write_calls>16)return -716;
+    scr_printf("N5C WRITE enter #%d left=%u\n",
+      n5c_write_calls,(unsigned)(sizeof(n5a_http_get_request)-1U-sent));
     rc=wolfSSL_write(ssl,n5a_http_get_request+sent,
                      (int)(sizeof(n5a_http_get_request)-1U-sent));
+    scr_printf("N5C WRITE return=%d\n",rc);
     if(rc<=0) {
       n5a_http_tls_error=wolfSSL_get_error(ssl,rc);
+      scr_printf("N5C WRITE wolfERR=%d\n",n5a_http_tls_error);
       return -710;
     }
     sent+=(size_t)rc;
+    n5a_http_wrote=(unsigned)sent;
   }
-  n5a_http_wrote=(unsigned)sent;
+  scr_printf("N5C WRITE COMPLETE sent=%u\n",n5a_http_wrote);
   for(read_count=0;read_count<40;read_count++) {
     size_t remaining=N5A_HTTP_INPUT_CAP-total;
     int got;
     if(remaining==0U)return -713;
     if(remaining>1024U)remaining=1024U;
+    n5c_phase=2;
+    ++n5c_read_calls;
+    scr_printf("N5C READ enter #%d cap=%u\n",n5c_read_calls,(unsigned)remaining);
     got=wolfSSL_read(ssl,n5a_http_ram+total,(int)remaining);
+    scr_printf("N5C READ return=%d\n",got);
     if(got>0) {
       total+=(size_t)got;
       n5a_http_wire_bytes=(unsigned)total;
+      scr_printf("N5C HTTP bytes=%u\n",n5a_http_wire_bytes);
       rc=n5a_http_check(n5a_http_ram,total,0,&parsed);
     } else {
       n5a_http_tls_error=wolfSSL_get_error(ssl,got);
-      /* Only a clean TLS close may terminate an EOF-delimited body. */
+      scr_printf("N5C READ wolfERR=%d\n",n5a_http_tls_error);
       if(got==0 || n5a_http_tls_error==WOLFSSL_ERROR_ZERO_RETURN) {
         recv_closed=1;
         rc=n5a_http_check(n5a_http_ram,total,1,&parsed);
@@ -502,6 +530,7 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
       n5a_get_pass=1;
       scr_printf("HTTPS STATUS: %d (VERIFIED TLS)\n",parsed.status);
       scr_printf("BODY: %u bytes MATCH (RAM)\n",parsed.body_bytes);
+      n5c_http_active=0;
       return 0;
     }
     if(rc<0){n5a_http_parse_error=rc;return -712;}
@@ -646,7 +675,7 @@ int main(void) {
   v12_net_config cfg;
   init_scr();
   scr_setCursor(0);
-  scr_printf("N5A HTTPS RAM BOOT - STAGE 0\n");
+  scr_printf("N5C HTTPS I/O TRACE - STAGE 0\n");
   scr_printf("MATH: FASTMATH PORTABLE C (NO SP/ASM)\n");
   scr_printf("FIXED GET INTO RAM; NO ART/HDD/RTC WRITES\n");
   sleep(1);
@@ -669,7 +698,7 @@ int main(void) {
     if(u<0 && rc==0)rc=-509;
   }
   scr_clear();
-  scr_printf("N5A HTTPS RAM - FINAL RESULT\n");
+  scr_printf("N5C HTTPS I/O - FINAL RESULT\n");
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0) {
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
@@ -677,7 +706,8 @@ int main(void) {
     scr_printf("HTTPS GET 200 RAM: PASS\n");
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
-    scr_printf("N5A ERROR: %d\n",rc);
+    scr_printf("N5C ERROR: %d\n",rc);
+    scr_printf("IO PHASE=%d W=%d R=%d FAIL=%d\n",n5c_phase,n5c_write_calls,n5c_read_calls,diag_io_fail);
     if(rc==-523) {
       scr_printf("N5B LINK WAIT 20s FAILED\n");
       scr_printf("NETMAN raw=%d expected UP=%d\n",n5b_last_link,NETMAN_NETIF_ETH_LINK_STATE_UP);
