@@ -2,6 +2,17 @@
 
 **Stan: kompilacja CI / na fizycznej konsoli nieprzetestowane. Tylko USB. Nie podmieniać stabilnego 1.0.**
 
+## Wynik sprzętowy G5S — ostatni podany numer 98 (2026-11-13)
+
+Użytkownik zgłosił: **„dalej to samo, stage 98 stop”**. G5S doszedł przynajmniej do `g5_note(98)`, czyli za odczyt SYSTEM.CNF i inicjalizację kompatybilności/CDVDMAN/Deckard/ATA/MC/Logo. **Nie mamy jednak pełnego tekstu ekranu i nie wolno ogłaszać błędu ani PASS.**
+
+Ważne dla interpretacji: `g5_stop(105, ...)` czyta `last_stage=g5_stage` zanim wywoła `g5_note(105)`. Prawidłowy koniec G5S wyświetla zatem `STAGE:105` **oraz** `LAST PHASE BEFORE STOP:98`. Trzy scenariusze:
+- `STAGE:105` / `LAST PHASE BEFORE STOP:98`: oczekiwany **PASS** testu G5S, celowy stop przed `memset` EE.
+- `STAGE:298` / `LAST PHASE BEFORE STOP:98`: upstream zwrócił kod błędu po stage98; wartość `VALUE` decyduje o diagnozie.
+- `STAGE:98` bez 105/298: ostatni widoczny checkpoint, możliwy hang/fault/GS. Pomiędzy 98 a 105 znajduje się tabela `FAKEMOD`; jeśli aktywna, trzeba odczytać `drv.fake.count`, `set_fakemod` i przyczynę return, ale dopiero po ustaleniu rzeczywistego `STAGE`.
+
+**Następny krok:** potrzebne zdjęcie pełnego ekranu z liniami `STAGE`, `VALUE`, `LAST PHASE BEFORE STOP`. Nie generować kolejnej wersji przed rozróżnieniem powyższych przypadków. Nadal nie testować G5B.
+
 ## Punkt wyjścia — wynik G5R
 
 Na konsoli DESR-7000 zgłoszono **„STAGE 91 STOP”**. W źródle G5R jest to checkpoint `g5_note(91, "SYSTEM.CNF read returned", fd_system_cnf)`, a **nie** wywołanie `g5_stop`. Wersja G5R po STAGE 91 nie miała kolejnego widocznego punktu aż do końcowego `STAGE 199`, więc ostatnie 91 **nie jest samo w sobie dowodem awarii odczytu ISO**.
