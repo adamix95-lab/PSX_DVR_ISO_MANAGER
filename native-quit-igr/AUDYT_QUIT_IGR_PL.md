@@ -148,6 +148,10 @@ Szczegóły w [G4 README](g4/README_TEST_PL.md).
 - Użyto dokładnego bazowego USB 1.0 (SHA-256 zweryfikowany), a moduły, OSDMenu, język EN, EE core i konfiguracje pozostają bajtowo zgodne z wydaniem. Osobne katalogi USB `DESR_G5A` i `DESR_G5B`. Żadnych zapisów HDD ani zmian stabilnego wydania.
 - **Rzeczywisty wynik sprzętowy G5 jeszcze nieznany.**
 
+## Wynik sprzętowy G5A — 2026-11-13
+
+Użytkownik zgłosił: **G5A po próbie uruchomienia wraca do XMB**, zamiast wyświetlić końcowy ekran diagnostyczny `STAGE 199`. Nie zgłoszono, czy którykolwiek STAGE był widoczny pośrednio, dlatego nie przypisujemy awarii konkretnemu etapowi ani nie wnioskujemy, że ISO lub MechaCon zawiodły. **G5A nie przeszedł bramki diagnostycznej. G5B nie powinien być testowany** do czasu potwierdzenia kontroli. Analiza źródła wskazuje, że pierwszy ekran G5A pojawia się dopiero po wczytaniu konfiguracji i modułów; błędy/return przed tym punktem powodują nieinstrumentowany powrót. Dodatkowo `init_scr()` jest wywoływany dla każdego etapu, co zwiększa ingerencję w GS. Potrzebny jest test kontrolny, który wyświetli pierwszy STAGE przy wejściu do `main`, a także przechwyci wszelkie wczesne kody return.
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
