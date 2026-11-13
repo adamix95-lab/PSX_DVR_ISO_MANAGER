@@ -583,6 +583,20 @@ binary/source/license set before a public downloadable wolfSSL ELF.
 
 **N4C physical PSX TLS: NOT YET TESTED.**
 
+## N4D — licensing note for experimental wolfSSL PS2 build
+
+- wolfSSL: **GPLv3** (alternative commercial licensing).
+- PS2SDK: **Academic Free License 2.0 (AFL-2.0)**.
+- Reference implementation: [NULD (previously ORBIT)](https://github.com/danielnuld/nuld)
+  uses statically linked wolfSSL and explicitly publishes its launcher
+  under GPL-3.0. That is a useful technical precedent for PS2, but it
+  does not automatically resolve the rights for every dependency of
+  our separate build. Keep license notices and corresponding sources
+  alongside any public N4D linked artifact.
+
+N4D is an isolated **wolfCrypt DRBG / host-CSPRNG-seed diagnostic**;
+it does not perform HTTPS, change XMB, mount PFS read/write or
+write to HDD/RTC. The compilation/test stays separate from 1.0.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
