@@ -354,9 +354,9 @@ establish native HTTPS.
 
 ## Stage N4A — host entropy preflight before native wolfSSL (READ-ONLY)
 
-**Source prepared on experimental v1.2 branch; standalone hardware
-result: PENDING.** N3E physical DESR-7000 Roughtime signed UTC test
-passed on 2026-11-13: MIDP 06:59:06 UTC, RADI 3 s, RET=0.
+**Hardware N4A PASS on physical DESR-7000 (2026-11-13, user photo).**
+N3E had previously passed on 2026-11-13 with MIDP 06:59:06 UTC,
+RADI 3 s, RET=0. N4A is a separate standalone READ-ONLY probe.
 
 N4A adds a separate, opt-in `V12_N4A_ENTROPY_RO.ELF`.
 An OS-CSPRNG helper on the user's own PC
@@ -410,7 +410,39 @@ Build: `.github/workflows/v1.2-n4a-entropy.yml`.
 RO source and pinned root audit, host-generated 96-byte inputs, no-overwrite
 test, N4A negative tests, prior N3E UTC/Ed25519 regression tests,
 pinned NETFIX SDK rebuild, isolated cross-compile and direct-branch
-publication all passed. Physical N4A: **PENDING**.
+publication all passed. **Physical N4A: PASS (2026-11-13).**
+
+Physical console screenshot transcription:
+
+```text
+N4A RNG INPUT - FINAL RESULT
+SERVER: time.txryan.com UDP/2002
+STRICT SIGNED UTC: PASS (N4A RO)
+UTC MIDP: 2026-11-13 07:43:40
+RADI: 3 seconds
+UTC LOW : 2026-11-13 07:43:37
+UTC HIGH: 2026-11-13 07:43:43
+TLS SEED NOT CONNECTED TO wolfSSL
+NO TRUSTED TLS TIME OR ENTROPY HOOK
+NEVER REUSE N4A.ENT
+NO TLS / COVER / PFS WRITES / RTC
+RET=0
+```
+
+Interpretation: the hardware completed read-only USB input parsing for
+the 96-byte host-generated CSPRNG bundle, used its 32-byte Roughtime nonce
+to verify TXRyan's signed response, and displayed the server-signed
+UTC interval and radius. The separate 64-byte future TLS-input region
+was accepted, then wiped without connection to a wolfSSL entropy hook.
+This is **not a TLS handshake, HTTPS download, CA/hostname verification
+or a validated TLS clock**. Retesting requires a freshly generated,
+previously unused N4A.ENT. No claims of persistent single-use enforcement
+or crash-safe anti-replay protection should be made.
+
+**Next gate (N4B):** audit an isolated wolfSSL RNG provisioning API,
+test seed handling and DRBG initialization against the actual pinned
+wolfSSL PS2 build, and keep the test offline/read-only until safe TLS
+certificate, hostname and time policies are implemented.
 
 Verified direct-download assets on branch `test/n4a-direct-download`:
 
