@@ -160,6 +160,13 @@ Użytkownik zgłosił: **G5A po próbie uruchomienia wraca do XMB**, zamiast wy�
 - [Instrukcja G5R](g5r/README_TEST_PL.md); [GitHub Actions #43426651495](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43426651495) zakończył się **PASS 3/3**. Paczka: `DESR-QUIT-G5R-EARLY-RETURN-USB-UNTESTED`.
 - Kompilacja PASS nie jest dowodem działania na konsoli; należy najpierw uruchomić `mass0:/DESR_G5R/DVR_ISO_MANAGER.ELF` i dostarczyć zdjęcie pierwszego/ostatniego widocznego etapu. G5B nadal bez testów.
 
+## G5R — fizyczny test dotarł do STAGE 91 (2026-11-13)
+
+- Na prawdziwym DESR-7000 użytkownik zgłosił **„STAGE 91 STOP”** w G5R. W kodzie G5R `g5_note(91)` występuje po nieujemnym wyniku `read_system_cnf(sDVDFile,...)`; nie jest samo w sobie celowym stopem. Nie znamy pełnej treści ekranu i czy widniało `STAGE: 298 / LAST PHASE BEFORE STOP: 91`. Nie przypisywać wyniku do awarii MechaCon ani I/O ISO bez tej informacji.
+- Luki poprzedniej instrumentacji: od `STAGE 91` do `STAGE 199` nie było żadnego dalszego widocznego checkpointu. W tym odcinku znajdują się parsowanie BOOT2 z `SYSTEM.CNF`, per-game compat, konfiguracja CDVDMAN, Deckard, ATA/MC, PS2 Logo, fake table, czyszczenie pamięci EE `memset(0x82000..0x100000)`, budowa IOPRP, kopia EE core i przekazanie sterowania.
+- Przygotowano **G5S** w odrębnym `mass0:/DESR_G5S/`, wyłącznie `mode=0,len=1`. Zachowuje wcześniejsze `STAGE 1` oraz pułapkę `STAGE 298`, dodaje widoczne etapy 92–98, celowe `STAGE 105` **przed czyszczeniem EE RAM**. To kontrolny stop: G5S nigdy nie uruchamia gry.
+- [Instrukcja G5S](g5s/README_TEST_PL.md), [CI G5S](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/workflows/native-quit-g5s-post-cnf.yml). Jest to wciąż eksperyment, bez działania na fizycznej konsoli. Nie modyfikować HDD, XMB ani wydania 1.0 i nie testować G5B bez dalszej diagnozy.
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
