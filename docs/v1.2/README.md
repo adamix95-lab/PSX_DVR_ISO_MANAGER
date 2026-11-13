@@ -820,7 +820,28 @@ No artwork is stored. GPLv3 wolfSSL and AFL-2.0 PS2SDK notices
 and corresponding build sources are retained.
 
 Workflow: `.github/workflows/v1.2-n5a-https-ram.yml`.
-Physical N5A: **PENDING**. CI N5A: **PENDING**.
+**N5A CI: PASS (2026-11-13)** —
+[GitHub Actions 43431137423](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43431137423).
+Verified host negative HTTP parsing, atomic 160-byte CSPRNG generator
+replacing an old N4E.ENT without FileExistsError, exact 39-byte
+public HTTP marker over HTTPS, pinned NETFIX PS2SDK and wolfSSL
+portable FastMath, full EE ELF cross-link and separate direct publication.
+
+Direct files on `test/n5a-direct-download`:
+
+- [V12_N5A_HTTPS_RAM_RO.ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/V12_N5A_HTTPS_RAM_RO.ELF)
+- [Public CA N4E.CA](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/N4E.CA)
+- [Host generator (atomically replaces private N4E.ENT)](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/tools/generate_n5a_entropy.py)
+- [Public 39-byte test marker](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT)
+- [README-N5A instructions](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/README-N5A.txt)
+- [N5A SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/SHA256SUMS)
+
+ELF size: **4,746,536 bytes**; SHA-256:
+`2517e01827d89ad5195b27aaad587a1d99fc42fec3b24e15e5f049519cd99bc5`.
+Artifact `V12-N5A-HTTPS-RAM-READONLY` is also available through
+Actions. No private N4E.ENT is uploaded.
+
+**Physical N5A: PENDING**. CI PASS does not prove live EE HTTPS GET.
 ## N4H — real TLS 1.2 with physically verified portable RSA FastMath
 
 **Motivation:** physical N4G `RET=0` verified two valid Let's Encrypt
