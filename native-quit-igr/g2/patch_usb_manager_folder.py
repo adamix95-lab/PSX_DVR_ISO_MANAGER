@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Re-root USB Manager to an isolated G2A/G2B folder; preserve all behavior.
 
-G2A and G2B use exactly the same Manager code. The experiment changes only
+G2A, G2B and G2C use exactly the same Manager code. The experiment changes only
 the Neutrino SCMD bytes in G2B; the generated BOOT.CNF continues to name
 'neutrino.elf' or 'neutrino_lang.elf' in the current test directory.
 """
 from pathlib import Path
 import argparse
 
-TARGETS = ("DESR_G2A", "DESR_G2B")
+TARGETS = ("DESR_G2A", "DESR_G2B", "DESR_G2C")
 
 
 def apply(text: str, folder: str) -> str:
