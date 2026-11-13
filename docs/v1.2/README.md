@@ -743,6 +743,84 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## Stage N5A — first HTTPS GET into volatile RAM (READ-ONLY)
+
+**Physical N4H PASS (2026-11-13, user report):** three diagnostic
+checks PASS, `RET=0`, confirming signed Roughtime, two TLS 1.2
+handshakes and CA/hostname/certificate-date checks with portable
+FastMath on real DESR-7000. No HTTP traffic was sent by N4H.
+
+**N5A goal:** the next opt-in, isolated ELF
+`V12_N5A_HTTPS_RAM_RO.ELF` performs the same strict signed
+Roughtime and TWO separate TLS 1.2 handshakes to
+`raw.githubusercontent.com:443` using pinned FastMath wolfSSL and
+independent private host-CSPRNG seeds. Only after BOTH TLS
+certificate checks PASS does it send a single fixed HTTP/1.1 GET:
+
+```http
+GET /adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT HTTP/1.1
+Host: raw.githubusercontent.com
+Accept: text/plain
+Accept-Encoding: identity
+Connection: close
+```
+
+The exact trusted public test marker at that path is the ASCII line
+`PSX-DVR-ISO-MANAGER N5A HTTPS RAM PASS` followed by `\n`,
+**exactly 39 bytes**. The file is separately committed on
+`test/n5a-direct-download` and checked over HTTPS in CI before the
+cross-build. `N5A.CA` is not required; keep the existing `N4E.CA`.
+
+All HTTP parsing happens in volatile EE RAM via
+`dvr-iso-manager/src/net/n5a_http_ram.c`; it accepts **only**
+HTTP status **200** with an exact byte-for-byte 39-byte body.
+It supports bounded Content-Length, chunked transfer framing
+and EOF-delimited bodies, but rejects redirects, wrong length,
+unexpected content, conflicting transfer encodings and oversized
+responses. Limits: 16 KiB whole response, 8 KiB headers, 256B
+decoded body, 40 read operations. No arbitrary URL support.
+
+**Physical test:** copy N5A ELF, public `N4E.CA`, and new
+**private** `N4E.ENT` to FAT32 USB root. The new Windows generator
+`generate_n5a_entropy.py` safely replaces an old `N4E.ENT` with
+a fresh 160-byte host-CSPRNG file (32B signed-time nonce + 2×64B
+TLS seed inputs), without `FileExistsError`:
+
+```powershell
+py .\generate_n5a_entropy.py E:/N4E.ENT
+```
+
+Replace `E:` with actual pendrive letter. **Never reuse or upload**
+private N4E.ENT, even after a failed test. Preserve
+`PP.DVRISO12/V12_NET.CNF` unchanged, connect Ethernet, start from
+wLE-R3Z 4.80; do not install to XMB.
+
+Expected final display:
+
+```text
+ROUGHTIME SIGNED UTC: PASS
+TLS1.2 CHAIN/HOST/DATE: PASS
+TWO BOUND CHECKS: PASS
+HTTPS GET 200 RAM: PASS
+PAYLOAD 39 BYTES: MATCH
+RET=0
+```
+
+HTTP failures report `-710` write failure, `-711` read/TLS error,
+`-712` invalid HTTP or mismatched body, `-713` RAM limit,
+`-714` incomplete EOF body and `-715` excessive reads, with
+the HTTP parser error and wolfSSL codes on the final screen.
+
+**Security boundary:** user-provisioned host entropy can still
+be reused across reboot; signed Roughtime ±120s margin is not
+a proven monotonic time trust policy. No GET request should
+be treated as production HTTPS authorization. N5A performs
+**no HDD, USB, ART, RTC, PFS, XMB or Manager 1.0 writes**.
+No artwork is stored. GPLv3 wolfSSL and AFL-2.0 PS2SDK notices
+and corresponding build sources are retained.
+
+Workflow: `.github/workflows/v1.2-n5a-https-ram.yml`.
+Physical N5A: **PENDING**. CI N5A: **PENDING**.
 ## N4H — real TLS 1.2 with physically verified portable RSA FastMath
 
 **Motivation:** physical N4G `RET=0` verified two valid Let's Encrypt
@@ -796,14 +874,11 @@ Direct-download N4H files:
 
 ELF SHA-256:
 `fec916b8f40fc45bfb1a9eadb02b7ae7e1cd183c536ebb103d4a290ebaa5f372`.
-No random N4E.ENT is included in the artifact. Physical handshake
-remains **UNTESTED** until a DESR-7000 run; CI success never
-confirms live TLS success or a production-worthy clock/anti-replay
-policy. Do not merge into 1.0 or write to PFS/RTC/ART.
+No random N4E.ENT is included in the artifact. Physical DESR-7000 test subsequently reported **3 × PASS, RET=0 (2026-11-13)**. This independently confirmed successful strict TLS 1.2 handshakes in the diagnostic; it still does **NOT** establish a production-worthy clock/anti-replay policy or HTTPS data retrieval. Do not merge into 1.0 or write to PFS/RTC/ART.
 
 Build workflow: `.github/workflows/v1.2-n4h-fastmath-tls.yml`.
 Direct-download branch: `test/n4h-fastmath-direct-download`.
-Physical N4H: **PENDING**.
+**Physical N4H: PASS (2026-11-13)** — user reported all three diagnostic lines PASS and RET=0 on DESR-7000. Full TLS 1.2 verified in this manually provisioned read-only diagnostic; production clock/nonce anti-replay still unproven.
 **Stable Manager 1.0, XMB, HDD partitions/data, ART and RTC remain
 completely unchanged.**
 ## N4F physical FAILURE and N4G alternate RSA math isolation
