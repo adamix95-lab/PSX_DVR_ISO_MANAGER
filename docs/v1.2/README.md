@@ -773,8 +773,24 @@ These are internal diagnostic markers, not the final RET code.
 Test uses exactly the same FAT32 files as N4E (`N4E.CA`, a freshly
 generated **new** 160-byte `N4E.ENT`) plus NETDIAG ELF. Run via
 wLE-R3Z 4.80. **NEVER reuse a previous N4E.ENT** after any attempt.
-No HTTPS request body or cover writing. Physical NETDIAG: PENDING.
+No HTTPS request body or cover writing. **Physical NETDIAG: PENDING.**
+
+**N4E NETDIAG CI: PASS (2026-11-13)** — [run 43410234000](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43410234000).
+Separate PS2 EE build, wolfSSL/Roughtime checks and direct-branch
+publication all passed. This only validates compilation, not hardware.
+
+Direct RAW files:
+
+- [N4E NETDIAG ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-netdiag-direct-download/diagnostics/n4e-netdiag/V12_N4E_NETDIAG_RO.ELF)
+- [Public CA PEM](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-netdiag-direct-download/diagnostics/n4e-netdiag/N4E.CA)
+- [Host CSPRNG generator](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-netdiag-direct-download/diagnostics/n4e-netdiag/tools/generate_n4e_entropy.py)
+- [Diagnostics and license notes](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-netdiag-direct-download/diagnostics/n4e-netdiag/README-N4E-NETDIAG.txt)
+
+ELF size: **4,710,340 bytes**.
+SHA256: `7c2997ce60f8a8cd443ad18844d424cc35dc3abad1647722d12412c63954991b`.
 CI: `.github/workflows/v1.2-n4e-netdiag.yml`.
+Use a NEW `N4E.ENT` even if the prior attempt failed. The preexisting
+N4E ELF and all 1.0 stable sources are unchanged.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
