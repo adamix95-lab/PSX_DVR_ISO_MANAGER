@@ -22,12 +22,12 @@ def build(args):
     assert b"mass0:/DESR_DVR/" not in manager
     assert b"1.0 USB G2C" in manager
     assert b"dvr_pfs0:/ISO/" in manager
-    assert neutrino != baseline["neutrino.elf"], "Rebuilt loader is unexpectedly identical"
+    assert neutrino == baseline["neutrino.elf"], "Pinned rebuild differs from the official 1.0 baseline"
     before = {k: sha(v) for k,v in baseline.items()}
     baseline["DVR_ISO_MANAGER.ELF"] = manager
     baseline["neutrino.elf"] = neutrino
     changed = {k for k,v in baseline.items() if sha(v)!=before[k]}
-    if changed != {"DVR_ISO_MANAGER.ELF","neutrino.elf"}:
+    if changed != {"DVR_ISO_MANAGER.ELF"}:
         raise ValueError(f"Unexpected changes against official 1.0 USB: {changed}")
     assert baseline["neutrino_lang.elf"] and baseline["modules/ee_core.elf"]
     assert baseline["BOOT.ELF"] and baseline["config/bsd-dvr.toml"]
@@ -35,14 +35,14 @@ def build(args):
         f"{FOLDER}/{name}": value for name,value in baseline.items()
     }
     data["G2C_MANIFEST.txt"] = (
-        "G2C: TEST REBUILD ONLY (NO MODE1 QUIT PATCH)\n"
+        "G2C: BYTE-IDENTICAL BASELINE REBUILD CONFIRMED (NO QUIT PATCH)\n"
         "Same pinned Neutrino PR228 commit and ps2max/dev:v20260228 "
         "toolchain as G2B.\n"
         "Test SYSTEM only. Original ENGLISH files are present but NOT the control under test.\n"
         f"Official 1.0 USB zip SHA256: {USB_RELEASE_SHA256}\n"
         f"G2C rebuilt SYSTEM Neutrino SHA256: {sha(neutrino)}\n"
         f"Official SYSTEM Neutrino SHA256: {before['neutrino.elf']}\n"
-        "Modified files against official USB: DVR_ISO_MANAGER.ELF (isolated folder), neutrino.elf (unmodified rebuild).\n"
+        "Modified files against official USB: DVR_ISO_MANAGER.ELF (isolated folder). Neutrino SYSTEM is identical.\n"
         "No changes to BOOT.ELF, configs, IRX, EE core, HDD, XMB, existing release.\n"
         "Hardware testing NOT yet performed.\n"
     ).encode()
@@ -60,8 +60,8 @@ def build(args):
             assert z.getinfo(n).is_dir()
         for n,b in data.items():
             assert z.read(n)==b
-    print(f"PASS G2C: {len(baseline)} official USB files, two isolated differences")
-    print("PASS G2C: Neutrino recompiled without SCMD patch")
+    print(f"PASS G2C: {len(baseline)} official USB files, only test Manager differs")
+    print("PASS G2C: Neutrino recompiled without SCMD patch; binary-identical to 1.0")
     print("PASS G2C: no HDD/XMB/official USB changes")
     print(f"OUTPUT {args.output} bytes={args.output.stat().st_size} sha256={sha(args.output.read_bytes())}")
 
