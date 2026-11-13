@@ -106,6 +106,19 @@ Dodatkowy fakt z CI `G2C`: oryginalna, niezmieniona kompilacja Neutrino SYSTEM w
 
 Następny test: **G3 A/B** z dwoma wariantami ortogonalnymi: `mode=1, len=4` i `mode=0, len=1`. Nie dodawać nowego SCMD, resetu IOP, hooków ani podmiany modułów DVR. Testować boot, a fizyczny QUIT tylko gdy stan jest stabilny i nic nie jest zapisywane.
 
+## G3 — wyniki fizycznego QUIT / startu gry, 2026-11-13
+
+- **G3A**, `sceCdApplySCmd(0x29)` z `mode=1, len=4`: po wybraniu gry X czarny ekran; fizyczny QUIT wywołał po dość długim oczekiwaniu **powrót do oryginalnego XMB Sony**. **Gra FAIL / QUIT→XMB PASS**.
+- **G3B**, `mode=0, len=1`: **gra uruchamia się**, natomiast fizyczny QUIT **nie reaguje**. **Gra PASS / QUIT FAIL**.
+- Porównanie z **G2B** (`mode=1,len=1`): czarny ekran, lecz fizyczny QUIT po kilku sekundach wraca do XMB.
+- Wniosek dla dostępnych testów: wyłącznie zmiana **trybu na 1** wiąże się z aktywnym QUIT, ale też utratą możliwości startu gry. Zmiana długości **4→1** nie wyjaśnia ani jednego, ani drugiego; mechanizm utraty startu gry pozostaje nierozpoznany.
+- Współzależność `mode=1` i niemożności uruchomienia gry nie dowodzi, że powodem jest awaria `dvr_pfs0`; nie mamy logów z ostatniej fazy bootowania po SCMD.
+- Referencyjny OSDMenu `switchPSX()` wywołuje `custom_sceCdChgSys(2)` **przed** `custom_sceCdNoticeGameStart(1)`, a Neutrino DVR w naszym pinie nie wywołuje w tej sekwencji `sceCdChgSys`. To **hipoteza do oceny**, nie automatyczna poprawka — przełączenie napędu może wpłynąć na dostęp do danych DVR i nie wolno go bez pomiaru włączać w stabilnym Neutrino.
+- Dalsze testy powinny diagnozować działanie sterowników DVR / FHI po aktywacji flagi i dokładny etap czarnego ekranu oraz sprawdzić wariant wierny inicjalizacji PSX na oddzielnej gałęzi/USB. Dopiero jeśli natywny QUIT uniemożliwia stały odczyt DVR ISO, rozważyć IGR NULD jako niezależny fallback.
+- **Nie scalamy** G2B/G3A ani żadnej testowej binarki z 1.0, dopóki uruchomienie gry i wyjście do XMB nie przejdą obu bramek.
+
+Szczegóły: [wyniki G3 i instrukcja](g3/README_TEST_PL.md).
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
