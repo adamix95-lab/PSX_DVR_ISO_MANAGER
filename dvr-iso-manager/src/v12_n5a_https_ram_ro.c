@@ -132,6 +132,16 @@ static int n5a_http_parse_error=0,n5a_http_tls_error=0;
 static unsigned n5a_http_wire_bytes=0,n5a_http_wrote=0;
 static int n5a_get_pass=0;
 static int n5c_http_active=0;
+static volatile unsigned n5d_trace_last=0, n5d_trace_count=0;
+/* Trace callback from the pinned static wolfSSL diagnostic build.
+ * Deliberately never logs payload, keys, entropy or TLS plaintext. */
+void n5d_trace(unsigned int step) {
+  if(!n5c_http_active) return;
+  n5d_trace_last=step;
+  n5d_trace_count++;
+  if(n5d_trace_count<=64U)
+    scr_printf("N5D WOLF step=%u count=%u\n",step,n5d_trace_count);
+}
 static int n5c_phase=0,n5c_write_calls=0,n5c_read_calls=0;
 
 static int load_irx(const char *name,void *ptr,unsigned length,
@@ -483,7 +493,11 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
   n5a_http_result parsed={0};
   if(!ssl)return -710;
   n5c_http_active=1;
-  scr_printf("STAGE 10: N5C HTTPS I/O TRACE\n");
+  scr_printf("STAGE 10: N5D WOLFSSL WRITE TRACE\n");
+  {
+    const char *cipher=wolfSSL_get_cipher(ssl);
+    scr_printf("N5D CIPHER=%s\n",cipher?cipher:"unknown");
+  }
   while(sent<sizeof(n5a_http_get_request)-1U) {
     n5c_phase=1;
     ++n5c_write_calls;
@@ -675,7 +689,7 @@ int main(void) {
   v12_net_config cfg;
   init_scr();
   scr_setCursor(0);
-  scr_printf("N5C HTTPS I/O TRACE - STAGE 0\n");
+  scr_printf("N5D WOLFSSL WRITE TRACE - STAGE 0\n");
   scr_printf("MATH: FASTMATH PORTABLE C (NO SP/ASM)\n");
   scr_printf("FIXED GET INTO RAM; NO ART/HDD/RTC WRITES\n");
   sleep(1);
@@ -698,7 +712,7 @@ int main(void) {
     if(u<0 && rc==0)rc=-509;
   }
   scr_clear();
-  scr_printf("N5C HTTPS I/O - FINAL RESULT\n");
+  scr_printf("N5D HTTPS WRITE - FINAL RESULT\n");
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0) {
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
@@ -706,7 +720,8 @@ int main(void) {
     scr_printf("HTTPS GET 200 RAM: PASS\n");
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
-    scr_printf("N5C ERROR: %d\n",rc);
+    scr_printf("N5D ERROR: %d\n",rc);
+    scr_printf("N5D STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
     scr_printf("IO PHASE=%d W=%d R=%d FAIL=%d\n",n5c_phase,n5c_write_calls,n5c_read_calls,diag_io_fail);
     if(rc==-523) {
       scr_printf("N5B LINK WAIT 20s FAILED\n");
