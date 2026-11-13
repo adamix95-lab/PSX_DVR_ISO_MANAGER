@@ -9,6 +9,8 @@
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -39,6 +41,11 @@ static int os_seed_cb(OS_Seed *unused,byte *dst,word32 n) {
     return 0;
 }
 
+static time_t simulated_cert_time=0;
+static time_t simulated_time_cb(time_t *out) {
+    if(out) *out=simulated_cert_time;
+    return simulated_cert_time;
+}
 static int do_tls_test(const char *host,const char *cafile,unsigned port) {
     WOLFSSL_CTX *ctx=NULL;
     WOLFSSL *ssl=NULL;
@@ -47,6 +54,9 @@ static int do_tls_test(const char *host,const char *cafile,unsigned port) {
     /* No calls to wolfSSL_connect before verification setup. */
     if(wc_SetSeed_Cb(os_seed_cb)!=0) return -11;
     if(wolfSSL_Init()!=WOLFSSL_SUCCESS) return -12;
+    if(simulated_cert_time && wc_SetTimeCb(simulated_time_cb)!=0) {
+        wolfSSL_Cleanup();return -20;
+    }
     ctx=wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if(!ctx) {ok=-13;goto finish;}
     wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,NULL);
@@ -78,18 +88,24 @@ finish:
     if(fd>=0) close(fd);
     if(ctx) wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
+    wc_SetTimeCb(NULL);
     wc_SetSeed_Cb(NULL);
     return ok;
 }
 int main(int argc,char **argv) {
     unsigned port;
     int expected,got;
-    if(argc!=5) {
-        fprintf(stderr,"Usage: local_tls_client HOST CA_FILE PORT EXPECT_PASS_0_OR_1\n");
+    if(argc!=5 && argc!=6) {
+        fprintf(stderr,"Usage: local_tls_client HOST CA_FILE PORT EXPECT_PASS_0_OR_1 [CUSTOM_UNIX_TIME]\n");
         return 2;
     }
     port=(unsigned)strtoul(argv[3],NULL,10);
     expected=atoi(argv[4]);
+    if(argc==6) {
+        unsigned long n=strtoul(argv[5],NULL,10);
+        if(n<UINT64_C(1577836800) || n>UINT64_C(2100000000))return 3;
+        simulated_cert_time=(time_t)n;
+    }
     if(port<1024U || port>65535U || (expected!=0 && expected!=1))
         return 3;
     got=do_tls_test(argv[1],argv[2],port);
