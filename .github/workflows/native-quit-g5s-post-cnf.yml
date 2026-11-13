@@ -112,7 +112,7 @@ jobs:
                          b"EE handoff reached; ISO/FHI PASS",
                          b"POST-CNF PASS; STOP BEFORE EE CLEAR",
                          b"Before BOOT2 filename parse",
-                         b"CDVDMAN media configured")::
+                         b"CDVDMAN media configured"):
             assert needle in a, needle
           print("PASS G5S unpacked diagnostic strings",len(a))
           print("PASS G5S packed loader",len(b),hashlib.sha256(b).hexdigest())
