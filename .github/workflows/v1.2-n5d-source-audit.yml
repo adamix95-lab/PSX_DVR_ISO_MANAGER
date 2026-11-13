@@ -1,0 +1,40 @@
+name: N5D pinned source audit (no console binary)
+on:
+  push:
+    branches: [test/n5d-wolfssl-write-trace]
+    paths: ['.github/workflows/v1.2-n5d-source-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-upstream
+      - name: Export exact source trees and workflow context
+        run: |
+          set -eu
+          mkdir -p audit
+          git -C wolfssl-upstream archive --format=tar.gz --prefix=wolfssl/ HEAD > audit/wolfssl-source.tar.gz
+          git -C sdk-upstream archive --format=tar.gz --prefix=ps2sdk/ HEAD > audit/ps2sdk-source.tar.gz
+          git archive --format=tar.gz --prefix=manager/ HEAD dvr-iso-manager .github/workflows hdd-netfix > audit/manager-source.tar.gz
+          sha256sum audit/*.tar.gz > audit/SHA256SUMS
+          git -C wolfssl-upstream rev-parse HEAD
+          git -C sdk-upstream rev-parse HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: N5D-PINNED-SOURCE-AUDIT
+          path: audit/
+          retention-days: 7
+          if-no-files-found: error
