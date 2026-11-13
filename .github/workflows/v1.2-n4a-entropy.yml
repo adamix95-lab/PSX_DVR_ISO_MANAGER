@@ -1,0 +1,195 @@
+name: N4A dual-entropy Roughtime preflight (read-only)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4a-entropy.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4a_entropy_usb.c'
+      - 'dvr-iso-manager/src/net/v12_n4a_entropy.c'
+      - 'dvr-iso-manager/include/v12_n4a_entropy.h'
+      - 'dvr-iso-manager/tests/net/test_v12_n4a_entropy.c'
+      - 'dvr-iso-manager/tools/generate_n4a_entropy.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4a-preflight:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake build-base python3 bash git patch
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: "Audit N4A read-only, pinned TXRyan and host CSPRNG"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,json,re,subprocess,sys,tempfile
+          s=Path('dvr-iso-manager/src/v12_n4a_entropy_usb.c').read_text()
+          h=Path('dvr-iso-manager/src/net/v12_n4a_entropy.c').read_text()
+          maker=Path('dvr-iso-manager/tools/generate_n4a_entropy.py')
+          for banned in ('fileXioWrite(', 'fileXioRemove(', 'fileXioRename(',
+                         'fileXioFormat(', 'fileXioDevctl(', 'FIO_MT_RDWR',
+                         'x^=x<<13', 'clock() ^', 'WOLFSSL_VERIFY_NONE',
+                         'wolfSSL_CTX_new', 'wc_InitRng('):
+              assert banned not in s,banned
+          for req in ('mass0:/N4A.ENT','FIO_O_RDONLY','read_entropy_usb(nonce,tls_seed)',
+                      'STRICT SIGNED UTC: PASS (N4A RO)',
+                      'TLS SEED NOT CONNECTED TO wolfSSL',
+                      'v12_n4a_wipe(tls_seed,sizeof(tls_seed))'):
+              assert req in s,req
+          assert 'V12_N4A_ENT_BYTES' in h
+          assert 'secrets.token_bytes(96)' in maker.read_text()
+          d=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          srv=next(x for x in d['servers'] if x['name']=='time.txryan.com')
+          assert any(a['address']=='time.txryan.com:2002' for a in srv['addresses'])
+          expected=base64.b64decode(srv['publicKey'])
+          p=Path('dvr-iso-manager/src/net/v12_n3e_txryan.c').read_text()
+          body=p.split('static const uint8_t pinned_root[32]=',1)[1].split('};',1)[0]
+          assert len(expected)==32
+          assert expected==bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',body))
+          with tempfile.TemporaryDirectory() as td:
+              a,b=Path(td)/'a',Path(td)/'b'
+              for path in (a,b):
+                  subprocess.run([sys.executable,str(maker),str(path)],check=True)
+                  assert len(path.read_bytes())==96
+                  assert any(path.read_bytes()[:32]) and any(path.read_bytes()[32:])
+              assert a.read_bytes()!=b.read_bytes()
+              assert subprocess.run([sys.executable,str(maker),str(a)],capture_output=True).returncode!=0
+          print('PASS: RO source, TXRyan root, 96B host CSPRNG, distinct files, overwrite rejected')
+          PY
+      - name: Host N4A dual-region fail-closed tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4a_entropy.c \
+            dvr-iso-manager/tests/net/test_v12_n4a_entropy.c \
+            -o /tmp/n4a-input
+          /tmp/n4a-input
+      - name: N3E signed UTC and Ed25519 negative regression tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n3e_utc.c \
+            dvr-iso-manager/tests/net/test_v12_n3e_utc.c -o /tmp/n4a-utc
+          /tmp/n4a-utc
+          mkdir -p build-n4a-vector
+          python3 dvr-iso-manager/tests/net/generate_v12_rt_test_header.py build-n4a-vector/v12_rt_test_vector.h
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include -Ibuild-n4a-vector \
+            -Imonocypher-upstream/src -Imonocypher-upstream/src/optional \
+            dvr-iso-manager/tests/net/test_v12_n3e_txryan.c \
+            dvr-iso-manager/src/net/v12_n3e_txryan.c \
+            dvr-iso-manager/src/net/v12_n3e_utc.c \
+            dvr-iso-manager/src/net/v12_roughtime_verify.c \
+            dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+            monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c \
+            -o /tmp/n4a-crypto
+          /tmp/n4a-crypto
+      - name: Rebuild pinned NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Cross compile independent N4A read-only ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n4a -DDESR_BUILD_HDD_NETFIX=ON -DDESR_V12_N3B_MINI=ON
+          cmake --build build-n4a --target V12_N4A_ENTROPY_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4a/V12_N4A_ENTROPY_RO.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70))
+          assert len(e)<3500000,len(e)
+          for marker in (b'N4A ENTROPY BOOT - STAGE 0',b'time.txryan.com',
+                         b'N4A.ENT',b'STRICT SIGNED UTC: PASS (N4A RO)',
+                         b'TLS SEED NOT CONNECTED TO wolfSSL',b'NEVER REUSE N4A.ENT'):
+              assert marker in e,marker
+          for forbidden in (b'dvr_pfs0:/ISO',b'WOLFSSL_VERIFY_NONE',
+                            b'roughtime.cloudflare.com',b'N3E.NONCE'):
+              assert forbidden not in e,forbidden
+          print(f'PASS: standalone N4A ELF {len(e)} bytes, NO HTTPS')
+          PY
+      - name: Bundle binary, sources, generator and third-party licences
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses dist/monocypher/src/optional
+          cp build-n4a/V12_N4A_ENTROPY_RO.ELF dist/
+          cp dvr-iso-manager/tools/generate_n4a_entropy.py dist/tools/
+          cp dvr-iso-manager/src/v12_n4a_entropy_usb.c \
+             dvr-iso-manager/src/net/v12_n4a_entropy.c \
+             dvr-iso-manager/src/net/v12_n3e_txryan.c \
+             dvr-iso-manager/src/net/v12_n3e_utc.c \
+             dvr-iso-manager/src/net/v12_roughtime_verify.c \
+             dvr-iso-manager/src/net/v12_roughtime_wire.c \
+             dvr-iso-manager/src/net/v12_roughtime_monocypher.c dist/source/
+          cp monocypher-upstream/src/monocypher.c monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+             monocypher-upstream/src/optional/monocypher-ed25519.h dist/monocypher/src/optional/
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat > dist/README-N4A.txt <<'EOF'
+          N4A READ-ONLY: 96 byte dual-range host CSPRNG file diagnostic.
+          This ELF does NOT seed wolfSSL, implement TLS, or provide a TLS clock.
+          1. Copy V12_N4A_ENTROPY_RO.ELF to FAT32 USB.
+          2. Use Python 3 on PC: py tools/generate_n4a_entropy.py E:/N4A.ENT
+             Replace E: with USB letter; file must be EXACTLY 96 raw bytes.
+          3. Keep PP.DVRISO12/V12_NET.CNF unchanged; launch wLE-R3Z 4.80.
+          4. RET=0: signed UTC and USB input accepted, HTTPS still DISABLED.
+          5. ALWAYS regenerate private N4A.ENT before another attempt or reboot.
+          6. -510..-514 USB; -516 invalid ranges; -520..-523 network;
+             -508 strict cryptography; -515 signed UTC policy.
+          7. No PFS, USB, HDD, RTC, ART, game launch or XMB writes.
+          EOF
+          test ! -e dist/N4A.ENT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N4A-ENTROPY-RO
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish safe direct-download ELF under test branch only
+        shell: sh
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n4a-direct-download:refs/remotes/origin/test/n4a-direct-download"
+          git worktree add --detach /tmp/n4a-direct origin/test/n4a-direct-download
+          git config --global --add safe.directory /tmp/n4a-direct
+          cd /tmp/n4a-direct
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n4a
+          cp "$GITHUB_WORKSPACE/build-n4a/V12_N4A_ENTROPY_RO.ELF" diagnostics/n4a/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/tools/generate_n4a_entropy.py" diagnostics/n4a/
+          cp "$GITHUB_WORKSPACE/dist/README-N4A.txt" diagnostics/n4a/README.txt
+          sha256sum diagnostics/n4a/V12_N4A_ENTROPY_RO.ELF > diagnostics/n4a/SHA256SUMS
+          git add diagnostics/n4a/V12_N4A_ENTROPY_RO.ELF \
+                  diagnostics/n4a/generate_n4a_entropy.py \
+                  diagnostics/n4a/README.txt diagnostics/n4a/SHA256SUMS
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n4a): publish read-only entropy preflight ELF"
+            git push origin "HEAD:refs/heads/test/n4a-direct-download"
+          fi
