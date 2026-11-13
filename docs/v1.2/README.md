@@ -743,6 +743,38 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4E SIGTRACE — locate certificate signature verification failure
+
+**Physical tests on 2026-11-13:** The original Mozilla CA roots and
+both supplemental Let's Encrypt YR-chain variants failed identically
+on physical DESR: `RET=-649`, `TLS BOUND=LOW`,
+`wolfSSL_connect=-1`, `wolfSSL_get_error=-155` (`ASN_SIG_CONFIRM_E`),
+`RNG consumed=1`. **The additional cross-signed Root YR and YR1
+intermediate did not resolve this failure.** No certificate verification
+bypass is permitted.
+
+Next isolated experiment: `V12_N4E_SIGTRACE_RO.ELF`, which preserves
+the previous strict `WOLFSSL_VERIFY_PEER`, hostname, SNI, CA and
+signed-time checks. It registers an observational certificate callback
+`diag_verify_cb` and **returns the original preverify decision**
+(no allow-on-error path). The callback records certificate verification
+calls, first/last error codes and depth, chain count, plus the existing
+transport and DRBG diagnostics. It does not print secrets or send HTTP.
+
+The callback is valuable even if it is never invoked on error:
+zero callback calls with `-155` would indicate a failure before the
+ordinary certificate verification callback path, suggesting offline
+cryptographic/X.509 signature tests on the MIPS EE as the next gate.
+A recorded failure depth/code would help identify the failing cert.
+
+Run with the same **public** `N4E.CA` and a freshly regenerated
+**private** 160-byte `N4E.ENT` for *every* attempt. Reusing previous
+entropy across reboot/failed runs is forbidden. No changes to
+stable 1.0, XMB, HDD, PFS, RTC or ART.
+
+CI: `.github/workflows/v1.2-n4e-sigtrace.yml`.
+Test-only publication: `test/n4e-sigtrace-direct-download`.
+Physical SIGTRACE: **PENDING**.
 ## N4E NETDIAG physical RET=-649 — wolfSSL ASN_SIG_CONFIRM_E (-155)
 
 **Physical DESR-7000 result (2026-11-13):**
