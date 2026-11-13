@@ -1,0 +1,167 @@
+name: Native QUIT G2 A/B - isolated USB game-launch experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/native-quit-igr]
+    paths:
+      - 'native-quit-igr/g2/**'
+      - '.github/workflows/native-quit-g2-ab.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-manager:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    strategy:
+      fail-fast: false
+      matrix:
+        folder: [DESR_G2A, DESR_G2B]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Compile v1.0 USB Manager in an isolated A/B folder
+        shell: sh
+        env:
+          G2_FOLDER: ${{ matrix.folder }}
+        run: |
+          set -eu
+          apk add --no-cache cmake build-base python3
+          python3 manager/native-quit-igr/g2/patch_usb_manager_folder.py \
+            manager/dvr-iso-manager/include/runtime_storage.h "$G2_FOLDER"
+          cmake -S manager/dvr-iso-manager -B build-manager
+          cmake --build build-manager --target DVR_ISO_MANAGER.ELF -j2
+          mkdir -p dist
+          cp build-manager/DVR_ISO_MANAGER.ELF dist/DVR_ISO_MANAGER.ELF
+          python3 - <<'PY'
+          import os, struct
+          from pathlib import Path
+          b=Path("dist/DVR_ISO_MANAGER.ELF").read_bytes()
+          folder=os.environ["G2_FOLDER"]
+          assert b[:6] == b'\x7fELF\x01\x01'
+          assert struct.unpack_from("<H",b,18)[0] == 8
+          assert f"mass0:/{folder}/".encode() in b
+          assert b"mass0:/DESR_DVR/" not in b
+          assert b"1.0 USB G2" in b
+          assert b"dvr_pfs0:/ISO/" in b
+          print("PASS isolated Manager",folder,"bytes",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G2-manager-${{ matrix.folder }}
+          path: dist/DVR_ISO_MANAGER.ELF
+          if-no-files-found: error
+
+  build-neutrino:
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [system, english]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply ONLY two SCMD operand changes to pinned Neutrino DVR
+        shell: bash
+        env:
+          G2_LANGUAGE: ${{ matrix.language }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          if [ "$G2_LANGUAGE" = english ]; then
+            git -C neutrino apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
+            git -C neutrino apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          fi
+          python3 manager/native-quit-igr/g2/patch_neutrino_notice.py \
+            neutrino/ee/loader/src/main.c
+          git -C neutrino diff --check
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("neutrino/ee/loader/src/main.c").read_text()
+          assert s.count("sceCdApplySCmd(0x29, in, 1, out);")==1
+          assert "uint8_t in[4] = {1};" in s
+          assert "sceCdApplySCmd(0x29, in, 4, out);" not in s
+          assert "desr_enable_quit_game" not in s
+          assert "DESR QUIT:" not in s
+          print("PASS: exact two-value SCMD patch")
+          PY
+          if [ "$G2_LANGUAGE" = english ]; then
+            make -C neutrino/ee/ee_core all
+            test -s neutrino/ee/ee_core/ee_core.elf
+          fi
+          make -C neutrino/ee/loader all
+          test -s neutrino/ee/loader/neutrino.elf
+          mkdir -p dist
+          cp neutrino/ee/loader/neutrino.elf "dist/g2_${G2_LANGUAGE}.elf"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,struct
+          p=Path("dist/g2_"+os.environ["G2_LANGUAGE"]+".elf")
+          b=p.read_bytes()
+          assert b[:6] == b'\x7fELF\x01\x01'
+          assert struct.unpack_from("<H",b,18)[0] == 8
+          print("PASS packed Neutrino",p,len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G2-neutrino-${{ matrix.language }}
+          path: dist/g2_${{ matrix.language }}.elf
+          if-no-files-found: error
+
+  package:
+    name: Publish checked A/B ZIP (NOT a release)
+    needs: [build-manager, build-neutrino]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch precisely validated official 1.0 USB release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input/release
+          gh release download 1.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            --dir input/release
+          test -s input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2-manager-DESR_G2A
+          path: input/g2a
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2-manager-DESR_G2B
+          path: input/g2b
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2-neutrino-system
+          path: input/system
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2-neutrino-english
+          path: input/english
+      - name: Verify stable files and produce two independent USB folders
+        run: |
+          python3 native-quit-igr/g2/package_ab.py \
+            --release input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip \
+            --manager-a input/g2a/DVR_ISO_MANAGER.ELF \
+            --manager-b input/g2b/DVR_ISO_MANAGER.ELF \
+            --system input/system/g2_system.elf \
+            --english input/english/g2_english.elf \
+            --output dist/DESR_QUIT_G2_AB_USB_TEST.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-QUIT-G2-AB-USB-UNTESTED
+          path: dist/DESR_QUIT_G2_AB_USB_TEST.zip
+          if-no-files-found: error
