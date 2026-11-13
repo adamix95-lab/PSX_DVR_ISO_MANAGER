@@ -46,6 +46,16 @@ W obu przypadkach Neutrino pochodzi z przypiętej rewizji PR228, a komplet modu�
 
 **Nie naciskaj QUIT podczas zapisu save, kopiowania ISO, pobierania okładek czy aktualizacji indeksów.** Funkcja ChangeSys zmienia aktywny tryb sprzętowy napędu, jej zgodność z DVR ISO nie jest potwierdzona. Możliwy jest czarny ekran wymagający ręcznego resetu; na tej gałęzi nie ma gwarancji odzyskania sterowania. Nie używaj tych binarek do codziennej gry.
 
+## Wyniki sprzętowe G4 — 2026-11-13
+
+**G4A (control):** po wybraniu gry przez X gra z DVR ISO wystartowała poprawnie. Fizyczny QUIT GAME nie reagował. Wynik: **boot PASS / QUIT FAIL**.
+
+**G4B (ChangeSys(2) + NoticeGameStart(1)):** po naciśnięciu X był **czarny ekran**, gra nie wystartowała. Fizyczny QUIT GAME **nie reagował**, nie było powrotu do XMB. Po całkowitym wyłączeniu i ponownym uruchomieniu konsoli użytkownik ponowił próbę: **bez zmian**. Wynik ostateczny: **boot FAIL / QUIT FAIL**.
+
+**Wniosek empiryczny:** samo ChangeSys(2) jest zgodne z uruchomieniem gry w trybie 0 (G4A), ale w połączeniu z mode 1 (G4B) nie naprawia bootowania ani nie zapewnia powrotu do XMB. Różni się od G3A (bez ChangeSys, mode 1), gdzie boot również nie działał, ale fizyczny QUIT przywracał oryginalne XMB. Nie wyciągać z tego wniosku o konkretnej awarii sprzętowej bez diagnozy ścieżki uruchomieniowej.
+
+**Kolejny etap:** żadnych następnych przypadkowych zmian SCMD. W nowym, odizolowanym teście zidentyfikować dokładny etap bootowania (dostęp DVR FHI, konfiguracja, reset IOP, przejęcie CDVDMAN, odczyt ISO) i zbadać statusy odpowiedzi ChangeSys / NoticeGameStart; bez instalacji na HDD i bez modyfikowania wydania 1.0.
+
 ## Izolacja
 
 - Zestaw ma osobne katalogi USB z lokalnymi `BOOT.CNF`. Testowe Managery mogą zapisać swoje `BOOT.CNF` **tylko na USB**, a nie na `PP.DVRISO`; aplikacja zachowuje normalne funkcje ART, których nie używamy w teście.
