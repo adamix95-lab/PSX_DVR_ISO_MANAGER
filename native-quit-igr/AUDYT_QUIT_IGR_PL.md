@@ -138,6 +138,16 @@ Szczegóły: [wyniki G3 i instrukcja](g3/README_TEST_PL.md).
 
 Szczegóły w [G4 README](g4/README_TEST_PL.md).
 
+## G5 — etapowa diagnostyka USB przygotowana (CI PASS, hardware UNTESTED)
+
+- [Instrukcja G5](g5/README_TEST_PL.md), [repo workflow](../.github/workflows/native-quit-g5-stages.yml), [CI #43422949377](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43422949377) — zakończony **PASS 5/5**.
+- **G5A**: NoticeGameStart(mode 0, 1 bajt), znana działająca kontrola z G3B. **G5B**: NoticeGameStart(mode 1, 1 bajt), tryb powodujący czarny ekran w G2B. Oba Neutrino mają identyczne punkty kontrolne GUI/GS.
+- Na ekranie etap 20/21 pokazuje CDVD init / transport SCMD i status MechaCon; etap 30/31 drugi IOP reset, 40/42 moduły LE, 50/51 FHI, 61–69 otwieranie i walidacja ISO, 90/91 SYSTEM.CNF.
+- Przy powodzeniu oba programy **celowo zatrzymują się na STAGE=199 przed uruchomieniem gry**. Nie interpretować tego jako błędu bootowania gry.
+- Porównanie A/B identyfikuje najwcześniejszy nieukończony etap; jeśli G5B dochodzi do 199, dalszy problem leży w etapie EE handoff / następnym IOP/EE core lub zostaje zamaskowany przez instrumentację.
+- Użyto dokładnego bazowego USB 1.0 (SHA-256 zweryfikowany), a moduły, OSDMenu, język EN, EE core i konfiguracje pozostają bajtowo zgodne z wydaniem. Osobne katalogi USB `DESR_G5A` i `DESR_G5B`. Żadnych zapisów HDD ani zmian stabilnego wydania.
+- **Rzeczywisty wynik sprzętowy G5 jeszcze nieznany.**
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
