@@ -1,0 +1,172 @@
+name: N4F offline RSA cert signature X1-YR-YR1 (PS2 READ-ONLY)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4f-rsa-offline.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4f_cert_rsa_offline.c'
+      - 'dvr-iso-manager/tools/n4f_embed_certificates.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4f-rsa:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3 openssl
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n4f
+      - uses: actions/checkout@v4
+        with:
+          repository: letsencrypt/website
+          ref: 736bf97e99c0238082e9a5c43d460af79d03873f
+          path: letsencrypt-public
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Generate and inspect pinned PUBLIC certificate fixtures
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-n4f-public
+          python3 dvr-iso-manager/tools/n4f_embed_certificates.py \
+            letsencrypt-public build-n4f-public
+          test -s build-n4f-public/n4f_fixtures.c
+          test -s build-n4f-public/n4f_fixtures.h
+          openssl verify -CAfile letsencrypt-public/static/certs/isrgrootx1.pem \
+            letsencrypt-public/static/certs/gen-y/root-yr-by-x1.pem
+          openssl verify -CAfile letsencrypt-public/static/certs/gen-y/root-yr.pem \
+            letsencrypt-public/static/certs/gen-y/int-yr1.pem
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('dvr-iso-manager/src/v12_n4f_cert_rsa_offline.c').read_text()
+          for forbidden in ('fileXioWrite(', 'FIO_MT_RDWR',
+                            'wolfSSL_connect(', 'WOLFSSL_VERIFY_NONE',
+                            'wolfSSL_write(', 'x^=x<<13'):
+              assert forbidden not in s,forbidden
+          for needed in ('wolfSSL_CertManagerVerifyBuffer',
+                         'wolfSSL_CertManagerLoadCABuffer',
+                         'YR1-TAMPER','X1->YR','YR->YR1'):
+              assert needed in s,needed
+          print('PASS: trusted public fixtures, no IOP/disk/network access')
+          PY
+      - name: Build host wolfSSL 5.8.2 matching verification APIs
+        shell: sh
+        run: |
+          set -eu
+          cmake -S wolfssl-n4f -B build-n4f-host \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4f-host" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=OFF -DWARNING_C_FLAGS=-w \
+            -DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1
+          cmake --build build-n4f-host -j2
+          cmake --install build-n4f-host
+          cc -std=c99 -O2 -Wall -Wextra \
+            -DWC_RNG_SEED_CB=1 -DV12_N4F_HOST \
+            -In4f-host/include -Ibuild-n4f-public \
+            dvr-iso-manager/src/v12_n4f_cert_rsa_offline.c \
+            build-n4f-public/n4f_fixtures.c \
+            n4f-host/lib/libwolfssl.a -lm -lpthread -o /tmp/n4f-host-test
+          /tmp/n4f-host-test
+          echo 'PASS: host wolfSSL independently verified both RSA signatures and rejected tamper'
+      - name: Build isolated EE wolfSSL port without changing stock SDK
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0'
+          cmake -S wolfssl-n4f -B build-n4f-wolf \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4f-ee" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-n4f-wolf -j2
+          cmake --install build-n4f-wolf
+          test -s n4f-ee/lib/libwolfssl.a
+      - name: Cross compile isolated N4F public certificate verifier ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4f-ee"
+          export V12_N4F_FIXTURES_DIR="$GITHUB_WORKSPACE/build-n4f-public"
+          cmake -S dvr-iso-manager -B build-n4f-ee \
+            -DDESR_V12_N4F_OFFLINE_RSA=ON
+          cmake --build build-n4f-ee \
+            --target V12_N4F_RSA_OFFLINE_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4f-ee/V12_N4F_RSA_OFFLINE_RO.ELF').read_bytes()
+          assert e[:4]==bytes([127,69,76,70]) and len(e)<8000000
+          for mark in (b'N4F RSA X509 OFFLINE - STAGE 0',
+                       b'X1->YR',b'YR->YR1',b'YR1-TAMPER',
+                       b'NO LIVE HTTPS / CA OVERRIDE / RTC'):
+              assert mark in e,mark
+          for bad in (b'raw.githubusercontent.com',b'mass:/N4E.ENT',
+                      b'WOLFSSL_VERIFY_NONE'):
+              assert bad not in e,bad
+          print(f'PASS: N4F offline EE cross-compiled {len(e)} bytes')
+          PY
+      - name: Publish GPL/AFL notices and read-only ELF on test branch
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/fixtures dist/licenses dist/src
+          cp build-n4f-ee/V12_N4F_RSA_OFFLINE_RO.ELF dist/
+          cp letsencrypt-public/static/certs/isrgrootx1.pem \
+             letsencrypt-public/static/certs/gen-y/root-yr-by-x1.pem \
+             letsencrypt-public/static/certs/gen-y/root-yr.pem \
+             letsencrypt-public/static/certs/gen-y/int-yr1.pem \
+             dist/fixtures/
+          cp dvr-iso-manager/src/v12_n4f_cert_rsa_offline.c \
+             dvr-iso-manager/tools/n4f_embed_certificates.py dist/src/
+          cp wolfssl-n4f/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat > dist/README-N4F.txt <<'EOF'
+          N4F OFFLINE wolfSSL RSA cert verification for PSX DESR-7000.
+          NO NETWORK. NO TLS HANDSHAKE. NO HDD/USB/RTC/ART WRITES.
+          Place only V12_N4F_RSA_OFFLINE_RO.ELF on FAT32 USB.
+          Run ELF using wLE-R3Z 4.80 and report all three test codes.
+          Tests:
+           X1->YR: ISRG Root X1 verifies cross-signed Root YR.
+           YR->YR1: Root YR verifies YR1 intermediate certificate.
+           YR1-TAMPER: intentionally corrupted signature MUST fail.
+          Fixed UTC 2026-11-13 is an OFFLINE test fixture, not TLS clock.
+          NO N4E.ENT, private seed or internet required.
+          wolfSSL GPLv3; PS2SDK AFL-2.0; NULD/ORBIT GPL-3.0 precedent.
+          Source: feature/v1.2-native-https, v1.2-n4f-rsa-offline.yml.
+          wolfSSL commit decea12e223869c8f8f3ab5a53dc90b69f436eb2.
+          Let's Encrypt website public certs commit:
+          736bf97e99c0238082e9a5c43d460af79d03873f.
+          EOF
+          sha256sum dist/V12_N4F_RSA_OFFLINE_RO.ELF > dist/SHA256SUMS
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n4f-direct-download:refs/remotes/origin/test/n4f-direct-download"
+          git worktree add --detach /tmp/n4f-publish origin/test/n4f-direct-download
+          git config --global --add safe.directory /tmp/n4f-publish
+          cd /tmp/n4f-publish
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n4f
+          cp -R "$GITHUB_WORKSPACE/dist/." diagnostics/n4f/
+          git add diagnostics/n4f
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n4f): publish offline RSA chain certificate diagnostic"
+            git push origin "HEAD:refs/heads/test/n4f-direct-download"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N4F-RSA-X509-OFFLINE
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error

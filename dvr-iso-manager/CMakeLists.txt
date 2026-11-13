@@ -159,6 +159,33 @@ if(DESR_V12_N4B_ISOLATED_RNG_AUDIT)
   target_compile_options(V12_N4B_ISOLATED_RNG_AUDIT.ELF PRIVATE
     -Os -Wall -Wextra -Werror)
 endif()
+# N4F: deterministic OFFLINE RSA certificate signature verifier.
+# The public Let's Encrypt PEMs are embedded as generated C arrays.
+# No network, IOP/PFS/HDD/USB, time setting or TLS session.
+option(DESR_V12_N4F_OFFLINE_RSA "N4F independent offline wolfSSL RSA cert verification" OFF)
+if(DESR_V12_N4F_OFFLINE_RSA)
+  if("$ENV{V12_N4B_WOLFSSL_DIR}" STREQUAL "" OR
+     NOT EXISTS "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a")
+    message(FATAL_ERROR "Provide isolated wolfSSL using V12_N4B_WOLFSSL_DIR")
+  endif()
+  if("$ENV{V12_N4F_FIXTURES_DIR}" STREQUAL "" OR
+     NOT EXISTS "$ENV{V12_N4F_FIXTURES_DIR}/n4f_fixtures.c")
+    message(FATAL_ERROR "Provide generated public N4F cert arrays")
+  endif()
+  add_executable(V12_N4F_RSA_OFFLINE_RO.ELF EXCLUDE_FROM_ALL
+    src/v12_n4f_cert_rsa_offline.c
+    "$ENV{V12_N4F_FIXTURES_DIR}/n4f_fixtures.c")
+  target_compile_definitions(V12_N4F_RSA_OFFLINE_RO.ELF PRIVATE
+    WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
+  target_include_directories(V12_N4F_RSA_OFFLINE_RO.ELF PRIVATE
+    "$ENV{V12_N4F_FIXTURES_DIR}"
+    "$ENV{V12_N4B_WOLFSSL_DIR}/include")
+  target_link_libraries(V12_N4F_RSA_OFFLINE_RO.ELF PRIVATE
+    "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a" libdebug.a m)
+  target_compile_options(V12_N4F_RSA_OFFLINE_RO.ELF PRIVATE
+    -Os -Wall -Wextra)
+endif()
+
 # N3B standalone crypto verifier using permissively licensed Monocypher.
 # No WolfSSL or network code is linked, and no HDD modules are initialized.
 # The source tree is checked out by the dedicated CI workflow with a pinned

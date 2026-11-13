@@ -743,6 +743,50 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4F — independent offline RSA/X.509 signature test on PSX EE
+
+**Physical N4E SIGTRACE (2026-11-13):** three CA bundles
+(original 119 roots, X1→YR cross-sign, and X1→YR→YR1) all failed
+with `RET=-649`, wolfSSL `ASN_SIG_CONFIRM_E=-155` at
+`depth=2`, `CERT total=3`, `VERIFY calls=1`, `preverify=0`.
+Roughtime, TCP, DNS and wolfCrypt DRBG succeeded; I/O was 6 RX
+and 2 TX, with no transport error.
+
+Conclusions: the failure occurs **during signature verification at
+certificate depth 2**. That depth is not sufficient on its own to
+identify which trusted public key or issuer certificate was used.
+Do not disable certificate verification or claim it is only a
+missing CA root. The exact cause remains unconfirmed.
+
+**N4F** is an **offline**, self-contained ELF that embeds official
+PUBLIC Let's Encrypt certificates from pinned website source
+`736bf97e99c0238082e9a5c43d460af79d03873f`.
+It never accesses network, HTTP, TLS peer, PFS, HDD, USB data,
+or the depleted RTC. Uses a FIXED 2026-11-13 date solely for
+reproducible offline certificate signature verification.
+
+Tests:
+
+1. `X1->YR` — ISRG Root X1 verifies the signature of the
+   **Root YR cross-signed by ISRG X1**;
+2. `YR->YR1` — self-signed Root YR as CA verifies YR1;
+3. `YR1-TAMPER` — flips the last DER signature byte; verification
+   must be rejected. **Never turn off signature checks.**
+
+CI builds host wolfSSL 5.8.2 with the same APIs, requires
+positive verifies and negative tamper rejection, then cross-compiles
+the same independent EE verifier with isolated wolfSSL and publishes
+the ELF and public PEM fixtures to test-only branch
+`test/n4f-direct-download`. Host PASS combined with EE physical
+failure will isolate a PS2-specific wolfSSL RSA/ASN.1 issue.
+
+Physical test needs **only `V12_N4F_RSA_OFFLINE_RO.ELF`** copied
+onto FAT32 and launched using wLE-R3Z 4.80. It does not require
+or reuse `N4E.ENT`, `N4E.CA`, a clock, or Ethernet. Report all
+three test lines plus `RET`.
+
+CI: `.github/workflows/v1.2-n4f-rsa-offline.yml`.
+Hardware N4F: **PENDING**. No XMB/manager/HDD/RTC writes.
 ## N4E SIGTRACE — locate certificate signature verification failure
 
 **Physical tests on 2026-11-13:** The original Mozilla CA roots and
