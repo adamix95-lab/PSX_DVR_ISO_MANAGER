@@ -29,6 +29,11 @@ jobs:
           repository: wolfSSL/wolfssl
           ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
           path: wolfssl-n4d
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
       - name: "Audit N4D read-only, private one-shot seed, GPL/AFL notices"
         shell: sh
         run: |
@@ -101,6 +106,7 @@ jobs:
         run: |
           set -eu
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4d-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
           cmake -S dvr-iso-manager -B build-n4d \
             -DDESR_BUILD_HDD_NETFIX=ON \
             -DDESR_V12_N3B_MINI=ON \
