@@ -108,6 +108,7 @@ typedef char test_pfs_args[(sizeof(pfs_args)==17)?1:-1];
 static uint8_t request_packet[V12_RT_REQUEST_BYTES];
 static uint8_t response_packet[V12_RT_REPLY_MAX_BYTES];
 static int mounted=0;
+static int n5b_last_link=-999,n5b_link_polls=0;
 static unsigned char ca_bundle[CA_CAP+1U];
 static size_t ca_bytes=0;
 static v12_n4b_seed_gate tls_gate={0};
@@ -298,8 +299,20 @@ static int init_net(const v12_net_config *cfg) {
   rc=ps2ipInit(&ip,&mask,&gw);
   scr_printf("ps2ipInit=%d\n",rc);
   if(rc<0) return -522;
-  for(int i=0;i<6;i++) {
+  scr_printf("N5B NETLINK: STATIC IP, DHCP OFF\n");
+  scr_printf("IP %u.%u.%u.%u GW %u.%u.%u.%u\n",
+    cfg->ip[0],cfg->ip[1],cfg->ip[2],cfg->ip[3],
+    cfg->gateway[0],cfg->gateway[1],cfg->gateway[2],cfg->gateway[3]);
+  scr_printf("MASK %u.%u.%u.%u DNS %u.%u.%u.%u\n",
+    cfg->netmask[0],cfg->netmask[1],cfg->netmask[2],cfg->netmask[3],
+    cfg->dns[0],cfg->dns[1],cfg->dns[2],cfg->dns[3]);
+  for(int i=0;i<20;i++) {
     link=NetManIoctl(NETMAN_NETIF_IOCTL_GET_LINK_STATUS,NULL,0,NULL,0);
+    n5b_last_link=link;
+    n5b_link_polls=i+1;
+    if(i==0 || i%4==3 || link==NETMAN_NETIF_ETH_LINK_STATE_UP)
+      scr_printf("N5B LINK poll=%d raw=%d UP=%d\n",
+        i+1,link,NETMAN_NETIF_ETH_LINK_STATE_UP);
     if(link==NETMAN_NETIF_ETH_LINK_STATE_UP) break;
     sleep(1);
   }
@@ -665,6 +678,11 @@ int main(void) {
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
     scr_printf("N5A ERROR: %d\n",rc);
+    if(rc==-523) {
+      scr_printf("N5B LINK WAIT 20s FAILED\n");
+      scr_printf("NETMAN raw=%d expected UP=%d\n",n5b_last_link,NETMAN_NETIF_ETH_LINK_STATE_UP);
+      scr_printf("LINK polls=%d ps2ipInit=0\n",n5b_link_polls);
+    }
     if(rc<=-710 && rc>=-715) {
       scr_printf("HTTP byte count=%u sent=%u\n",n5a_http_wire_bytes,n5a_http_wrote);
       scr_printf("HTTP parser=%d wolfSSL=%d\n",n5a_http_parse_error,n5a_http_tls_error);
