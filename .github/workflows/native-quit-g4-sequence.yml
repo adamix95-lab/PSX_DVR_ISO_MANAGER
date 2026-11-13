@@ -104,6 +104,17 @@ jobs:
           print("PASS: G4 Sony PSX mode transition and expected NoticeGameStart", mode)
           PY
           make -C neutrino/ee/loader all
+          test -s neutrino/ee/loader/neutrino_unpacked.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          b=Path("neutrino/ee/loader/neutrino_unpacked.elf").read_bytes()
+          mode = b"0" if os.environ["VARIANT"]=="G4A" else b"1"
+          assert b"G4: cdinit=%d" in b
+          assert b"G4: switch=2 result=%d" in b
+          assert b"G4: notice_mode="+mode in b
+          print("PASS G4: uncompressed ELF contains correct Sony mode diagnostic text")
+          PY
           mkdir -p dist
           cp neutrino/ee/loader/neutrino.elf dist/neutrino.elf
           python3 - <<'PY'
