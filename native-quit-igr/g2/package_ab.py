@@ -133,14 +133,26 @@ def build(a: argparse.Namespace):
                          "Test folder changes cannot be used as proof of native QUIT functionality."])
     all_files["G2_MANIFEST.txt"] = ("\n".join(out_manifest) + "\n").encode("utf-8")
     a.output.parent.mkdir(parents=True, exist_ok=True)
+    # Restore explicit directory entries that exist in the original USB
+    # release. In particular, ART/ may have no files and must still exist
+    # before artwork operations or library scans.
+    directory_entries = [
+        folder + "/" + name for folder in TEST_FOLDERS
+        for name in ("", "ART/", "config/", "modules/")
+    ]
     with zipfile.ZipFile(a.output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=8) as z:
+        for directory in directory_entries:
+            z.writestr(directory, b"")
         for name, b in sorted(all_files.items()):
             z.writestr(name, b)
     with zipfile.ZipFile(a.output) as z:
         if z.testzip():
             raise ValueError("Final ZIP fails CRC")
-        if len(z.namelist()) != len(all_files):
-            raise ValueError("Final ZIP misses files")
+        if len(z.namelist()) != len(all_files) + len(directory_entries):
+            raise ValueError("Final ZIP misses files or directories")
+        for directory in directory_entries:
+            if directory not in z.namelist() or not z.getinfo(directory).is_dir():
+                raise ValueError(f"ZIP directory missing: {directory}")
         for name in all_files:
             if z.read(name) != all_files[name]:
                 raise ValueError(f"ZIP changed data: {name}")
