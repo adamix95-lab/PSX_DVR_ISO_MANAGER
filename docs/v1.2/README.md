@@ -778,9 +778,32 @@ certificate verification PASS, `RET=0`. If handshake fails,
 send the entire error screen including TLS bound, wolfSSL error,
 certificate error/depth and network counters.
 
+**N4H CI: PASS (2026-11-13)** — [GitHub Actions 43426843552](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43426843552).
+Host entropy/time/CA/source negative audits, pinned NETFIX PS2SDK
+rebuild, isolated wolfSSL 5.8.2 portable FastMath with
+`USE_FAST_MATH`, `TFM_NO_ASM`, no `WOLFSSL_SP_MATH_ALL`,
+`TFM_TIMING_RESISTANT`, SNI, and seed callback passed.
+Cross-linked `V12_N4H_FASTMATH_TLS_RO.ELF` for R5900
+(**4,742,840 bytes**). GitHub Actions publication succeeded.
+
+Direct-download N4H files:
+
+- [N4H ELF RAW](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4h-fastmath-direct-download/diagnostics/n4h/V12_N4H_FASTMATH_TLS_RO.ELF)
+- [N4E.CA Mozilla public roots](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4h-fastmath-direct-download/diagnostics/n4h/N4E.CA)
+- [Generate fresh N4E.ENT on host](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4h-fastmath-direct-download/diagnostics/n4h/tools/generate_n4e_entropy.py)
+- [Full README N4H](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4h-fastmath-direct-download/diagnostics/n4h/README-N4H.txt)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4h-fastmath-direct-download/diagnostics/n4h/SHA256SUMS)
+
+ELF SHA-256:
+`fec916b8f40fc45bfb1a9eadb02b7ae7e1cd183c536ebb103d4a290ebaa5f372`.
+No random N4E.ENT is included in the artifact. Physical handshake
+remains **UNTESTED** until a DESR-7000 run; CI success never
+confirms live TLS success or a production-worthy clock/anti-replay
+policy. Do not merge into 1.0 or write to PFS/RTC/ART.
+
 Build workflow: `.github/workflows/v1.2-n4h-fastmath-tls.yml`.
-Direct-download publication: `test/n4h-fastmath-direct-download`
-on successful CI. Physical N4H: **PENDING**.
+Direct-download branch: `test/n4h-fastmath-direct-download`.
+Physical N4H: **PENDING**.
 **Stable Manager 1.0, XMB, HDD partitions/data, ART and RTC remain
 completely unchanged.**
 ## N4F physical FAILURE and N4G alternate RSA math isolation
