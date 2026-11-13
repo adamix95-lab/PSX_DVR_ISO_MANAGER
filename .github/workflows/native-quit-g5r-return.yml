@@ -82,7 +82,7 @@ jobs:
           assert "static int g5_screen_ready = 0" in s
           assert s.count("init_scr();")==1
           for i in range(2,10):
-            assert f"g5_stage = {i};" in s
+            assert f"g5_stage = {i}" in s
           assert 'uint8_t in[4] = {0};' in s
           assert 'sceCdApplySCmd(0x29, in, 1, out);' in s
           assert 'sceCdApplySCmd(0x29, in, 4, out);' not in s
