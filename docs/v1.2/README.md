@@ -772,8 +772,24 @@ Run with the same **public** `N4E.CA` and a freshly regenerated
 entropy across reboot/failed runs is forbidden. No changes to
 stable 1.0, XMB, HDD, PFS, RTC or ART.
 
+**N4E SIGTRACE CI: PASS (2026-11-13)** —
+[GitHub Actions run 43416192916](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43416192916).
+Read-only audit, seed/UTC regressions, wolfSSL with SNI/DRBG, EE cross-link,
+and separate branch publication all passed.
+
+Direct-download links:
+
+- [V12_N4E_SIGTRACE_RO.ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-sigtrace-direct-download/diagnostics/n4e-sigtrace/V12_N4E_SIGTRACE_RO.ELF)
+- [Public N4E.CA PEM](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-sigtrace-direct-download/diagnostics/n4e-sigtrace/N4E.CA)
+- [Generator for private N4E.ENT](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-sigtrace-direct-download/diagnostics/n4e-sigtrace/tools/generate_n4e_entropy.py)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-sigtrace-direct-download/diagnostics/n4e-sigtrace/SHA256SUMS)
+
+ELF size: **4,711,332 bytes**; SHA-256:
+`82fecd6b93cddd7d78538b8632b3a40707beadedb4dbda18c182e24bc0cde368`.
+The physical callback findings remain unverified; a CI pass is not a
+hardware success. The original N4E and NETDIAG ELFs are unchanged.
+
 CI: `.github/workflows/v1.2-n4e-sigtrace.yml`.
-Test-only publication: `test/n4e-sigtrace-direct-download`.
 Physical SIGTRACE: **PENDING**.
 ## N4E NETDIAG physical RET=-649 — wolfSSL ASN_SIG_CONFIRM_E (-155)
 
