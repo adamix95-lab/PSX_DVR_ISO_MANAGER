@@ -89,6 +89,11 @@ jobs:
           /tmp/n4c-client localhost ca.pem 19443 1
           /tmp/n4c-client wrong.example ca.pem 19443 0
           /tmp/n4c-client localhost wrong-ca.pem 19443 0
+          # Certificate date MUST depend on the supplied wolfCrypt callback.
+          /tmp/n4c-client localhost ca.pem 19443 1 "$(date +%s)"
+          /tmp/n4c-client localhost ca.pem 19443 0 1577836800
+          /tmp/n4c-client localhost ca.pem 19443 0 2051222400
+          echo 'PASS: wolfSSL custom UTC clock accepts current date and rejects both invalid dates'
           echo 'PASS: N4C local TLS validated CA + SAN, rejected wrong name and wrong root'
           # Only public CA certificates and keys generated in this CI job;
           # never package or publish test private keys.
