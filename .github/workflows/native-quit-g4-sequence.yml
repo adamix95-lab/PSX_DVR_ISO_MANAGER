@@ -1,0 +1,166 @@
+name: Native QUIT G4 - Sony PSX change-system then NoticeGameStart (USB only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/native-quit-igr]
+    paths:
+      - 'native-quit-igr/g4/**'
+      - '.github/workflows/native-quit-g4-matrix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  manager:
+    name: G4${{ matrix.variant }} isolated USB Manager
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [G4A, G4B]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Build Manager with test-only USB folder
+        shell: sh
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -eu
+          apk add --no-cache cmake build-base python3
+          python3 manager/native-quit-igr/g2/patch_usb_manager_folder.py \
+            manager/dvr-iso-manager/include/runtime_storage.h "DESR_$VARIANT"
+          cmake -S manager/dvr-iso-manager -B build-manager
+          cmake --build build-manager --target DVR_ISO_MANAGER.ELF -j2
+          mkdir -p dist
+          cp build-manager/DVR_ISO_MANAGER.ELF dist/DVR_ISO_MANAGER.ELF
+          python3 - <<'PY'
+          import os,struct
+          from pathlib import Path
+          b=Path("dist/DVR_ISO_MANAGER.ELF").read_bytes()
+          label=os.environ["VARIANT"].encode()
+          assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",b,18)[0]==8
+          assert b"mass0:/DESR_"+label+b"/" in b
+          assert b"1.0 USB "+label in b
+          assert b"mass0:/DESR_DVR/" not in b
+          assert b"dvr_pfs0:/ISO/" in b
+          assert b"PP.TESTDVR" not in b
+          print("PASS:",label,"Manager",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G4-manager-${{ matrix.variant }}
+          path: dist/DVR_ISO_MANAGER.ELF
+          if-no-files-found: error
+
+  neutrino:
+    name: G4${{ matrix.variant }} Neutrino SYSTEM
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [G4A, G4B]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply isolated Sony PSX drive-mode transition before NoticeGameStart
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git -C neutrino diff --exit-code
+          python3 manager/native-quit-igr/g4/patch_neutrino_psx_sequence.py \
+            neutrino/ee/loader/src/main.c "$VARIANT"
+          git -C neutrino diff --check
+          test "$(git -C neutrino diff --name-only)" = "ee/loader/src/main.c"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          src=Path("neutrino/ee/loader/src/main.c").read_text()
+          assert "static int desr_g4_change_system_ps2(void)" in src
+          assert 'SifCallRpc(&clientSCmd, 0x2D' in src
+          assert 'int ps2_mode = desr_g4_change_system_ps2();' in src
+          assert 'if (ps2_mode != 2)' in src
+          assert 'sceCdApplySCmd(0x29, in, 1, out);' in src
+          assert 'sceCdApplySCmd(0x29, in, 4, out);' not in src
+          mode = "0" if os.environ["VARIANT"]=="G4A" else "1"
+          assert 'uint8_t in[4] = {'+mode+'};' in src
+          assert 'G4: notice_mode='+mode in src
+          assert 'desr_enable_quit_game' not in src
+          print("PASS: G4 Sony PSX mode transition and expected NoticeGameStart", mode)
+          PY
+          make -C neutrino/ee/loader all
+          mkdir -p dist
+          cp neutrino/ee/loader/neutrino.elf dist/neutrino.elf
+          python3 - <<'PY'
+          import struct,hashlib,os
+          from pathlib import Path
+          b=Path("dist/neutrino.elf").read_bytes()
+          assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",b,18)[0]==8
+          print("PASS MIPS",os.environ["VARIANT"],len(b),hashlib.sha256(b).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G4-neutrino-${{ matrix.variant }}
+          path: dist/neutrino.elf
+          if-no-files-found: error
+
+  package:
+    name: Verify official 1.0 payload and publish G4-only test ZIP
+    needs: [manager, neutrino]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download published official USB v1.0 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input/release
+          gh release download 1.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            --dir input/release
+          test -s input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip
+      - uses: actions/download-artifact@v4
+        with:
+          name: G4-manager-G4A
+          path: input/manager-g4a
+      - uses: actions/download-artifact@v4
+        with:
+          name: G4-manager-G4B
+          path: input/manager-g4b
+      - uses: actions/download-artifact@v4
+        with:
+          name: G4-neutrino-G4A
+          path: input/neutrino-g4a
+      - uses: actions/download-artifact@v4
+        with:
+          name: G4-neutrino-G4B
+          path: input/neutrino-g4b
+      - name: Package checked G4A and G4B — no HDD/XMB files
+        run: |
+          python3 native-quit-igr/g4/package_g4.py \
+            --release input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip \
+            --manager-g4a input/manager-g4a/DVR_ISO_MANAGER.ELF \
+            --manager-g4b input/manager-g4b/DVR_ISO_MANAGER.ELF \
+            --neutrino-g4a input/neutrino-g4a/neutrino.elf \
+            --neutrino-g4b input/neutrino-g4b/neutrino.elf \
+            --output dist/DESR_QUIT_G4_SONY_SEQUENCE_USB.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-QUIT-G4-SONY-SEQUENCE-USB-UNTESTED
+          path: dist/DESR_QUIT_G4_MODE_VS_LENGTH_USB.zip
+          if-no-files-found: error
