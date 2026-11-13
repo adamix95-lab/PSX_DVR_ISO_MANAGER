@@ -6,7 +6,7 @@ on:
     branches: [feature/native-quit-igr]
     paths:
       - 'native-quit-igr/g4/**'
-      - '.github/workflows/native-quit-g4-matrix.yml'
+      - '.github/workflows/native-quit-g4-sequence.yml'
 
 permissions:
   contents: read
@@ -162,5 +162,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: DESR-QUIT-G4-SONY-SEQUENCE-USB-UNTESTED
-          path: dist/DESR_QUIT_G4_MODE_VS_LENGTH_USB.zip
+          path: dist/DESR_QUIT_G4_SONY_SEQUENCE_USB.zip
           if-no-files-found: error
