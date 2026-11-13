@@ -1,0 +1,126 @@
+name: Native QUIT G2C - baseline rebuilt Neutrino USB control
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/native-quit-igr]
+    paths:
+      - 'native-quit-igr/g2/package_control.py'
+      - 'native-quit-igr/g2/patch_usb_manager_folder.py'
+      - '.github/workflows/native-quit-g2c-control.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  control-manager:
+    name: Build G2C USB Manager (same root adjustment as G2B)
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Compile isolated G2C Manager from release 1.0 source
+        shell: sh
+        run: |
+          set -eu
+          apk add --no-cache cmake build-base python3
+          python3 manager/native-quit-igr/g2/patch_usb_manager_folder.py \
+            manager/dvr-iso-manager/include/runtime_storage.h DESR_G2C
+          cmake -S manager/dvr-iso-manager -B build-manager
+          cmake --build build-manager --target DVR_ISO_MANAGER.ELF -j2
+          mkdir -p dist
+          cp build-manager/DVR_ISO_MANAGER.ELF dist/DVR_ISO_MANAGER.ELF
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          b=Path("dist/DVR_ISO_MANAGER.ELF").read_bytes()
+          assert b[:6]==b'\x7fELF\x01\x01'
+          assert struct.unpack_from("<H",b,18)[0]==8
+          assert b"mass0:/DESR_G2C/" in b and b"mass0:/DESR_DVR/" not in b
+          assert b"1.0 USB G2C" in b and b"dvr_pfs0:/ISO/" in b
+          print("PASS G2C Manager",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G2C-manager-control
+          path: dist/DVR_ISO_MANAGER.ELF
+          if-no-files-found: error
+
+  baseline-neutrino:
+    name: Recompile pinned Neutrino without ANY source patch
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Verify pristine tree and build like G2B SYSTEM
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git -C neutrino diff --exit-code
+          grep -Fq 'uint8_t in[4] = {0};' neutrino/ee/loader/src/main.c
+          grep -Fq 'sceCdApplySCmd(0x29, in, 4, out);' neutrino/ee/loader/src/main.c
+          ! grep -Fq 'sceCdApplySCmd(0x29, in, 1, out);' neutrino/ee/loader/src/main.c
+          make -C neutrino/ee/loader all
+          test -s neutrino/ee/loader/neutrino.elf
+          mkdir -p dist
+          cp neutrino/ee/loader/neutrino.elf dist/neutrino.elf
+          python3 - <<'PY'
+          import hashlib,struct
+          from pathlib import Path
+          b=Path("dist/neutrino.elf").read_bytes()
+          assert b[:6]==b'\x7fELF\x01\x01'
+          assert struct.unpack_from("<H",b,18)[0]==8
+          print("PASS G2C unmodified rebuilt loader, bytes",len(b))
+          print("SHA256",hashlib.sha256(b).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G2C-baseline-Neutrino-SYSTEM
+          path: dist/neutrino.elf
+          if-no-files-found: error
+
+  package-g2c:
+    needs: [control-manager, baseline-neutrino]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact published USB 1.0 ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input/release
+          gh release download 1.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            --dir input/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2C-manager-control
+          path: input/manager
+      - uses: actions/download-artifact@v4
+        with:
+          name: G2C-baseline-Neutrino-SYSTEM
+          path: input/neutrino
+      - name: Package isolated G2C with official modules and configuration
+        run: |
+          python3 native-quit-igr/g2/package_control.py \
+            --release input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip \
+            --manager input/manager/DVR_ISO_MANAGER.ELF \
+            --system input/neutrino/neutrino.elf \
+            --output dist/DESR_QUIT_G2C_USB_CONTROL.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-QUIT-G2C-USB-BASELINE-REBUILD-UNTESTED
+          path: dist/DESR_QUIT_G2C_USB_CONTROL.zip
+          if-no-files-found: error
