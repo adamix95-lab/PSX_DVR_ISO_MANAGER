@@ -352,6 +352,61 @@ build before a full sector backup. N3E hardware PASS does not by itself
 establish native HTTPS.
 
 
+## Stage N4A — host entropy preflight before native wolfSSL (READ-ONLY)
+
+**Source prepared on experimental v1.2 branch; standalone hardware
+result: PENDING.** N3E physical DESR-7000 Roughtime signed UTC test
+passed on 2026-11-13: MIDP 06:59:06 UTC, RADI 3 s, RET=0.
+
+N4A adds a separate, opt-in `V12_N4A_ENTROPY_RO.ELF`.
+An OS-CSPRNG helper on the user's own PC
+(`dvr-iso-manager/tools/generate_n4a_entropy.py`) creates
+**exactly 96 binary bytes** under `N4A.ENT` in FAT32 USB root:
+
+- Bytes 0–31 are used as a fresh Roughtime request nonce for
+  the existing strict TXRyan signed-time path.
+- Bytes 32–95 are a separate 64-byte *future TLS entropy input*.
+  The N4A diagnostic reads them, validates only their shape,
+  then deliberately **wipes the bytes without handing them to wolfSSL**.
+
+The generator uses Python `secrets.token_bytes(96)`, writes a new file
+with exclusive creation, and refuses overwrites. It prints **no secret
+bytes**; secrets are never committed or distributed by CI.
+Checking nonzero/distinct regions cannot prove randomness independently:
+the security assumption is the host CSPRNG, not the console hardware RTC.
+**The same N4A.ENT must NEVER be reused**, including after restart.
+The ELF never writes a consumed marker, so reuse remains possible.
+
+**Physical test instructions (after N4A CI build PASS):**
+
+1. Download `V12_N4A_ENTROPY_RO.ELF` plus
+   `generate_n4a_entropy.py` from the separate
+   `test/n4a-direct-download/diagnostics/n4a/` branch once published.
+2. Copy ELF to FAT32 USB. In Windows PowerShell, from the folder
+   with the generator run
+   `py .\generate_n4a_entropy.py E:/N4A.ENT`
+   replacing `E:` with actual pendrive letter.
+   Delete any old N4A.ENT *before generating a fresh file*.
+   Confirm the binary file is exactly 96 bytes. Do not upload it.
+3. Keep experimental `PP.DVRISO12/V12_NET.CNF` untouched; run the
+   isolated ELF from USB using wLE-R3Z 4.80. No SELECT is needed.
+4. Report the full screen: strict signed UTC, RADI, `RET` and stage codes.
+   `RET=0` verifies only Roughtime and separate input provisioning.
+   `-510..-514` = USB file/init, `-516` = invalid source ranges,
+   `-520` NETMAN, `-521` SMAP, `-522` ps2ip, `-523` LINK,
+   `-508` crypto and `-515` signed time policy.
+
+**No HTTPS is performed.** N4A does not integrate TLS, provision
+wolfSSL DRBG, enforce CA/hostname validation, or establish a persistent
+replay-safe TLS clock. wolfSSL normally needs a platform entropy seed
+callback on hardware without OS random devices; this must be validated
+against the actual PS2 wolfSSL build before any real TLS handshake.
+No RTC, PFS, APA, HDD, ART, USB or XMB writes and no games launched.
+Do NOT publish a v1.2 release or create partitions before a complete
+restorable sector backup. Stable 1.0 is unchanged.
+
+Build: `.github/workflows/v1.2-n4a-entropy.yml`.
+N4A GitHub Actions: **PENDING**. Physical N4A: **PENDING**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
