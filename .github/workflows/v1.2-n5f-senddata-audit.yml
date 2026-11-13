@@ -1,0 +1,38 @@
+name: N5F inspect pinned wolfSSL SendData source (no ELF, no console writes)
+on:
+  push:
+    branches: [test/n5f-handshake-localize]
+    paths: [".github/workflows/v1.2-n5f-senddata-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-pinned-wolfssl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+      - name: Print relevant pinned SendData source excerpt
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("src/internal.c")
+          t=p.read_text().splitlines()
+          starts=[i for i,line in enumerate(t) if re.search(r'^\s*int\s+SendData\s*\(',line)]
+          assert len(starts)==1, starts
+          start=starts[0]
+          print("SENDDATA BEGIN (line)",start+1)
+          j=start+1
+          while j<len(t) and not re.match(r'^}\s*$',t[j]):j+=1
+          assert j<len(t)
+          print("SENDDATA END (line)",j+1, "LEN",j-start)
+          for i in range(start,min(j+1,start+220)):
+              print(f"PINNED {i+1:6d} {t[i]}")
+          for i in range(start+220,j+1):
+              if any(q in t[i] for q in ('ssl_in_handshake(', 'BuildMessage(', 'RetrySendAlert(', 'SendBuffered(')):
+                  print(f"ADDITIONAL {i+1:6d} "+t[i])
+          PY
