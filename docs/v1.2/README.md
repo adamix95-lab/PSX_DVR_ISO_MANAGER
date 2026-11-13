@@ -628,7 +628,17 @@ Fail codes: `-601` IOP/driver setup; `-603` seed file absent;
 wolfSSL init/callback; `-608/-609` DRBG init/generate;
 `-610` reuse incorrectly accepted; `-611` repeated blocks.
 
-CI state: **PENDING** until full PS2 cross-build finishes.
+**N4D CI cross-build: PASS (2026-11-13)** —
+[run 43394034475](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43394034475).
+The isolated PS2 ELF is **3,797,460 bytes**. Audit passed
+no-write rules, secure 64-byte host input, host seed-gate tests,
+pinned NETFIX PS2SDK, isolated wolfSSL callback-enabled build
+and cross-link. Actual hardware DRBG runtime remains untested.
+
+Separate workflow also publishes the binary, generator, source/license
+notices and SHA256SUMS to the test-only branch
+`test/n4d-direct-download` for direct RAW retrieval.
+No random seed file is distributed.
 Physical N4D: **NOT YET TESTED**.
 
 ## N3B — GUI boot regression after forensic build (DESR-7000)
