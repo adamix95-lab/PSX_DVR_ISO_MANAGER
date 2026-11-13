@@ -90,6 +90,22 @@ Interpretacja: sukces transportu SCMD 0x29 nie wystarcza do dowodu działania wy
 
 G2 przygotowane w tej samej gałęzi: [szczegółowa instrukcja testu A/B](g2/README_TEST_PL.md). Test obejmuje osobne foldery USB `DESR_G2A` i `DESR_G2B`, oryginalny `BOOT.ELF`, oryginalne moduły z USB 1.0 i izolowane `BOOT.CNF`. Ani wydanie 1.0, ani HDD/XMB nie są modyfikowane. **Wynik sprzętowy G2 nieznany, dopóki użytkownik nie przetestuje artefaktu.**
 
+## G2B — wynik fizycznej DESR-7000: **native QUIT wraca do XMB (2026-11-13)**
+
+**Informacja od użytkownika po teście sprzętowym G2B:** gra **nie wystartowała** (czarny ekran). Po naciśnięciu fizycznego **QUIT GAME** po kilku sekundach konsola **wróciła do oryginalnego XMB Sony**.
+
+Rozróżnienie bramek:
+- **G2B — boot gry: FAIL / czarny ekran.**
+- **G2B — QUIT na czarnym ekranie: PASS / powrót do XMB Sony.**
+- **QUIT podczas normalnie działającej gry: nadal NIEPOTWIERDZONY.**
+- G2A: na podstawie tej wypowiedzi użytkownika nie wpisujemy nowego wyniku, dopóki nie zostanie zgłoszony.
+
+Wniosek: najważniejsza funkcja sprzętowa **jest osiągalna** po zmianie starego 0x29 `mode=0, bytes=4` na `mode=1, bytes=1`, ale ta modyfikacja lub środowisko testowe powoduje regresję bootowania gry. **Nie wolno przedstawiać jej jako gotowej poprawki.**
+
+Dodatkowy fakt z CI `G2C`: oryginalna, niezmieniona kompilacja Neutrino SYSTEM w identycznym toolchainie dała ELF bajt-po-bajcie równy oficjalnej 1.0. Poprzednie `package-g2c` przerwało się na zbyt ostrym asercie `neutrino != baseline`, czyli dowód tożsamości został błędnie uznany za błąd paczki. Ta kontrola eliminuje różnice wersji kompilatora jako wyjaśnienie.
+
+Następny test: **G3 A/B** z dwoma wariantami ortogonalnymi: `mode=1, len=4` i `mode=0, len=1`. Nie dodawać nowego SCMD, resetu IOP, hooków ani podmiany modułów DVR. Testować boot, a fizyczny QUIT tylko gdy stan jest stabilny i nic nie jest zapisywane.
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
