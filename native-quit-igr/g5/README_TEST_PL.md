@@ -2,6 +2,10 @@
 
 **PSX DVR ISO MANAGER — gałąź `feature/native-quit-igr`.** Wyłącznie USB; nie ma instalatora XMB, nowych partycji ani podmiany stabilnej wersji 1.0.
 
+## Wynik sprzętowy G5A — 2026-11-13
+
+Użytkownik zgłosił: **G5A po próbie uruchomienia wraca do XMB**, zamiast wyświetlić końcowy ekran diagnostyczny `STAGE 199`. Nie zgłoszono, czy którykolwiek STAGE był widoczny pośrednio, dlatego nie przypisujemy awarii konkretnemu etapowi ani nie wnioskujemy, że ISO lub MechaCon zawiodły. **G5A nie przeszedł bramki diagnostycznej. G5B nie powinien być testowany** do czasu potwierdzenia kontroli. Analiza źródła wskazuje, że pierwszy ekran G5A pojawia się dopiero po wczytaniu konfiguracji i modułów; błędy/return przed tym punktem powodują nieinstrumentowany powrót. Dodatkowo `init_scr()` jest wywoływany dla każdego etapu, co zwiększa ingerencję w GS. Potrzebny jest test kontrolny, który wyświetli pierwszy STAGE przy wejściu do `main`, a także przechwyci wszelkie wczesne kody return.
+
 ## Cel i aktualne wyniki sprzętowe
 
 | Wersja | Gra uruchamia się | Fizyczny QUIT |
