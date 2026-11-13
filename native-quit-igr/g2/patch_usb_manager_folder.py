@@ -8,7 +8,7 @@ the Neutrino SCMD bytes in G2B; the generated BOOT.CNF continues to name
 from pathlib import Path
 import argparse
 
-TARGETS = ("DESR_G2A", "DESR_G2B", "DESR_G2C")
+TARGETS = ("DESR_G2A", "DESR_G2B", "DESR_G2C", "DESR_G3A", "DESR_G3B")
 
 
 def apply(text: str, folder: str) -> str:
