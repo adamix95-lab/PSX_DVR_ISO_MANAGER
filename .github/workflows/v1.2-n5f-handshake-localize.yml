@@ -226,7 +226,7 @@ jobs:
                     b'ROUGHTIME SIGNED UTC: PASS',b'N4E.CA',b'N4E.ENT',
                     b'TLS1.2 CHAIN/HOST/DATE: PASS',b'TWO BOUND CHECKS: PASS'):
               assert m in e,m
-          for m in (b'N5F HANDSHAKE STATE - STAGE 0',b'N5E WOLF step=',b'N5F HANDSHAKE - FINAL RESULT'):
+          for m in (b'N5F HANDSHAKE STATE - STAGE 0',b'N5F WOLF step=',b'N5F HANDSHAKE - FINAL RESULT',b'N5F HS phase='):
               assert m in e,m
           for bad in (b'WOLFSSL_VERIFY_NONE',b'hdd0:PP.DVRISO/BOOT.CNF',
                       b'N4D.SEED'):
