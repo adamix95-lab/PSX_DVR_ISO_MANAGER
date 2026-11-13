@@ -717,7 +717,32 @@ of wolfSSL use on PS2 but is not a legal determination.
 
 CI: `.github/workflows/v1.2-n4e-tls-handshake.yml`.
 Direct-download branch after CI PASS: `test/n4e-direct-download`.
-N4E CI: **PENDING**. N4E physical: **PENDING**.
+**N4E CI: PASS (2026-11-13)** — [GitHub Actions run 43407814396](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43407814396).
+Passed pinned TXRyan key / host private 160-byte CSPRNG audit, host
+seed/time regression tests, HTTPS verification of the public Mozilla
+CA bundle source, NETFIX PS2SDK rebuild, isolated wolfSSL 5.8.2
+with callback + SNI, and full EE ELF cross-link. The build also
+published a direct-download copy. A CI PASS does not prove a
+successful physical TLS handshake.
+
+Verified direct-download files on `test/n4e-direct-download`:
+
+- [N4E TLS ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-direct-download/diagnostics/n4e/V12_N4E_TLS_RO.ELF)
+- [Public N4E.CA trust roots](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-direct-download/diagnostics/n4e/N4E.CA)
+- [Host CSPRNG generator](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-direct-download/diagnostics/n4e/tools/generate_n4e_entropy.py)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-direct-download/diagnostics/n4e/SHA256SUMS)
+- [README instructions](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4e-direct-download/diagnostics/n4e/README-N4E.txt)
+
+EE ELF: **4,709,548 bytes**; SHA-256:
+`86f49e927952b4d98e429a34c735803da6cd85d52e4688a5b2c1212358d8b865`.
+Public CA bundle: **200,116 bytes**, SHA-256:
+`427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285`.
+No N4E.ENT is included in any CI artifact or test branch.
+
+**N4E physical: PENDING** — only run with freshly generated
+`N4E.ENT` and report the full display/error code. Do not use this
+diagnostic as a release, trusted production clock or cover downloader.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
