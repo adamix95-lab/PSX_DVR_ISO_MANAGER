@@ -109,7 +109,6 @@ jobs:
                          b"NEUTRINO ENTRY before ROMVER",
                          b"Neutrino returned instead of EE",
                          b"LAST PHASE BEFORE STOP:",
-                         b"EE handoff reached; ISO/FHI PASS",
                          b"POST-CNF PASS; STOP BEFORE EE CLEAR",
                          b"Before BOOT2 filename parse",
                          b"CDVDMAN media configured"):
