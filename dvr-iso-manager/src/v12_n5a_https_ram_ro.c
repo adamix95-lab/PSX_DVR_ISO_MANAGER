@@ -139,8 +139,8 @@ void n5d_trace(unsigned int step) {
   if(!n5c_http_active) return;
   n5d_trace_last=step;
   n5d_trace_count++;
-  if(n5d_trace_count<=64U)
-    scr_printf("N5D WOLF step=%u count=%u\n",step,n5d_trace_count);
+  if(n5d_trace_count<=96U)
+    scr_printf("N5E WOLF step=%u count=%u\n",step,n5d_trace_count);
 }
 static int n5c_phase=0,n5c_write_calls=0,n5c_read_calls=0;
 
@@ -493,7 +493,7 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
   n5a_http_result parsed={0};
   if(!ssl)return -710;
   n5c_http_active=1;
-  scr_printf("STAGE 10: N5D WOLFSSL WRITE TRACE\n");
+  scr_printf("STAGE 10: N5E SENDDATA DEEPTRACE\n");
   {
     const char *cipher=wolfSSL_get_cipher(ssl);
     scr_printf("N5D CIPHER=%s\n",cipher?cipher:"unknown");
@@ -689,7 +689,7 @@ int main(void) {
   v12_net_config cfg;
   init_scr();
   scr_setCursor(0);
-  scr_printf("N5D WOLFSSL WRITE TRACE - STAGE 0\n");
+  scr_printf("N5E SENDDATA DEEPTRACE - STAGE 0\n");
   scr_printf("MATH: FASTMATH PORTABLE C (NO SP/ASM)\n");
   scr_printf("FIXED GET INTO RAM; NO ART/HDD/RTC WRITES\n");
   sleep(1);
@@ -712,7 +712,7 @@ int main(void) {
     if(u<0 && rc==0)rc=-509;
   }
   scr_clear();
-  scr_printf("N5D HTTPS WRITE - FINAL RESULT\n");
+  scr_printf("N5E SENDDATA - FINAL RESULT\n");
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0) {
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
@@ -720,8 +720,8 @@ int main(void) {
     scr_printf("HTTPS GET 200 RAM: PASS\n");
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
-    scr_printf("N5D ERROR: %d\n",rc);
-    scr_printf("N5D STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
+    scr_printf("N5E ERROR: %d\n",rc);
+    scr_printf("N5E STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
     scr_printf("IO PHASE=%d W=%d R=%d FAIL=%d\n",n5c_phase,n5c_write_calls,n5c_read_calls,diag_io_fail);
     if(rc==-523) {
       scr_printf("N5B LINK WAIT 20s FAILED\n");
