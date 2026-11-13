@@ -152,6 +152,14 @@ Szczegóły w [G4 README](g4/README_TEST_PL.md).
 
 Użytkownik zgłosił: **G5A po próbie uruchomienia wraca do XMB**, zamiast wyświetlić końcowy ekran diagnostyczny `STAGE 199`. Nie zgłoszono, czy którykolwiek STAGE był widoczny pośrednio, dlatego nie przypisujemy awarii konkretnemu etapowi ani nie wnioskujemy, że ISO lub MechaCon zawiodły. **G5A nie przeszedł bramki diagnostycznej. G5B nie powinien być testowany** do czasu potwierdzenia kontroli. Analiza źródła wskazuje, że pierwszy ekran G5A pojawia się dopiero po wczytaniu konfiguracji i modułów; błędy/return przed tym punktem powodują nieinstrumentowany powrót. Dodatkowo `init_scr()` jest wywoływany dla każdego etapu, co zwiększa ingerencję w GS. Potrzebny jest test kontrolny, który wyświetli pierwszy STAGE przy wejściu do `main`, a także przechwyci wszelkie wczesne kody return.
 
+## G5R — kontrola po nieoczekiwanym powrocie G5A do XMB
+
+- G5A na prawdziwym DESR-7000 wrócił do XMB zamiast `STAGE 199`. Nie ma informacji o ostatnim widocznym STAGE, dlatego źródło błędu pozostało nieznane, a G5B nie został dopuszczony do próby.
+- Audyt pierwszego G5A: widoczny punkt `STAGE 10` był dopiero po odczycie ROMVER/config i wczytaniu modułów. Wczesny `return -1` mógł skończyć się XMB bez zdjęcia kodu.
+- G5R dodaje **`STAGE 1` przy wejściu Neutrino**, lekkie wczesne fazy 2–9, przechwytuje zakończenie `main` przez `STAGE 298` (kod return + ostatnia faza) i inicjalizuje GS tylko raz. Wszystkie pozostałe G5A checkpointy, SCMD `mode0,len1` i celowy STOP przed EE handoff `STAGE 199` zostają zachowane. Brak HDD/USB log writes i nowych resetów IOP.
+- [Instrukcja G5R](g5r/README_TEST_PL.md); [GitHub Actions #43426651495](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43426651495) zakończył się **PASS 3/3**. Paczka: `DESR-QUIT-G5R-EARLY-RETURN-USB-UNTESTED`.
+- Kompilacja PASS nie jest dowodem działania na konsoli; należy najpierw uruchomić `mass0:/DESR_G5R/DVR_ISO_MANAGER.ELF` i dostarczyć zdjęcie pierwszego/ostatniego widocznego etapu. G5B nadal bez testów.
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
