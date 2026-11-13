@@ -28,7 +28,7 @@ assert section.count("n5d_trace(200);") == 1, "N5D patch must run first"
 # Trace statements immediately preceding the normal wolfSSL debug macro.
 if 'WOLFSSL_ENTER("SendData");' in section:
     section=section.replace('WOLFSSL_ENTER("SendData");',
-      'n5d_trace(201);\\n    WOLFSSL_ENTER("SendData");\\n    n5d_trace(202);'.replace("\\\\n","\n"),1)
+      'n5d_trace(201);\n    WOLFSSL_ENTER("SendData");\n    n5d_trace(202);',1)
 else:
     # This is not fatal: the N5D entry marker and call probes still work.
     print("NOTE: no WOLFSSL_ENTER in SendData; entry=200 still traced")
