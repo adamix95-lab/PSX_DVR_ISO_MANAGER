@@ -1,0 +1,154 @@
+name: N4D PSX wolfCrypt DRBG RNG only (isolated READ-ONLY)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4d-wolfcrypt-rng.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4d_wolfcrypt_rng_ro.c'
+      - 'dvr-iso-manager/src/net/v12_n4b_seed_gate.c'
+      - 'dvr-iso-manager/tools/generate_n4d_seed.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  n4d-ee:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n4d
+      - name: "Audit N4D read-only, private one-shot seed, GPL/AFL notices"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess,sys,tempfile
+          source=Path('dvr-iso-manager/src/v12_n4d_wolfcrypt_rng_ro.c').read_text()
+          gate=Path('dvr-iso-manager/src/net/v12_n4b_seed_gate.c').read_text()
+          gen=Path('dvr-iso-manager/tools/generate_n4d_seed.py')
+          for bad in ('fileXioWrite(', 'fileXioFormat(', 'fileXioRename(',
+                      'fileXioRemove(', 'FIO_MT_RDWR','clock() ^',
+                      'WOLFSSL_VERIFY_NONE','WOLFSSL_GENSEED_FORTEST=1',
+                      'wc_SetTimeCb(', 'wolfSSL_connect('):
+              assert bad not in source,bad
+          for req in ('mass0:/N4D.SEED','FIO_O_RDONLY','wc_SetSeed_Cb(seed_cb)',
+                      'REUSE BLOCKED: PASS','DRBG INIT: PASS',
+                      'NO TLS / HTTPS / CERT / CLOCK'):
+              assert req in source,req
+          assert 'v12_n4b_seed_take' in gate
+          assert 'secrets.token_bytes(64)' in gen.read_text()
+          with tempfile.TemporaryDirectory() as tmp:
+              a,b=Path(tmp)/'one',Path(tmp)/'two'
+              subprocess.run([sys.executable,str(gen),str(a)],check=True)
+              subprocess.run([sys.executable,str(gen),str(b)],check=True)
+              assert len(a.read_bytes())==len(b.read_bytes())==64
+              assert a.read_bytes()!=b.read_bytes()
+              assert subprocess.run([sys.executable,str(gen),str(a)],capture_output=True).returncode!=0
+          print('PASS: N4D secure input source, no write paths, no TLS, private host CSPRNG')
+          PY
+          test -f sdk-source/LICENSE
+          grep -q 'Academic Free License' sdk-source/LICENSE
+          test -f wolfssl-n4d/LICENSING
+          grep -q 'GPL' wolfssl-n4d/LICENSING
+          echo 'NOTICE: wolfSSL GPLv3; PS2SDK AFL-2.0; compare GPLv3 NULD/ORBIT PS2 precedent'
+      - name: Host fail-closed seed gate regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c \
+            -o /tmp/n4d-seedgate
+          /tmp/n4d-seedgate
+      - name: Rebuild pinned NETFIX PS2SDK (not user's console HDD)
+        shell: sh
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build isolated wolfSSL v5.8.2 with DRBG callback
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0'
+          cmake -S wolfssl-n4d -B build-wolfssl-n4d \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4d-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n4d -j2
+          cmake --install build-wolfssl-n4d
+          test -s n4d-wolfssl/lib/libwolfssl.a
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g n4d-wolfssl/lib/libwolfssl.a | grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$'
+          echo 'PASS: isolated callback-enabled wolfSSL, production SDK library untouched'
+      - name: Cross compile N4D standalone read-only ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4d-wolfssl"
+          cmake -S dvr-iso-manager -B build-n4d \
+            -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_V12_N3B_MINI=ON \
+            -DDESR_V12_N4D_WOLFCRYPT_TEST=ON
+          cmake --build build-n4d --target V12_N4D_WOLFCRYPT_RNG_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70))
+          assert len(e)<12000000,len(e)
+          for marker in (b'N4D WOLFCRYPT RNG BOOT - STAGE 0',
+                         b'N4D.SEED',b'DRBG INIT: PASS',
+                         b'REUSE BLOCKED: PASS',b'NO TLS / HTTPS / CERT / CLOCK'):
+              assert marker in e,marker
+          for forbidden in (b'roughtime.cloudflare.com',b'N4A.ENT',
+                            b'hdd0:PP.DVRISO/BOOT.CNF',b'WOLFSSL_VERIFY_NONE'):
+              assert forbidden not in e,forbidden
+          print(f'PASS: N4D isolated ELF {len(e)} bytes (CI cross-compile only)')
+          PY
+      - name: Package sources, licenses and binary for controlled testing
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/licenses dist/tools
+          cp build-n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF dist/
+          cp dvr-iso-manager/tools/generate_n4d_seed.py dist/tools/
+          cp dvr-iso-manager/src/v12_n4d_wolfcrypt_rng_ro.c \
+             dvr-iso-manager/src/net/v12_n4b_seed_gate.c dist/source/
+          cp dvr-iso-manager/include/v12_n4b_seed_gate.h dist/source/
+          cp wolfssl-n4d/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat >dist/README-N4D.txt <<'EOF'
+          N4D WOLFCRYPT RNG READ-ONLY PSX DESR EXPERIMENT - NOT HTTPS
+          Licenses: wolfSSL GPLv3, PS2SDK AFL-2.0. NULD/ORBIT PS2 precedent
+          is GPL-3.0 for statically linked wolfSSL, not a legal compatibility ruling.
+          Corresponding sources:
+          - this repository, feature/v1.2-native-https, N4D code/build workflow
+          - wolfSSL v5.8.2-stable commit decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          - PS2SDK commit d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          This bundle is isolated; do not overwrite main or install XMB.
+          N4D SEED must be generated privately on a PC as 64 raw CSPRNG bytes.
+          NO TLS, CA, clock, cover download, RTC/PFS/HDD/USB writes.
+          Single-use after reboot MUST be enforced manually; never reuse N4D.SEED.
+          EOF
+          test ! -e dist/N4D.SEED
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N4D-WOLFCRYPT-RNG-RO
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
