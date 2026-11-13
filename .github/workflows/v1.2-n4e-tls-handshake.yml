@@ -1,0 +1,226 @@
+name: N4E DESR strict Roughtime + verified TLS 1.2 handshake READ-ONLY
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4e-tls-handshake.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4e_tls_probe.c'
+      - 'dvr-iso-manager/tools/generate_n4e_entropy.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4e-tls-ro:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n4e
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: "Audit strict CA, hostname, Roughtime, entropy and read-only calls"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import tempfile,subprocess,sys,base64,json,re
+          s=Path('dvr-iso-manager/src/v12_n4e_tls_probe.c').read_text()
+          g=Path('dvr-iso-manager/tools/generate_n4e_entropy.py')
+          for bad in ('WOLFSSL_VERIFY_NONE','fileXioWrite(', 'fileXioFormat(',
+                      'fileXioRename(', 'fileXioRemove(', 'FIO_MT_RDWR',
+                      'wolfSSL_write(', 'wolfSSL_send(', 'wc_SetTimeCb(NULL)==0',
+                      'x^=x<<13', 'clock() ^'):
+              assert bad not in s,bad
+          for good in ('WOLFSSL_VERIFY_PEER','wolfSSL_check_domain_name',
+                       'wolfSSL_UseSNI','wolfSSL_connect','wc_SetTimeCb(signed_time_cb)',
+                       'v12_n3e_txryan_strict','N4E.CA','N4E.ENT',
+                       'v12_n4b_seed_provision(&tls_gate,seed,64)',
+                       'TLS1.2 CHAIN/HOST/DATE: PASS'):
+              assert good in s,good
+          assert 'secrets.token_bytes(160)' in g.read_text()
+          with tempfile.TemporaryDirectory() as td:
+              from pathlib import Path
+              a,b=Path(td)/'a',Path(td)/'b'
+              subprocess.run([sys.executable,str(g),str(a)],check=True)
+              subprocess.run([sys.executable,str(g),str(b)],check=True)
+              assert len(a.read_bytes())==160 and a.read_bytes()!=b.read_bytes()
+              assert a.read_bytes()[32:96]!=a.read_bytes()[96:]
+              assert subprocess.run([sys.executable,str(g),str(a)],capture_output=True).returncode!=0
+          eco=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          key=base64.b64decode(next(x for x in eco['servers'] if x['name']=='time.txryan.com')['publicKey'])
+          p=Path('dvr-iso-manager/src/net/v12_n3e_txryan.c').read_text()
+          root=p.split('static const uint8_t pinned_root[32]=',1)[1].split('};',1)[0]
+          actual=bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',root))
+          assert actual==key
+          print('PASS: N4E strict TLS and Roughtime, 160B private OS CSPRNG input, no PFS writes')
+          PY
+      - name: Host seed gate and signed UTC regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c -o /tmp/n4e-gate
+          /tmp/n4e-gate
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4c_cert_time.c \
+            dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c -o /tmp/n4e-utc
+          /tmp/n4e-utc
+      - name: Download public Mozilla CA bundle over verified HTTPS
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist
+          curl --fail --silent --show-error --location --proto '=https' \
+            --tlsv1.2 https://curl.se/ca/cacert.pem -o dist/N4E.CA
+          test "$(wc -c < dist/N4E.CA)" -gt 10000
+          test "$(wc -c < dist/N4E.CA)" -lt 350000
+          grep -q -- '-----BEGIN CERTIFICATE-----' dist/N4E.CA
+          sha256sum dist/N4E.CA > dist/N4E_CA_SHA256SUMS
+          echo "PASS: verified-source public CA PEM included (not secret)"
+      - name: Rebuild pinned NETFIX PS2SDK in isolated CI
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build separate wolfSSL v5.8.2 with callback, SNI and DRBG
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DHAVE_SNI=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0'
+          cmake -S wolfssl-n4e -B build-wolfssl-n4e \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4e-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n4e -j2
+          cmake --install build-wolfssl-n4e
+          test -s n4e-wolfssl/lib/libwolfssl.a
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g n4e-wolfssl/lib/libwolfssl.a > /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
+          echo 'PASS: new library exports RNG and TLS APIs'
+      - name: Compile N4E standalone EE ELF for physical test
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4e-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n4e \
+            -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_V12_N3B_MINI=ON \
+            -DDESR_V12_N4E_TLS_RO=ON
+          cmake --build build-n4e --target V12_N4E_TLS_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4e/V12_N4E_TLS_RO.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70)) and len(e)<12000000
+          for m in (b'N4E TLS1.2 BOOT - STAGE 0',b'raw.githubusercontent.com',
+                    b'ROUGHTIME SIGNED UTC: PASS',b'N4E.CA',b'N4E.ENT',
+                    b'TLS1.2 CHAIN/HOST/DATE: PASS',b'TWO BOUND CHECKS: PASS'):
+              assert m in e,m
+          for bad in (b'WOLFSSL_VERIFY_NONE',b'hdd0:PP.DVRISO/BOOT.CNF',
+                      b'wolfSSL_write(',b'N4D.SEED'):
+              assert bad not in e,bad
+          print(f'PASS: N4E EE TLS diagnostic ELF, size={len(e)}')
+          PY
+      - name: Bundle N4E source and license notices, never private entropy
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses dist/monocypher/src/optional
+          cp build-n4e/V12_N4E_TLS_RO.ELF dist/
+          cp dvr-iso-manager/tools/generate_n4e_entropy.py dist/tools/
+          cp dvr-iso-manager/src/v12_n4e_tls_probe.c \
+             dvr-iso-manager/src/net/v12_net_config.c \
+             dvr-iso-manager/src/net/v12_roughtime_verify.c \
+             dvr-iso-manager/src/net/v12_roughtime_wire.c \
+             dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+             dvr-iso-manager/src/net/v12_n3e_txryan.c \
+             dvr-iso-manager/src/net/v12_n3e_utc.c \
+             dvr-iso-manager/src/net/v12_n4a_entropy.c \
+             dvr-iso-manager/src/net/v12_n4b_seed_gate.c dist/source/
+          cp dvr-iso-manager/include/v12_n4b_seed_gate.h dist/source/
+          cp monocypher-upstream/src/monocypher.c monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+             monocypher-upstream/src/optional/monocypher-ed25519.h dist/monocypher/src/optional/
+          cp wolfssl-n4e/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cat > dist/README-N4E.txt <<'EOF'
+          N4E EXPERIMENTAL TLS 1.2 READ-ONLY DESR 7000
+          Status: CI crossbuild only, physical handshake unverified.
+          wolfSSL GPLv3, PS2SDK AFL-2.0; compare NULD/ORBIT GPL-3.0.
+          No user private keys or random bytes are distributed.
+          Files to put at FAT32 USB root:
+          - V12_N4E_TLS_RO.ELF
+          - N4E.CA (Mozilla PEM trust roots, supplied by curl.se, PUBLIC)
+          - N4E.ENT (PRIVATE, generate on PC for exactly ONE execution)
+          Command on Windows: py generate_n4e_entropy.py E:/N4E.ENT
+          Replace E: with FAT32 USB drive letter. Remove old N4E.ENT first.
+          PFS PP.DVRISO12/V12_NET.CNF must remain present/unchanged.
+          Launch from wLE-R3Z 4.80. No SELECT.
+          Only sends Roughtime UDP to time.txryan.com:2002 then TLS1.2
+          handshakes to raw.githubusercontent.com:443. Sends NO HTTP.
+          Trust uses user-provisioned CA bundle and pinned TXRyan root.
+          Certificate CA/domain/date checked twice with two TLS seeds,
+          at padded signed UTC lower/upper bounds. This is DIAGNOSTIC.
+          It does not prove persistent anti-replay/monotonic timing and
+          must NOT be reused as trusted production TLS clock.
+          No HDD, USB, PFS, RTC, ART, game/XMB writes.
+          Source: feature/v1.2-native-https N4E commit and workflow.
+          wolfSSL source: wolfSSL/wolfssl commit
+          decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          PS2SDK source: ps2dev/ps2sdk commit
+          d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          EOF
+          test ! -e dist/N4E.ENT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N4E-TLS12-READONLY
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish test ELF + public CA + sources on direct-download branch
+        shell: sh
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n4e-direct-download:refs/remotes/origin/test/n4e-direct-download"
+          git worktree add --detach /tmp/n4e-direct origin/test/n4e-direct-download
+          git config --global --add safe.directory /tmp/n4e-direct
+          cd /tmp/n4e-direct
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n4e
+          cp -R "$GITHUB_WORKSPACE/dist/." diagnostics/n4e/
+          sha256sum diagnostics/n4e/V12_N4E_TLS_RO.ELF > diagnostics/n4e/SHA256SUMS
+          test ! -e diagnostics/n4e/N4E.ENT
+          git add diagnostics/n4e/
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n4e): publish signed-time verified TLS1.2 RO diagnostic"
+            git push origin "HEAD:refs/heads/test/n4e-direct-download"
+          fi

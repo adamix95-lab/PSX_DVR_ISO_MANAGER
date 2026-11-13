@@ -654,6 +654,70 @@ No private N4D.SEED data is ever published.
 
 Physical N4D: **NOT YET TESTED**.
 
+## Stage N4E — signed-time, CA- and hostname-verified TLS 1.2 on DESR (READ-ONLY)
+
+**Target:** first real TLS 1.2 handshake on a physical PSX DESR-7000.
+N4D wolfCrypt Hash DRBG hardware returned RET=0. N4C host-only TLS
+test passed positive CA/hostname and negative wrong-CA/hostname checks.
+N4E combines these independently tested pieces, but remains an
+**experimental, manually provisioned diagnostic**, not the HTTPS
+cover downloader. Physical result: **PENDING**.
+
+The standalone `V12_N4E_TLS_RO.ELF` uses the physical N3E/N4A NETFIX
+and read-only `PP.DVRISO12/V12_NET.CNF` path, obtains strict signed
+UTC (Ed25519/Merkle/NONC) from pinned `time.txryan.com:2002`, then
+attempts two *different* TLS 1.2 connections to
+`raw.githubusercontent.com:443`. TLS uses wolfSSL 5.8.2 with
+`WC_RNG_SEED_CB=1`, `HAVE_SNI=1`, `WOLFSSL_VERIFY_PEER`, SNI,
+and `wolfSSL_check_domain_name`, with explicitly supplied Mozilla CA
+roots (`N4E.CA`) obtained from https://curl.se/ca/cacert.pem.
+**No HTTP requests are sent, not even on TLS success.**
+
+To avoid relying on just the signed midpoint, wolfSSL certificate
+date checks are repeated with independent TLS seeds at two times
+covering `MIDP ± RADI` with a generous 120-second outer margin.
+This is a diagnostic approximation, **not** a proven complete
+freshness, network delay or monotonic-clock policy. N4C's interval
+check has not been wired into this physical test. The external CA
+store is deliberately provisioned by the user; its provenance matters.
+No trusted TLS clock or automatic reboot replay safety is established.
+
+**N4E private material:** generate `N4E.ENT` on your Windows 11
+computer using the bundled `generate_n4e_entropy.py` and Python 3:
+
+```powershell
+py .\generate_n4e_entropy.py E:/N4E.ENT
+```
+
+Replace E: with the actual FAT32 USB drive. This creates exactly
+160 binary CSPRNG bytes: 32 for Roughtime, and two separate 64-byte
+TLS seed regions. The generator refuses to overwrite a file. Delete
+old `N4E.ENT` and create an entirely fresh file before **every**
+run, including a failed or interrupted boot; never share/upload it.
+
+Copy `V12_N4E_TLS_RO.ELF`, public `N4E.CA` and private `N4E.ENT`
+to the FAT32 root. Leave `PP.DVRISO12/V12_NET.CNF` untouched,
+start the ELF from wLE-R3Z 4.80 without SELECT, and photograph
+the final screen. A successful diagnostic prints
+`ROUGHTIME SIGNED UTC: PASS`, `TLS1.2 CHAIN/HOST/DATE: PASS`,
+`TWO BOUND CHECKS: PASS`, `RET=0`.
+
+Fail closed: USB input -510/-512/-516, CA missing/bad -517,
+Roughtime/UDP errors inherited from N3E, time -640, TLS
+provision/cert/sockets/handshake -641..-652. The TLS error code
+line during the stages is important for diagnosing failures.
+Certificate CA, SNI and peer hostname/date checks must **never**
+be bypassed to force a PASS.
+
+The ELF performs no PFS/HDD/USB/RTC/ART writes, does not launch
+games or alter XMB. It must not be merged into version 1.0.
+wolfSSL GPLv3 and PS2SDK AFL-2.0 notices and source are included
+in the diagnostic bundle; NULD/ORBIT provides a technical example
+of wolfSSL use on PS2 but is not a legal determination.
+
+CI: `.github/workflows/v1.2-n4e-tls-handshake.yml`.
+Direct-download branch after CI PASS: `test/n4e-direct-download`.
+N4E CI: **PENDING**. N4E physical: **PENDING**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
