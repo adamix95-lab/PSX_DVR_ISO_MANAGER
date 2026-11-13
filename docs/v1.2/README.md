@@ -783,6 +783,31 @@ is NOT a completed HTTPS handshake.
 
 N4G source: `dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c`.
 N4G CI: `.github/workflows/v1.2-n4g-fastmath-rsa.yml`.
+**N4G CI: PASS (2026-11-13)** —
+[run 43422934758](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43422934758).
+Host wolfSSL with the portable FastMath backend:
+
+```text
+MATH: TFM PORTABLE C (NO SP/ASM)
+X1->YR: signature verify=1 (PASS)
+YR->YR1: signature verify=1 (PASS)
+YR1-TAMPER: tamper verify=-155 (REJECT)
+RET=0
+```
+
+The workflow verified `USE_FAST_MATH` and `TFM_NO_ASM` in both
+installed host and EE wolfSSL headers, and confirmed that
+`WOLFSSL_SP_MATH_ALL` was absent. The separate MIPS EE N4G ELF
+cross-compiled and was published on `test/n4g-fastmath-direct-download`.
+**The physical DESR runtime outcome is still unknown.**
+
+- [V12_N4G_FASTMATH_RSA_RO.ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4g-fastmath-direct-download/diagnostics/n4g/V12_N4G_FASTMATH_RSA_RO.ELF)
+- [N4G README](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4g-fastmath-direct-download/diagnostics/n4g/README-N4G.txt)
+- [N4G SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4g-fastmath-direct-download/diagnostics/n4g/SHA256SUMS)
+
+ELF size: **3,424,524 bytes**; SHA-256:
+`87ab538ff9e844dabbb09d6f3bfe13c30aad2db7f2d1752a82391cdd875194fb`.
+
 N4G physical: **PENDING**. No changes to stable v1.0, HDD, XMB,
 RTC, covers or experimental PFS partitions.
 ## N4F — independent offline RSA/X.509 signature test on PSX EE
