@@ -406,7 +406,24 @@ Do NOT publish a v1.2 release or create partitions before a complete
 restorable sector backup. Stable 1.0 is unchanged.
 
 Build: `.github/workflows/v1.2-n4a-entropy.yml`.
-N4A GitHub Actions: **PENDING**. Physical N4A: **PENDING**.
+**N4A CI: PASS (2026-11-13)** — [GitHub Actions run 43383924343](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43383924343).
+RO source and pinned root audit, host-generated 96-byte inputs, no-overwrite
+test, N4A negative tests, prior N3E UTC/Ed25519 regression tests,
+pinned NETFIX SDK rebuild, isolated cross-compile and direct-branch
+publication all passed. Physical N4A: **PENDING**.
+
+Verified direct-download assets on branch `test/n4a-direct-download`:
+
+- [N4A ELF RAW](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4a-direct-download/diagnostics/n4a/V12_N4A_ENTROPY_RO.ELF)
+- [Host N4A.ENT generator](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4a-direct-download/diagnostics/n4a/generate_n4a_entropy.py)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4a-direct-download/diagnostics/n4a/SHA256SUMS)
+
+ELF size: **2,666,156 bytes**.
+SHA-256: `209b49236747f990acd6ba88511a46d85c432a96397570fb13e7b003c44ec247`.
+The direct-download test branch has no additional XMB install or
+production code changes. A CI PASS does not prove correct execution
+of the N4A ELF on physical DESR hardware.
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
