@@ -10,7 +10,7 @@ on:
       - 'dvr-iso-manager/tools/generate_n4d_seed.py'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   n4d-ee:
     runs-on: ubuntu-latest
@@ -158,3 +158,53 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct-download N4D standalone test with notices
+        shell: sh
+        run: |
+          set -eu
+          # Keep this outside main and stable 1.0. NEVER copy N4D.SEED.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n4d-direct-download:refs/remotes/origin/test/n4d-direct-download"
+          git worktree add --detach /tmp/n4d-direct origin/test/n4d-direct-download
+          git config --global --add safe.directory /tmp/n4d-direct
+          cd /tmp/n4d-direct
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n4d/licenses diagnostics/n4d/source
+          cp "$GITHUB_WORKSPACE/build-n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF" diagnostics/n4d/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/tools/generate_n4d_seed.py" diagnostics/n4d/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/src/v12_n4d_wolfcrypt_rng_ro.c" diagnostics/n4d/source/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/src/net/v12_n4b_seed_gate.c" diagnostics/n4d/source/
+          cp "$GITHUB_WORKSPACE/dvr-iso-manager/include/v12_n4b_seed_gate.h" diagnostics/n4d/source/
+          cp "$GITHUB_WORKSPACE/wolfssl-n4d/LICENSING" diagnostics/n4d/licenses/WOLFSSL-LICENSING
+          cp "$GITHUB_WORKSPACE/sdk-source/LICENSE" diagnostics/n4d/licenses/PS2SDK-AFL-2.0
+          cat > diagnostics/n4d/README.txt <<'EOF'
+          N4D — PSX DVR ISO MANAGER v1.2 experimental wolfCrypt DRBG test
+          wolfSSL: GPLv3. PS2SDK: Academic Free License 2.0 (AFL-2.0).
+          NULD (formerly ORBIT) uses statically linked wolfSSL on PS2 and
+          describes its launcher as GPL-3.0, but this is not a ruling on
+          license compatibility for every dependency of our build.
+          This test does not make HTTPS requests or write to console HDD.
+          1. Copy V12_N4D_WOLFCRYPT_RNG_RO.ELF to FAT32 USB.
+          2. On PC with Python 3 generate fresh private 64-byte binary:
+             py generate_n4d_seed.py E:/N4D.SEED
+             Replace E: with your actual USB drive letter.
+          3. In wLE-R3Z 4.80 launch the ELF. Photograph final RET.
+          4. NEVER REUSE N4D.SEED, including after failed boot/reboot.
+          5. No PFS/USB/HDD/RTC writes, no TLS/HTTPS or cover changes.
+          Original corresponding source revision: feature/v1.2-native-https
+          wolfSSL source: wolfSSL/wolfssl commit
+          decea12e223869c8f8f3ab5a53dc90b69f436eb2 (v5.8.2-stable)
+          PS2SDK source: ps2dev/ps2sdk commit
+          d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          Build commands: .github/workflows/v1.2-n4d-wolfcrypt-rng.yml
+          EOF
+          sha256sum diagnostics/n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF > diagnostics/n4d/SHA256SUMS
+          git add diagnostics/n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF \
+            diagnostics/n4d/generate_n4d_seed.py diagnostics/n4d/README.txt \
+            diagnostics/n4d/source diagnostics/n4d/licenses diagnostics/n4d/SHA256SUMS
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n4d): publish wolfCrypt RNG read-only ELF with license/source notices"
+            git push origin "HEAD:refs/heads/test/n4d-direct-download"
+          fi
