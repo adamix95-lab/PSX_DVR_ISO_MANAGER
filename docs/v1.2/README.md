@@ -456,6 +456,53 @@ The direct-download test branch has no additional XMB install or
 production code changes. A CI PASS does not prove correct execution
 of the N4A ELF on physical DESR hardware.
 
+## Stage N4B — wolfSSL DRBG seed callback ABI gate (offline, NOT DISTRIBUTED)
+
+**N4A physical DESR-7000 PASS (2026-11-13)** confirmed a separate
+64-byte reserved host-CSPRNG region, but did **not** provision the
+wolfSSL DRBG. N4B checks the actual linked wolfSSL port, rather than
+assuming that the API is enabled just because a wolfSSL header exists.
+
+wolfSSL supports `wc_SetSeed_Cb()` only when the wolfSSL library has
+been compiled with `WC_RNG_SEED_CB` and Hash DRBG. The installed PS2
+port must be checked for that exact ABI. Merely defining the option
+on our standalone ELF would be dangerous: it cannot turn on a
+missing callback implementation in a prebuilt `libwolfssl.a`.
+
+The new host-testable `v12_n4b_seed_gate` implements an in-RAM,
+single-threaded, one-shot 64-byte seed input. It rejects invalid sizes
+and trivial zero/repeated-half seeds, refuses second provisioning
+without explicit reset, and consumes/wipes its input on a callback
+request. Tests reject unprovisioned or oversized requests with no
+fallback. These structural tests do NOT prove the entropy quality;
+they assume the prior host CSPRNG. There is no replay protection after
+reboot, and no persistent storage, USB write or RTC use.
+
+`V12_N4B_WOLFSSL_LINK_AUDIT.ELF` is an explicitly opt-in
+cross-compile/link-only test, and is **NOT shipped or booted**.
+Its callback deliberately starts unprovisioned and must refuse
+`wc_InitRng()` if run. The standalone audit is never the production
+TLS RNG. It does not perform any TLS handshake, certificates,
+HTTP traffic, ART download or game launch.
+
+CI `.github/workflows/v1.2-n4b-wolfssl-rng-audit.yml` checks the
+installed actual wolfSSL header configuration and conditionally
+cross-links against the corresponding library. If
+`WC_RNG_SEED_CB` is absent, it logs `N4B BLOCKED`, rather than
+misrepresenting a generic wolfSSL link PASS as secure RNG support.
+The branch may then need an **isolated**, license-reviewed wolfSSL
+rebuild with the correct callback and strong DRBG before creating
+any hardware ELF. The earlier wolfSSL linkage/ORBIT/NULD GPL-3.0
+license questions must also be resolved before redistribution.
+
+**N4B is a compatibility audit, not a TLS or HTTPS milestone.**
+A trustworthy HTTPS downloader still needs protected CSPRNG
+provisioning at each session, protection against nonce reuse
+(including crash/reboot), verified certificate chain and hostname,
+bounded time uncertainty and valid session clock, and connection
+timeouts. Stable version 1.0 and all HDD partitions remain untouched.
+
+N4B CI: **PENDING**. N4B hardware test: **NOT YET AUTHORIZED**.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete

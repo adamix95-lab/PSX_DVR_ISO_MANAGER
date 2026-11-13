@@ -123,6 +123,23 @@ if(DESR_V12_ROUGHTIME_CRYPTO_AUDIT)
   target_compile_options(V12_ROUGHTIME_CRYPTO_AUDIT.ELF PRIVATE -Os -Wall -Wextra)
 endif()
 
+# N4B: opt-in wolfSSL callback ABI test. Build only if the *library*
+# was itself compiled with WC_RNG_SEED_CB. Never ship as an ELF artifact.
+# No TLS, no CA, no network and no RTC/HDD access.
+option(DESR_V12_N4B_WOLFSSL_LINK_AUDIT "Audit wolfSSL RNG seed callback ABI" OFF)
+if(DESR_V12_N4B_WOLFSSL_LINK_AUDIT)
+  add_executable(V12_N4B_WOLFSSL_LINK_AUDIT.ELF EXCLUDE_FROM_ALL
+    src/v12_n4b_wolfssl_link_audit.c src/net/v12_n4b_seed_gate.c)
+  target_compile_definitions(V12_N4B_WOLFSSL_LINK_AUDIT.ELF PRIVATE
+    WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
+  target_include_directories(V12_N4B_WOLFSSL_LINK_AUDIT.ELF PRIVATE
+    include "$ENV{PS2SDK}/ports/include")
+  target_link_libraries(V12_N4B_WOLFSSL_LINK_AUDIT.ELF PRIVATE
+    "$ENV{PS2SDK}/ports/lib/libwolfssl.a" m)
+  target_compile_options(V12_N4B_WOLFSSL_LINK_AUDIT.ELF PRIVATE
+    -Os -Wall -Wextra -Werror)
+endif()
+
 # N3B standalone crypto verifier using permissively licensed Monocypher.
 # No WolfSSL or network code is linked, and no HDD modules are initialized.
 # The source tree is checked out by the dedicated CI workflow with a pinned

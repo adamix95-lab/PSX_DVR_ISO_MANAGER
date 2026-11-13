@@ -1,0 +1,96 @@
+name: N4B wolfSSL RNG seed callback compatibility (NO ELF distribution)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4b-wolfssl-rng-audit.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/include/v12_n4b_seed_gate.h'
+      - 'dvr-iso-manager/src/net/v12_n4b_seed_gate.c'
+      - 'dvr-iso-manager/src/v12_n4b_wolfssl_link_audit.c'
+      - 'dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rng-audit:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base python3
+      - name: Run fail-closed seed gate host tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c \
+            -o /tmp/n4b-gate
+          /tmp/n4b-gate
+      - name: "Verify security boundary and inspect the actual wolfSSL library"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          body=Path('dvr-iso-manager/src/v12_n4b_wolfssl_link_audit.c').read_text()
+          for unsafe in ('WOLFSSL_VERIFY_NONE','CUSTOM_RAND_GENERATE_BLOCK',
+                         'fileXioWrite(', 'fileXioFormat(',
+                         'WOLFSSL_GENSEED_FORTEST=1'):
+              assert unsafe not in body,unsafe
+          for needed in ('#if !defined(WC_RNG_SEED_CB)',
+                         'wc_SetSeed_Cb(host_seed_cb)',
+                         'wc_InitRng(&rng)', 'if(rc==0)',
+                         'v12_n4b_seed_take('):
+              assert needed in body,needed
+          print('PASS: API audit fails closed with no installed seed callback')
+          PY
+          test -s "$PS2SDK/ports/lib/libwolfssl.a"
+          test -s "$PS2SDK/ports/include/wolfssl/options.h"
+          echo "PASS: wolfSSL static library and matching headers found"
+          echo "Investigating installed RNG callbacks; this is not a TLS test."
+          EE_CC="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*gcc' | head -n 1)"
+          test -n "$EE_CC"
+          printf '#include <wolfssl/options.h>\n#include <wolfssl/wolfcrypt/random.h>\n#ifndef WC_RNG_SEED_CB\n#error N4B_CALLBACK_ABSENT\n#endif\n#ifndef HAVE_HASHDRBG\n#error N4B_DRBG_ABSENT\n#endif\nint main(void) { return 0; }\n' > /tmp/n4b-macro.c
+          if "$EE_CC" -std=c99 -DWOLFSSL_USER_IO -DWOLFSSL_NO_SOCK \
+             -DNO_WRITEV -I"$PS2SDK/ports/include" \
+             -c /tmp/n4b-macro.c -o /tmp/n4b-macro.o 2>/tmp/n4b-check-error; then
+            echo "N4B RNG CONFIG: CALLBACK + HASH DRBG ENABLED IN HEADERS"
+            echo N4B_CALLBACK_ENABLED=1 >> "$GITHUB_ENV"
+          else
+            if grep -q 'N4B_CALLBACK_ABSENT' /tmp/n4b-check-error; then
+              echo "N4B BLOCKED: INSTALLED wolfSSL was built without WC_RNG_SEED_CB."
+              echo "Use isolated, audited custom wolfSSL build; do NOT fake entropy by defining macro only in app."
+              echo N4B_CALLBACK_ENABLED=0 >> "$GITHUB_ENV"
+            elif grep -q 'N4B_DRBG_ABSENT' /tmp/n4b-check-error; then
+              echo "N4B BLOCKED: installed wolfSSL does not expose HASH DRBG."
+              echo N4B_CALLBACK_ENABLED=0 >> "$GITHUB_ENV"
+            else
+              cat /tmp/n4b-check-error
+              exit 1
+            fi
+          fi
+      - name: Link N4B EE callback audit only when library ABI is enabled
+        if: env.N4B_CALLBACK_ENABLED == '1'
+        shell: sh
+        run: |
+          set -eu
+          cmake -S dvr-iso-manager -B build-n4b-wolf \
+            -DDESR_V12_N4B_WOLFSSL_LINK_AUDIT=ON
+          cmake --build build-n4b-wolf --target V12_N4B_WOLFSSL_LINK_AUDIT.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4b-wolf/V12_N4B_WOLFSSL_LINK_AUDIT.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70)) and len(e)<3500000
+          print('PASS: N4B wolfSSL custom seed callback linked; NOT executed, NOT distributed')
+          PY
+      - name: Final boundary: never publish or run GPL wolfSSL-linked diagnostic
+        shell: sh
+        run: |
+          set -eu
+          test ! -e dist/V12_N4B_WOLFSSL_LINK_AUDIT.ELF
+          echo "N4B read-only audit complete. No artifact, TLS, covers, RTC or disk writes."
+          echo "N4B is NOT approved for a console hardware test until secure callback and licensing are reviewed."
