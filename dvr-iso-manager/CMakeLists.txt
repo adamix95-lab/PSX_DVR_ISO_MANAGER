@@ -140,6 +140,25 @@ if(DESR_V12_N4B_WOLFSSL_LINK_AUDIT)
     -Os -Wall -Wextra -Werror)
 endif()
 
+# N4B isolated wolfSSL callback test: link only against privately rebuilt
+# wolfSSL 5.8.2 with WC_RNG_SEED_CB. Do not overwrite system PS2SDK ports.
+option(DESR_V12_N4B_ISOLATED_RNG_AUDIT "N4B isolated callback ABI audit" OFF)
+if(DESR_V12_N4B_ISOLATED_RNG_AUDIT)
+  if("$ENV{V12_N4B_WOLFSSL_DIR}" STREQUAL "" OR
+     NOT EXISTS "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a")
+    message(FATAL_ERROR "Set V12_N4B_WOLFSSL_DIR to isolated callback-enabled wolfSSL install")
+  endif()
+  add_executable(V12_N4B_ISOLATED_RNG_AUDIT.ELF EXCLUDE_FROM_ALL
+    src/v12_n4b_wolfssl_link_audit.c src/net/v12_n4b_seed_gate.c)
+  target_compile_definitions(V12_N4B_ISOLATED_RNG_AUDIT.ELF PRIVATE
+    WC_RNG_SEED_CB=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1 NO_WRITEV=1)
+  target_include_directories(V12_N4B_ISOLATED_RNG_AUDIT.ELF PRIVATE
+    include "$ENV{V12_N4B_WOLFSSL_DIR}/include")
+  target_link_libraries(V12_N4B_ISOLATED_RNG_AUDIT.ELF PRIVATE
+    "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a" m)
+  target_compile_options(V12_N4B_ISOLATED_RNG_AUDIT.ELF PRIVATE
+    -Os -Wall -Wextra -Werror)
+endif()
 # N3B standalone crypto verifier using permissively licensed Monocypher.
 # No WolfSSL or network code is linked, and no HDD modules are initialized.
 # The source tree is checked out by the dedicated CI workflow with a pinned
