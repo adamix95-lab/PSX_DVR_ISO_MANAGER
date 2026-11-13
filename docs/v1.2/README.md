@@ -318,8 +318,38 @@ No nonce file is ever committed. The direct-download branch is solely
 a test file distribution mechanism; it is NOT a 1.2 release.
 
 Workflow: `.github/workflows/v1.2-n3e-signed-utc.yml`.
-**Physical N3E: PENDING** — do not confuse CI cross-compilation with a
-physical console test.
+**Physical N3E: PASS on DESR-7000 (2026-11-13; user photo).**
+
+```text
+N3E SIGNED UTC - FINAL RESULT
+SERVER: time.txryan.com UDP/2002
+STRICT SIGNED UTC: PASS (DIAGNOSTIC)
+UTC MIDP: 2026-11-13 06:59:06
+RADI: 3 seconds
+UTC LOW : 2026-11-13 06:59:03
+UTC HIGH: 2026-11-13 06:59:09
+NOT TRUSTED FOR TLS: NEVER REUSE NONCE
+NO TLS / COVER / PFS WRITES / RTC
+RET=0
+```
+
+This confirms the isolated USB-N3E probe read a host-provisioned nonce,
+received and validated TXRyan's strict signed Roughtime reply on physical
+hardware, interpreted MIDP as UTC seconds, and reported the signed
+three-second radius correctly. In Poland this midpoint is
+2026-11-13 07:59:06 CET. The displayed signed radius is the *server's*
+uncertainty and does not include all network delay or client-side timing
+uncertainty. This is diagnostic signed time, NOT a fully trusted or
+replay-protected wall clock. The N3E ELF deliberately neither supplies
+wolfSSL certificate validation time nor modifies RTC, PFS or art files.
+
+**Next development gate:** define and prove automatic non-reuse of
+cryptographically strong nonce even after crash/reboot, independently
+provision sufficient entropy for TLS client handshakes, validate CA
+chain and DNS hostname, and bound authenticated UTC/transport delays.
+Do not re-run write-once PFS durability experiments or install an XMB
+build before a full sector backup. N3E hardware PASS does not by itself
+establish native HTTPS.
 
 
 ## N3B — GUI boot regression after forensic build (DESR-7000)
