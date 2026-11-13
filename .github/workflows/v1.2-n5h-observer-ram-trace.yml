@@ -109,7 +109,7 @@ jobs:
           assert 'scr_printf' not in trace
           assert 'scr_printf' not in state
           for marker in ('n5h_trace_ring','CreateThread(&th)', 'StartThread(tid,NULL)',
-                         'DelayThread(700000)', 'n5h_start_observer()',
+                         'usleep(700000)', 'n5h_start_observer()',
                          'n5h_stop_observer(watchid)','HEARTBEAT=%u',
                          'n5h_watch_active=0', 'scr_clear()',
                          'FIO_MT_RDONLY','WOLFSSL_VERIFY_PEER'):
