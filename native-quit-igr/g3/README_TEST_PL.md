@@ -1,5 +1,20 @@
 # G3 — izolacja trybu i długości komendy Native QUIT (PSX DESR-7000)
 
+## Potwierdzone wyniki G3 na fizycznej DESR-7000 — 2026-11-13
+
+Użytkownik przetestował oba warianty:
+
+| Wariant | Komenda SCMD 0x29 | Gra startuje? | Fizyczny QUIT GAME | Powrót do oryginalnego XMB |
+| --- | --- | --- | --- | --- |
+| Oficjalne 1.0 / G2A | mode=0, len=4 | działające źródło referencyjne | brak potwierdzonego resetu | niepotwierdzony |
+| G2B | mode=1, len=1 | **NIE**, czarny ekran | **TAK** | **TAK**, po kilku sekundach |
+| **G3A** | **mode=1, len=4** | **NIE**, czarny ekran po X | **TAK**, po dość długim czasie | **TAK** |
+| **G3B** | **mode=0, len=1** | **TAK**, gra działa | **NIE**, brak reakcji | NIE |
+
+**Wniosek empiryczny:** w testach G2B/G3A/G3B zachowanie jest skorelowane z wartością `mode`, nie z długością bufora: `mode=1` daje aktywny sprzętowy QUIT, lecz blokuje start gry z DVR ISO; `mode=0` pozwala uruchomić grę, ale QUIT nie reaguje. To mocna zależność, ale nie dowód, *jaki konkretnie podsystem* odpowiada za czarny ekran. Opóźnienia QUIT nie były mierzone stoperem. **Nie kopiować G3A jako rozwiązania do wersji 1.0.**
+
+Następne działania: porównać kolejność operacji PSX inicjalizujących **tryb napędu** (`sceCdChgSys(2)`) oraz **NoticeGameStart(1)** w `pcm720/OSDMenu/common/src/psxinit.c` i `ps2homebrew/OSD-Initialization-Libraries/osd/main.c` z naszym Neutrino, które wysyła tylko NoticeGameStart, a następnie reset IOP. Bez takiego audytu nie podmieniać ponownie Neutrino. Rozważyć, czy ustawienie stanu game-start wyłącza możliwość dalszych odczytów `dvr_pfs0` (to hipoteza, nie potwierdzenie). Jeśli natywny QUIT i odczyt DVR ISO okażą się wzajemnie niekompatybilne, osobno ocenić IGR NULD z kombinacją pada i bezpieczny powrót do XMB.
+
 ## Co wykazały testy
 
 - **G0**: `sceCdInit=1`, `sceCdNoticeGameStart(1)=1`, `status=0`. W samodzielnym ELF fizyczny QUIT niczego nie zmienił.
