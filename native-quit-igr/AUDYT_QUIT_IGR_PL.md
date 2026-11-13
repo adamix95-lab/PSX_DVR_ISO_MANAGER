@@ -78,6 +78,18 @@ Jeśli natywny QUIT jest niemożliwy, rozważyć IGR NULD dla kombinacji pada, a
 
 **Czego nie robimy**: nowa partycja, instalacja XMB, zmiana PP.DVRISO, podmiana v1.0, merge, wymuszony LoadExecPS2("rom0:OSDSYS") jako rzekomo sprawdzony powrót DVR XMB.
 
+## Wynik z konsoli / stan po teście (2026-11-13)
+
+G0 (samodzielny USB MODE1 PROBE) wykonany na prawdziwym **DESR-7000**:
+- `sceCdInit(SCECdINoD): 1`
+- `sceCdNoticeGameStart(1): 1`
+- `MechaCon status: 0x00000000`
+- Wciśnięcie fizycznego **QUIT GAME nie wywołało żadnej reakcji**; konsola została wyłączona ręcznie.
+
+Interpretacja: sukces transportu SCMD 0x29 nie wystarcza do dowodu działania wyjścia podczas samodzielnego ELF. **G0 nie uruchamiał gry**. Dlatego G2 porównuje realny start tej samej gry z testowych kopii USB (A: dokładnie Neutrino z oficjalnego 1.0; B: jedynie 0->1 i 4->1 bajt w istniejącym SCMD).
+
+G2 przygotowane w tej samej gałęzi: [szczegółowa instrukcja testu A/B](g2/README_TEST_PL.md). Test obejmuje osobne foldery USB `DESR_G2A` i `DESR_G2B`, oryginalny `BOOT.ELF`, oryginalne moduły z USB 1.0 i izolowane `BOOT.CNF`. Ani wydanie 1.0, ani HDD/XMB nie są modyfikowane. **Wynik sprzętowy G2 nieznany, dopóki użytkownik nie przetestuje artefaktu.**
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
