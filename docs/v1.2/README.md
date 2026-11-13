@@ -635,10 +635,23 @@ no-write rules, secure 64-byte host input, host seed-gate tests,
 pinned NETFIX PS2SDK, isolated wolfSSL callback-enabled build
 and cross-link. Actual hardware DRBG runtime remains untested.
 
-Separate workflow also publishes the binary, generator, source/license
-notices and SHA256SUMS to the test-only branch
-`test/n4d-direct-download` for direct RAW retrieval.
-No random seed file is distributed.
+**N4D direct-download publication: PASS (2026-11-13)** —
+[GitHub Actions run 43394581856](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43394581856).
+
+The isolated binary, local CSPRNG helper, source files, original
+license notices, and SHA256SUMS are available on the separate
+`test/n4d-direct-download` branch:
+
+- [V12_N4D_WOLFCRYPT_RNG_RO.ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4d-direct-download/diagnostics/n4d/V12_N4D_WOLFCRYPT_RNG_RO.ELF)
+- [generate_n4d_seed.py](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4d-direct-download/diagnostics/n4d/generate_n4d_seed.py)
+- [README / instructions](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4d-direct-download/diagnostics/n4d/README.txt)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4d-direct-download/diagnostics/n4d/SHA256SUMS)
+
+ELF size: **3,797,460 bytes**.
+SHA256: `a1fc91148dd38924404cc5e6f9f21ad9fbc3c24ec6cbfbe9f6b5a65a83d19696`.
+Build and package CI: **PASS**. Physical console N4D: **PENDING**.
+No private N4D.SEED data is ever published.
+
 Physical N4D: **NOT YET TESTED**.
 
 ## N3B — GUI boot regression after forensic build (DESR-7000)
