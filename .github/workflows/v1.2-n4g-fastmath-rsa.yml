@@ -1,0 +1,191 @@
+name: N4G portable FastMath RSA X509 for DESR R5900 (READ-ONLY)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4g-fastmath-rsa.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c'
+      - 'dvr-iso-manager/tools/n4f_embed_certificates.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4g-fastmath:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3 openssl
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n4g
+      - uses: actions/checkout@v4
+        with:
+          repository: letsencrypt/website
+          ref: 736bf97e99c0238082e9a5c43d460af79d03873f
+          path: letsencrypt-public
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Generate and inspect pinned PUBLIC certificate fixtures
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p build-n4g-public
+          python3 dvr-iso-manager/tools/n4f_embed_certificates.py \
+            letsencrypt-public build-n4g-public
+          test -s build-n4g-public/n4f_fixtures.c
+          test -s build-n4g-public/n4f_fixtures.h
+          openssl verify -CAfile letsencrypt-public/static/certs/isrgrootx1.pem \
+            letsencrypt-public/static/certs/gen-y/root-yr-by-x1.pem
+          openssl verify -CAfile letsencrypt-public/static/certs/gen-y/root-yr.pem \
+            letsencrypt-public/static/certs/gen-y/int-yr1.pem
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c').read_text()
+          assert '#error "N4G must compile' in s
+          assert 'TFM PORTABLE C' in s
+          for forbidden in ('fileXioWrite(', 'FIO_MT_RDWR',
+                            'wolfSSL_connect(', 'WOLFSSL_VERIFY_NONE',
+                            'wolfSSL_write(', 'x^=x<<13'):
+              assert forbidden not in s,forbidden
+          for needed in ('wolfSSL_CertManagerVerifyBuffer',
+                         'wolfSSL_CertManagerLoadCABuffer',
+                         'YR1-TAMPER','X1->YR','YR->YR1'):
+              assert needed in s,needed
+          print('PASS: trusted public fixtures, no IOP/disk/network access')
+          PY
+      - name: Build host wolfSSL portable FastMath (no SP, no ASM)
+        shell: sh
+        run: |
+          set -eu
+          cmake -S wolfssl-n4g -B build-n4g-host \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes \
+            -DWOLFSSL_ASM=no \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4g-host" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=OFF -DWARNING_C_FLAGS=-w \
+            "-DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1 -DFP_MAX_BITS=8192"
+          cmake --build build-n4g-host -j2
+          cmake --install build-n4g-host
+          grep -q 'USE_FAST_MATH' n4g-host/include/wolfssl/options.h
+          grep -q 'TFM_NO_ASM' n4g-host/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n4g-host/include/wolfssl/options.h; then
+            echo 'FATAL: SP math still enabled in host library'; exit 1
+          fi
+          echo 'PASS: HOST FastMath no SP/ASM'
+          cc -std=c99 -O2 -Wall -Wextra \
+            -DWC_RNG_SEED_CB=1 -DV12_N4F_HOST \
+            -DUSE_FAST_MATH=1 -DTFM_NO_ASM=1 -DFP_MAX_BITS=8192 \
+            -In4g-host/include -Ibuild-n4g-public \
+            dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c \
+            build-n4g-public/n4f_fixtures.c \
+            n4g-host/lib/libwolfssl.a -lm -lpthread -o /tmp/n4g-host-test
+          /tmp/n4g-host-test
+          echo 'PASS: HOST FastMath verifies authentic RSA and rejects tamper'
+      - name: Build isolated EE wolfSSL portable FastMath (no SP, no ASM)
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0 -DFP_MAX_BITS=8192'
+          cmake -S wolfssl-n4g -B build-n4g-wolf \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes \
+            -DWOLFSSL_ASM=no \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n4g-ee" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-n4g-wolf -j2
+          cmake --install build-n4g-wolf
+          test -s n4g-ee/lib/libwolfssl.a
+          grep -q 'USE_FAST_MATH' n4g-ee/include/wolfssl/options.h
+          grep -q 'TFM_NO_ASM' n4g-ee/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n4g-ee/include/wolfssl/options.h; then
+            echo 'FATAL: SP math still enabled in EE library'; exit 1
+          fi
+          echo 'PASS: EE FastMath generic C math selected'
+      - name: Cross compile isolated N4F public certificate verifier ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4g-ee"
+          export V12_N4F_FIXTURES_DIR="$GITHUB_WORKSPACE/build-n4g-public"
+          cmake -S dvr-iso-manager -B build-n4g-ee \
+            -DDESR_V12_N4G_FASTMATH_RSA=ON
+          cmake --build build-n4g-ee \
+            --target V12_N4G_FASTMATH_RSA_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n4g-ee/V12_N4G_FASTMATH_RSA_RO.ELF').read_bytes()
+          assert e[:4]==bytes([127,69,76,70]) and len(e)<8000000
+          for mark in (b'N4G FASTMATH RSA OFFLINE - STAGE 0',
+                       b'X1->YR',b'YR->YR1',b'YR1-TAMPER',
+                       b'NO LIVE HTTPS / CA OVERRIDE / RTC'):
+              assert mark in e,mark
+          for bad in (b'raw.githubusercontent.com',b'mass:/N4E.ENT',
+                      b'WOLFSSL_VERIFY_NONE'):
+              assert bad not in e,bad
+          print(f'PASS: N4G FastMath EE cross-compiled {len(e)} bytes')
+          PY
+      - name: Publish GPL/AFL notices and read-only ELF on test branch
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/fixtures dist/licenses dist/src
+          cp build-n4g-ee/V12_N4G_FASTMATH_RSA_RO.ELF dist/
+          cp letsencrypt-public/static/certs/isrgrootx1.pem \
+             letsencrypt-public/static/certs/gen-y/root-yr-by-x1.pem \
+             letsencrypt-public/static/certs/gen-y/root-yr.pem \
+             letsencrypt-public/static/certs/gen-y/int-yr1.pem \
+             dist/fixtures/
+          cp dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c \
+             dvr-iso-manager/tools/n4f_embed_certificates.py dist/src/
+          cp wolfssl-n4g/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cat > dist/README-N4G.txt <<'EOF'
+          N4G OFFLINE wolfSSL portable FastMath RSA cert verification.
+          N4F physical DESR: authentic X1->YR and YR->YR1 signatures
+          FAIL with ASN_SIG_CONFIRM_E -155; host default wolfSSL PASS.
+          This build changes ONLY wolfSSL math: USE_FAST_MATH,
+          SP_MATH_ALL=no, ASM=no, FP_MAX_BITS=8192.
+          Cryptographic verification remains strict and hardening stays ON.
+          NO NETWORK. NO TLS HANDSHAKE. NO HDD/USB/RTC/ART WRITES.
+          Copy V12_N4G_FASTMATH_RSA_RO.ELF to FAT32 USB; launch wLE-R3Z 4.80.
+          Expect A and B PASS, C tampered signature REJECT, RET=0.
+          The fixed 2026-11-13 UTC is a PUBLIC OFFLINE test fixture,
+          NOT a valid live TLS clock.
+          No N4E.ENT, N4E.CA, Ethernet or HDD write needed.
+          wolfSSL GPLv3; PS2SDK AFL-2.0; compare NULD GPL-3.0.
+          Pinned wolfSSL decea12e223869c8f8f3ab5a53dc90b69f436eb2.
+          Public Let's Encrypt 736bf97e99c0238082e9a5c43d460af79d03873f.
+          EOF
+          sha256sum dist/V12_N4G_FASTMATH_RSA_RO.ELF > dist/SHA256SUMS
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin "refs/heads/test/n4g-fastmath-direct-download:refs/remotes/origin/test/n4g-fastmath-direct-download"
+          git worktree add --detach /tmp/n4f-publish origin/test/n4g-fastmath-direct-download
+          git config --global --add safe.directory /tmp/n4f-publish
+          cd /tmp/n4f-publish
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p diagnostics/n4g
+          cp -R "$GITHUB_WORKSPACE/dist/." diagnostics/n4g/
+          git add diagnostics/n4g
+          if ! git diff --cached --quiet; then
+            git commit -m "test(n4f): publish offline RSA chain certificate diagnostic"
+            git push origin "HEAD:refs/heads/test/n4g-fastmath-direct-download"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N4G-RSA-FASTMATH-OFFLINE
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error

@@ -743,6 +743,48 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4F physical FAILURE and N4G alternate RSA math isolation
+
+**Physical DESR-7000 test, 2026-11-13, user photo:**
+
+```text
+N4F RSA X509 OFFLINE - STAGE 0
+X1->YR: signature verify=-155 (FAIL)
+YR->YR1: signature verify=-155 (FAIL)
+YR1-TAMPER: tamper verify=-155 (REJECT)
+RSA CERT SIGNATURE: FAIL
+RET=-803
+```
+
+On Linux host, wolfSSL v5.8.2 accepted **both** valid signatures
+and rejected the altered YR1. The PSX test has **no network,
+Roughtime, external CA, USB random seed or live clock dependency**.
+`ASN_SIG_CONFIRM_E=-155` is therefore reproducibly associated
+with the PS2 build/runtime signature-verification path.
+Negative tamper rejection alone does NOT prove that authentic
+signatures can be verified on the console.
+
+**N4G alternate math gate:** isolate the bignum implementation
+using wolfSSL `USE_FAST_MATH` / Tom's Fast Math, with
+`WOLFSSL_SP_MATH_ALL=no`, `WOLFSSL_FAST_MATH=yes`,
+`WOLFSSL_ASM=no` (TFM portable C), and `FP_MAX_BITS=8192`
+for 4096-bit RSA verification. Default SP math remains unchanged
+in previous binaries. Crypto hardening and signature checks
+remain enabled. wolfSSL documents the supported SP and portable
+FastMath backends:
+https://www.wolfssl.com/documentation/manuals/wolfssl/chapter02.html
+
+N4G is a standalone offline RSA X509 ELF with the **same pinned
+public certs** and negative tamper test as N4F. The host and
+MIPS builds must explicitly verify that the alternative backend
+is selected. Run only from FAT32 USB using wLE-R3Z 4.80;
+**no N4E.CA, N4E.ENT or Ethernet**. A positive offline result
+is NOT a completed HTTPS handshake.
+
+N4G source: `dvr-iso-manager/src/v12_n4g_fastmath_rsa_offline.c`.
+N4G CI: `.github/workflows/v1.2-n4g-fastmath-rsa.yml`.
+N4G physical: **PENDING**. No changes to stable v1.0, HDD, XMB,
+RTC, covers or experimental PFS partitions.
 ## N4F — independent offline RSA/X.509 signature test on PSX EE
 
 **Physical N4E SIGTRACE (2026-11-13):** three CA bundles
@@ -795,8 +837,9 @@ YR1-TAMPER: tamper verify=-155 (REJECT)
 ```
 
 The isolated wolfSSL build and MIPS EE cross-link completed successfully.
-Physical N4F outcome is **NOT YET TESTED**: compiling MIPS does not
-confirm the MIPS RSA implementation returns the same verification result.
+**Physical N4F: FAIL (2026-11-13).** Both valid signatures were
+rejected with -155, while the negative altered signature also rejected.
+Host wolfSSL passed; the MIPS wolfSSL behavior diverges.
 
 Direct test files:
 
@@ -808,7 +851,7 @@ ELF size: **3,392,988 bytes**; SHA-256:
 `0936d267fae3e1f9663e22d8f2eb48277b5775f8a23df4b26bd59bb4101dc09b`.
 
 CI: `.github/workflows/v1.2-n4f-rsa-offline.yml`.
-Hardware N4F: **PENDING**. No XMB/manager/HDD/RTC writes.
+Hardware N4F: **FAIL (-803, photo above).** No XMB/manager/HDD/RTC writes.
 ## N4E SIGTRACE — locate certificate signature verification failure
 
 **Physical tests on 2026-11-13:** The original Mozilla CA roots and
