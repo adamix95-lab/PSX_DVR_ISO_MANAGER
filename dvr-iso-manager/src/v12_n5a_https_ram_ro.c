@@ -131,28 +131,109 @@ static n5a_http_result n5a_http_info={0};
 static int n5a_http_parse_error=0,n5a_http_tls_error=0;
 static unsigned n5a_http_wire_bytes=0,n5a_http_wrote=0;
 static int n5a_get_pass=0;
-static int n5c_http_active=0;
-static volatile unsigned n5d_trace_last=0, n5d_trace_count=0;
-/* Trace callback from the pinned static wolfSSL diagnostic build.
- * Deliberately never logs payload, keys, entropy or TLS plaintext. */
+/* N5H: low-intrusion trace. wolfSSL hooks NEVER call scr_printf().
+ * A separate EE thread renders at most eight volatile RAM trace entries.
+ * Watchdog heartbeat distinguishes a blocked write from a frozen display.
+ * The observer never accesses TLS plaintext, secrets or socket buffers.
+ */
+static volatile int n5c_http_active=0;
+static volatile unsigned n5d_trace_last=0,n5d_trace_count=0;
+static volatile unsigned n5h_trace_ring[8]={0};
+static volatile int n5c_phase=0;
+static int n5c_write_calls=0,n5c_read_calls=0;
+static volatile int n5h_watch_active=0,n5h_watch_done=1;
+static volatile unsigned n5h_heartbeat=0;
+static volatile int n5h_hs_phase=-1,n5h_hs_result=-999;
+static volatile int n5h_hs_state=-999,n5h_hs_connect=-999,n5h_hs_error=-999;
+static u8 n5h_observer_stack[8192] __attribute__((aligned(16)));
+extern void *_gp;
+
+/* Trace hook must be minimal to avoid printf/GS and TLS reentrancy. */
 void n5d_trace(unsigned int step) {
-  if(!n5c_http_active) return;
-  n5d_trace_last=step;
-  n5d_trace_count++;
-  if(n5d_trace_count<=96U)
-    scr_printf("N5G WOLF step=%u count=%u\n",step,n5d_trace_count);
-}
-/* N5F: numeric TLS state only; handshake internals call from SendData.
- * This trace never prints secrets, nonces, keys or application data. */
-void n5f_handshake_state(int phase,int result,int handshakeState,
-                          int connectState,int sslError) {
+  unsigned seq;
   if(!n5c_http_active)return;
-  scr_printf("N5G HS phase=%d result=%d hs=%d\n",
-              phase,result,handshakeState);
-  scr_printf("N5G HS connect=%d err=%d\n",
-              connectState,sslError);
+  seq=n5d_trace_count;
+  n5h_trace_ring[seq&7U]=step;
+  n5d_trace_last=step;
+  n5d_trace_count=seq+1U;
 }
-static int n5c_phase=0,n5c_write_calls=0,n5c_read_calls=0;
+void n5f_handshake_state(int phase,int result,int handshakeState,
+                         int connectState,int sslError) {
+  if(!n5c_http_active)return;
+  n5h_hs_result=result;
+  n5h_hs_state=handshakeState;
+  n5h_hs_connect=connectState;
+  n5h_hs_error=sslError;
+  n5h_hs_phase=phase;
+}
+static void n5h_observer_thread(void *arg) {
+  (void)arg;
+  while(n5h_watch_active) {
+    unsigned count;
+    DelayThread(700000);
+    if(!n5h_watch_active)break;
+    n5h_heartbeat++;
+    count=n5d_trace_count;
+    scr_clear();
+    scr_setCursor(0);
+    scr_printf("N5H ASYNC OBSERVER - READ ONLY\n");
+    scr_printf("STAGE 10: HTTPS wolfSSL_write\n");
+    scr_printf("HEARTBEAT=%u (alive every ~0.7s)\n",n5h_heartbeat);
+    scr_printf("PHASE=%d TRACE COUNT=%u\n",n5c_phase,count);
+    scr_printf("LAST step=%u\n",n5d_trace_last);
+    scr_printf("HS phase=%d result=%d state=%d\n",
+               n5h_hs_phase,n5h_hs_result,n5h_hs_state);
+    scr_printf("HS connect=%d error=%d\n",n5h_hs_connect,n5h_hs_error);
+    scr_printf("NET IO rx=%d tx=%d fail=%d\n",diag_io_rx,diag_io_tx,diag_io_fail);
+    for(unsigned i=0;i<8U && i<count;i++) {
+      unsigned step=n5h_trace_ring[(count-1U-i)&7U];
+      scr_printf("RING[%u]=%u\n",i,step);
+    }
+    scr_printf("No entropy, certs or TLS payload logged\n");
+  }
+  n5h_watch_done=1;
+  ExitThread();
+}
+static int n5h_start_observer(void) {
+  ee_thread_t th;
+  ee_thread_status_t current;
+  int tid,ret,priority=0x30;
+  memset(&th,0,sizeof(th));
+  memset(&current,0,sizeof(current));
+  ret=ReferThreadStatus(GetThreadId(),&current);
+  if(ret>=0 && current.current_priority>2 &&
+     current.current_priority<MAX_PRIORITY)
+    priority=current.current_priority-1;
+  th.func=n5h_observer_thread;
+  th.stack=n5h_observer_stack;
+  th.stack_size=sizeof(n5h_observer_stack);
+  th.gp_reg=&_gp;
+  th.initial_priority=priority;
+  th.attr=0;
+  th.option=0;
+  tid=CreateThread(&th);
+  if(tid<0)return tid;
+  n5h_watch_done=0;
+  n5h_watch_active=1;
+  ret=StartThread(tid,NULL);
+  if(ret<0) {
+    n5h_watch_active=0;
+    n5h_watch_done=1;
+    DeleteThread(tid);
+    return ret;
+  }
+  return tid;
+}
+static void n5h_stop_observer(int tid) {
+  if(tid<0)return;
+  n5h_watch_active=0;
+  for(int i=0;i<250 && !n5h_watch_done;i++)
+    DelayThread(10000);
+  if(n5h_watch_done)
+    DeleteThread(tid);
+  else
+    scr_printf("N5H warning: observer exit not confirmed\n");
+}
 
 static int load_irx(const char *name,void *ptr,unsigned length,
                     const char *args,int argslen) {
@@ -421,17 +502,17 @@ static int tls_recv(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
-  if(n5c_http_active) scr_printf("N5C RX SELECT enter cap=%d\n",sz);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX SELECT enter cap=%d\n",sz);
   FD_ZERO(&rfds); FD_SET(fd,&rfds);
   tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,&rfds,NULL,NULL,&tv);
-  if(n5c_http_active) scr_printf("N5C RX SELECT ret=%d\n",rc);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&rfds)) {
     diag_io_fail=-701;return WOLFSSL_CBIO_ERR_GENERAL;
   }
-  if(n5c_http_active) scr_printf("N5C RX RECV enter\n");
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX RECV enter\n");
   rc=lwip_recv(fd,buffer,sz,0);
-  if(n5c_http_active) scr_printf("N5C RX RECV ret=%d\n",rc);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX RECV ret=%d\n",rc);
   if(rc==0) {diag_io_fail=-702;return WOLFSSL_CBIO_ERR_CONN_CLOSE;}
   if(rc<0) {diag_io_fail=-703;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_rx+=1;
@@ -443,17 +524,17 @@ static int tls_send(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
-  if(n5c_http_active) scr_printf("N5C TX SELECT enter bytes=%d\n",sz);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SELECT enter bytes=%d\n",sz);
   FD_ZERO(&wfds); FD_SET(fd,&wfds);
   tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,NULL,&wfds,NULL,&tv);
-  if(n5c_http_active) scr_printf("N5C TX SELECT ret=%d\n",rc);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&wfds)) {
     diag_io_fail=-704;return WOLFSSL_CBIO_ERR_GENERAL;
   }
-  if(n5c_http_active) scr_printf("N5C TX SEND enter\n");
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SEND enter\n");
   rc=lwip_send(fd,buffer,sz,0);
-  if(n5c_http_active) scr_printf("N5C TX SEND ret=%d\n",rc);
+  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SEND ret=%d\n",rc);
   if(rc<=0) {diag_io_fail=-705;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_tx+=1;
   return rc;
@@ -508,7 +589,7 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
   scr_setCursor(0);
   n5c_http_active=1;
   scr_printf("N5G: Roughtime + 2 TLS bounds PASS\n");
-  scr_printf("STAGE 10: N5G TLS13 RESULT TRACE\n");
+  scr_printf("STAGE 10: N5H ASYNC RAM TRACE\n");
   {
     const char *cipher=wolfSSL_get_cipher(ssl);
     scr_printf("N5D CIPHER=%s\n",cipher?cipher:"unknown");
@@ -519,8 +600,21 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
     if(n5c_write_calls>16)return -716;
     scr_printf("N5C WRITE enter #%d left=%u\n",
       n5c_write_calls,(unsigned)(sizeof(n5a_http_get_request)-1U-sent));
-    rc=wolfSSL_write(ssl,n5a_http_get_request+sent,
-                     (int)(sizeof(n5a_http_get_request)-1U-sent));
+    {
+      int watchid=n5h_start_observer();
+      if(watchid<0) {
+        scr_printf("N5H observer start failed=%d\n",watchid);
+        return -717;
+      }
+      rc=wolfSSL_write(ssl,n5a_http_get_request+sent,
+                       (int)(sizeof(n5a_http_get_request)-1U-sent));
+      n5h_stop_observer(watchid);
+    }
+    scr_clear();
+    scr_setCursor(0);
+    scr_printf("N5H OBSERVER STOPPED, WRITE returned\n");
+    scr_printf("LAST step=%u count=%u beats=%u\n",
+                n5d_trace_last,n5d_trace_count,n5h_heartbeat);
     scr_printf("N5C WRITE return=%d\n",rc);
     if(rc<=0) {
       n5a_http_tls_error=wolfSSL_get_error(ssl,rc);
@@ -704,7 +798,7 @@ int main(void) {
   v12_net_config cfg;
   init_scr();
   scr_setCursor(0);
-  scr_printf("N5G TLS13 RESULT - STAGE 0\n");
+  scr_printf("N5H RAM TRACE OBSERVER - STAGE 0\n");
   scr_printf("MATH: FASTMATH PORTABLE C (NO SP/ASM)\n");
   scr_printf("FIXED GET INTO RAM; NO ART/HDD/RTC WRITES\n");
   sleep(1);
@@ -727,7 +821,7 @@ int main(void) {
     if(u<0 && rc==0)rc=-509;
   }
   scr_clear();
-  scr_printf("N5G TLS13 - FINAL RESULT\n");
+  scr_printf("N5H RAM TRACE - FINAL RESULT\n");
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0) {
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
@@ -735,8 +829,8 @@ int main(void) {
     scr_printf("HTTPS GET 200 RAM: PASS\n");
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
-    scr_printf("N5G ERROR: %d\n",rc);
-    scr_printf("N5G STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
+    scr_printf("N5H ERROR: %d\n",rc);
+    scr_printf("N5H LAST=%u EVENTS=%u BEATS=%u\n",n5d_trace_last,n5d_trace_count,n5h_heartbeat);
     scr_printf("IO PHASE=%d W=%d R=%d FAIL=%d\n",n5c_phase,n5c_write_calls,n5c_read_calls,diag_io_fail);
     if(rc==-523) {
       scr_printf("N5B LINK WAIT 20s FAILED\n");
