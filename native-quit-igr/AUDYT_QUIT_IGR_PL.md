@@ -128,6 +128,16 @@ Szczegóły: [wyniki G3 i instrukcja](g3/README_TEST_PL.md).
 - GitHub Actions [43415798131](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43415798131) **PASS — kompilacja i weryfikacja paczki**, nie wynik na sprzęcie.
 - Nic nie zmieniano w stabilnym wydaniu 1.0 ani na HDD/XMB.
 
+## G4 — wynik hardware: G4A PASS gry, G4B FAIL gry i QUIT (2026-11-13)
+
+- **G4A:** ChangeSys(2) + NoticeGameStart(mode 0): **gra uruchomiła się z DVR ISO; fizyczny QUIT bez reakcji**. Boot PASS / QUIT FAIL.
+- **G4B:** ChangeSys(2) + NoticeGameStart(mode 1): **czarny ekran zamiast gry; fizyczny QUIT bez reakcji**. Po pełnym wyłączeniu i ponownym uruchomieniu konsoli wynik pozostał taki sam. Boot FAIL / QUIT FAIL.
+- To nie jest działająca poprawka. Dodatkowa operacja ChangeSys(2) nie rozwiązuje problemu mode 1, a względem G3A (bez ChangeSys(2)) zaobserwowano również brak powrotu do XMB.
+- Wcześniejsze wyniki pozostają: G3A boot FAIL / QUIT→XMB PASS; G3B boot PASS / QUIT FAIL; G2B boot FAIL / QUIT→XMB PASS.
+- Następne działania: etapowa diagnostyka startu gry i statusów SIF RPC/MechaCon, bez eksperymentowania z kolejnymi wartościami SCMD. Zachować oddzielną gałąź i wyłącznie USB; nie zmieniać v1.0, HDD ani XMB.
+
+Szczegóły w [G4 README](g4/README_TEST_PL.md).
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
