@@ -119,6 +119,15 @@ Następny test: **G3 A/B** z dwoma wariantami ortogonalnymi: `mode=1, len=4` i `
 
 Szczegóły: [wyniki G3 i instrukcja](g3/README_TEST_PL.md).
 
+## G4 — gotowy odrębny test sekwencji Sony (CI PASS, hardware UNTESTED)
+
+- [Instrukcja G4A/G4B](g4/README_TEST_PL.md) i [workflow CI](../.github/workflows/native-quit-g4-sequence.yml).
+- G4A: `custom_sceCdChgSys(2)`-style SIF RPC `0x2D`, potem oryginalny `NoticeGameStart(0)` (jednobajtowo). To kontrola działania FHI po przełączeniu trybu napędu.
+- G4B: identyczne `ChangeSys(2)`, potem `NoticeGameStart(1)`. Test natywnego QUIT przy sekwencji analogicznej do Sony.
+- **Warunek:** test G4B wykonywać dopiero jeżeli G4A uruchomi tę samą grę. Gdy G4A nie startuje: STOP, najpierw diagnoza dostępu DVR po ChangeSys.
+- GitHub Actions [43415798131](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43415798131) **PASS — kompilacja i weryfikacja paczki**, nie wynik na sprzęcie.
+- Nic nie zmieniano w stabilnym wydaniu 1.0 ani na HDD/XMB.
+
 ## Bezpośrednie dowody (permalinki)
 
 - [Manager 1.0, main.c](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/1.0/dvr-iso-manager/src/main.c#L126-L195)
