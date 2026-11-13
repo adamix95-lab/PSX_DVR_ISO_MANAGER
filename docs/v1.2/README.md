@@ -743,6 +743,46 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4H — real TLS 1.2 with physically verified portable RSA FastMath
+
+**Motivation:** physical N4G `RET=0` verified two valid Let's Encrypt
+RSA certificate signatures on DESR using FastMath and rejected tamper;
+physical N4E SIGTRACE using previous SP Math failed with
+`wolfSSL_get_error=-155` at certificate depth 2.
+
+N4H is a **separate, opt-in** `V12_N4H_FASTMATH_TLS_RO.ELF`,
+based on the preceding N4E SIGTRACE source, now linked with isolated
+wolfSSL 5.8.2 using the identical successful N4G portable math backend:
+`WOLFSSL_SP_MATH_ALL=no`, `WOLFSSL_FAST_MATH=yes`,
+`WOLFSSL_ASM=no` (`TFM_NO_ASM`) and `FP_MAX_BITS=8192`.
+CI verifies generated wolfSSL headers contain the intended settings,
+that SP math is absent, and that RSA timing hardening remains enabled.
+
+**Security boundary unchanged:** pinned strict TXRyan Roughtime with
+fresh 32-byte nonce, separate 64-byte CSPRNG seeds per TLS connection,
+`WOLFSSL_VERIFY_PEER` with callback returning the original preverify
+decision, TLS 1.2 SNI and `wolfSSL_check_domain_name`, CA loading from
+public `N4E.CA`, two independent certificate date checks at padded
+signed time lower/upper bounds. This is NOT a proven trusted TLS clock;
+persistent nonce anti-replay and rigorous measured monotonic time
+bounds are not solved. Sends **no HTTP**; no cover download.
+
+**Physical test:** place `V12_N4H_FASTMATH_TLS_RO.ELF`, the prior
+PUBLIC `N4E.CA` used with variant `02_X1_YR_YR1` for controlled
+comparison, and a privately generated **NEW** `N4E.ENT` (160 raw
+host-CSPRNG bytes) in the FAT32 USB root. Generate a NEW
+entropy file for every run, including aborted/failed runs. Keep
+`PP.DVRISO12/V12_NET.CNF` unchanged, boot via wLE-R3Z 4.80.
+Expected result is strict signed Roughtime PASS, TLS low+high
+certificate verification PASS, `RET=0`. If handshake fails,
+send the entire error screen including TLS bound, wolfSSL error,
+certificate error/depth and network counters.
+
+Build workflow: `.github/workflows/v1.2-n4h-fastmath-tls.yml`.
+Direct-download publication: `test/n4h-fastmath-direct-download`
+on successful CI. Physical N4H: **PENDING**.
+**Stable Manager 1.0, XMB, HDD partitions/data, ART and RTC remain
+completely unchanged.**
 ## N4F physical FAILURE and N4G alternate RSA math isolation
 
 **Physical DESR-7000 test, 2026-11-13, user photo:**
@@ -799,7 +839,25 @@ The workflow verified `USE_FAST_MATH` and `TFM_NO_ASM` in both
 installed host and EE wolfSSL headers, and confirmed that
 `WOLFSSL_SP_MATH_ALL` was absent. The separate MIPS EE N4G ELF
 cross-compiled and was published on `test/n4g-fastmath-direct-download`.
-**The physical DESR runtime outcome is still unknown.**
+**Physical PSX DESR-7000 N4G: PASS (2026-11-13, photographed).**
+
+```text
+N4G FASTMATH RSA OFFLINE - STAGE 0
+MATH: TFM PORTABLE C (NO SP/ASM)
+X1->YR: signature verify=1 (PASS)
+YR->YR1: signature verify=1 (PASS)
+YR1-TAMPER: tamper verify=-155 (REJECT)
+RSA CERT SIGNATURE: PASS
+RET=0
+```
+
+The same pinned public certificate fixtures were rejected by
+the previous SP Math build on the very same hardware. The portable
+FastMath/TFM build verified both real signatures and rejected
+the deliberately corrupted signature. This strongly implicates
+the prior wolfSSL multi-precision math build/configuration on R5900.
+The offline result does NOT yet prove that the complete TLS handshake
+and CA/hostname/time verification all work in the live network case.
 
 - [V12_N4G_FASTMATH_RSA_RO.ELF](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4g-fastmath-direct-download/diagnostics/n4g/V12_N4G_FASTMATH_RSA_RO.ELF)
 - [N4G README](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4g-fastmath-direct-download/diagnostics/n4g/README-N4G.txt)
@@ -808,8 +866,8 @@ cross-compiled and was published on `test/n4g-fastmath-direct-download`.
 ELF size: **3,424,524 bytes**; SHA-256:
 `87ab538ff9e844dabbb09d6f3bfe13c30aad2db7f2d1752a82391cdd875194fb`.
 
-N4G physical: **PENDING**. No changes to stable v1.0, HDD, XMB,
-RTC, covers or experimental PFS partitions.
+N4G physical: **PASS (RET=0)**. No changes to stable v1.0,
+HDD, XMB, RTC, covers or experimental PFS partitions.
 ## N4F — independent offline RSA/X.509 signature test on PSX EE
 
 **Physical N4E SIGTRACE (2026-11-13):** three CA bundles
