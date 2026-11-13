@@ -170,7 +170,7 @@ static void n5h_observer_thread(void *arg) {
   (void)arg;
   while(n5h_watch_active) {
     unsigned count;
-    DelayThread(700000);
+    usleep(700000);
     if(!n5h_watch_active)break;
     n5h_heartbeat++;
     count=n5d_trace_count;
@@ -228,7 +228,7 @@ static void n5h_stop_observer(int tid) {
   if(tid<0)return;
   n5h_watch_active=0;
   for(int i=0;i<250 && !n5h_watch_done;i++)
-    DelayThread(10000);
+    usleep(10000);
   if(n5h_watch_done)
     DeleteThread(tid);
   else
