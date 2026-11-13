@@ -1,0 +1,165 @@
+name: Native QUIT G3 - SCMD mode vs byte count USB only
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/native-quit-igr]
+    paths:
+      - 'native-quit-igr/g3/**'
+      - '.github/workflows/native-quit-g3-matrix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  manager:
+    name: G3${{ matrix.variant }} isolated USB Manager
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [G3A, G3B]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Build Manager with test-only USB folder
+        shell: sh
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -eu
+          apk add --no-cache cmake build-base python3
+          python3 manager/native-quit-igr/g2/patch_usb_manager_folder.py \
+            manager/dvr-iso-manager/include/runtime_storage.h "DESR_$VARIANT"
+          cmake -S manager/dvr-iso-manager -B build-manager
+          cmake --build build-manager --target DVR_ISO_MANAGER.ELF -j2
+          mkdir -p dist
+          cp build-manager/DVR_ISO_MANAGER.ELF dist/DVR_ISO_MANAGER.ELF
+          python3 - <<'PY'
+          import os,struct
+          from pathlib import Path
+          b=Path("dist/DVR_ISO_MANAGER.ELF").read_bytes()
+          label=os.environ["VARIANT"].encode()
+          assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",b,18)[0]==8
+          assert b"mass0:/DESR_"+label+b"/" in b
+          assert b"1.0 USB "+label in b
+          assert b"mass0:/DESR_DVR/" not in b
+          assert b"dvr_pfs0:/ISO/" in b
+          assert b"PP.TESTDVR" not in b
+          print("PASS:",label,"Manager",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G3-manager-${{ matrix.variant }}
+          path: dist/DVR_ISO_MANAGER.ELF
+          if-no-files-found: error
+
+  neutrino:
+    name: G3${{ matrix.variant }} Neutrino SYSTEM
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [G3A, G3B]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Apply single-variable SCMD patch and build Neutrino
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git -C neutrino diff --exit-code
+          python3 manager/native-quit-igr/g3/patch_neutrino_matrix.py \
+            neutrino/ee/loader/src/main.c "$VARIANT"
+          git -C neutrino diff --check
+          test "$(git -C neutrino diff --name-only)" = "ee/loader/src/main.c"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          src=Path("neutrino/ee/loader/src/main.c").read_text()
+          if os.environ["VARIANT"]=="G3A":
+            assert "uint8_t in[4] = {1};" in src
+            assert "sceCdApplySCmd(0x29, in, 4, out);" in src
+            assert "sceCdApplySCmd(0x29, in, 1, out);" not in src
+          else:
+            assert "uint8_t in[4] = {0};" in src
+            assert "sceCdApplySCmd(0x29, in, 1, out);" in src
+            assert "sceCdApplySCmd(0x29, in, 4, out);" not in src
+          assert "desr_enable_quit_game" not in src
+          print("PASS: only requested SCMD operand changed")
+          PY
+          make -C neutrino/ee/loader all
+          mkdir -p dist
+          cp neutrino/ee/loader/neutrino.elf dist/neutrino.elf
+          python3 - <<'PY'
+          import struct,hashlib,os
+          from pathlib import Path
+          b=Path("dist/neutrino.elf").read_bytes()
+          assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",b,18)[0]==8
+          print("PASS MIPS",os.environ["VARIANT"],len(b),hashlib.sha256(b).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G3-neutrino-${{ matrix.variant }}
+          path: dist/neutrino.elf
+          if-no-files-found: error
+
+  package:
+    name: Verify official 1.0 payload and publish G3-only test ZIP
+    needs: [manager, neutrino]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download published official USB v1.0 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input/release
+          gh release download 1.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            --dir input/release
+          test -s input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip
+      - uses: actions/download-artifact@v4
+        with:
+          name: G3-manager-G3A
+          path: input/manager-g3a
+      - uses: actions/download-artifact@v4
+        with:
+          name: G3-manager-G3B
+          path: input/manager-g3b
+      - uses: actions/download-artifact@v4
+        with:
+          name: G3-neutrino-G3A
+          path: input/neutrino-g3a
+      - uses: actions/download-artifact@v4
+        with:
+          name: G3-neutrino-G3B
+          path: input/neutrino-g3b
+      - name: Package checked G3A and G3B roots — no HDD/XMB files
+        run: |
+          python3 native-quit-igr/g3/package_matrix.py \
+            --release input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip \
+            --manager-g3a input/manager-g3a/DVR_ISO_MANAGER.ELF \
+            --manager-g3b input/manager-g3b/DVR_ISO_MANAGER.ELF \
+            --neutrino-g3a input/neutrino-g3a/neutrino.elf \
+            --neutrino-g3b input/neutrino-g3b/neutrino.elf \
+            --output dist/DESR_QUIT_G3_MODE_VS_LENGTH_USB.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-QUIT-G3-MODE-VS-LENGTH-USB-UNTESTED
+          path: dist/DESR_QUIT_G3_MODE_VS_LENGTH_USB.zip
+          if-no-files-found: error
