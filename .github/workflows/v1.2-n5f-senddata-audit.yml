@@ -35,4 +35,17 @@ jobs:
           for i in range(start+220,j+1):
               if any(q in t[i] for q in ('ssl_in_handshake(', 'BuildMessage(', 'RetrySendAlert(', 'SendBuffered(')):
                   print(f"ADDITIONAL {i+1:6d} "+t[i])
+          for name in ("src/internal.c","wolfssl/internal.h","src/ssl.c","src/ssl_api_hs.c"):
+              p=Path(name)
+              if not p.exists():continue
+              lines=p.read_text().splitlines()
+              places=[i for i,line in enumerate(lines)
+                      if ("ssl_in_handshake(" in line and
+                          ("static" in line or "int ssl_in_handshake" in line
+                           or "WOLFSSL_LOCAL" in line or "INLINE" in line))]
+              print("HANDSHAKE DEFINITIONS IN",name,"matches",len(places))
+              for pos in places[:6]:
+                  for i in range(max(0,pos-4), min(len(lines),pos+55)):
+                      print(f"HSCODE {name}:{i+1} {lines[i]}")
+
           PY
