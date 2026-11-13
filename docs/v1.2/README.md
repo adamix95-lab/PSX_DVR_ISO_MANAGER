@@ -785,6 +785,28 @@ onto FAT32 and launched using wLE-R3Z 4.80. It does not require
 or reuse `N4E.ENT`, `N4E.CA`, a clock, or Ethernet. Report all
 three test lines plus `RET`.
 
+**N4F CI: PASS (2026-11-13)** — [run 43418807923](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43418807923).
+Host verification of official certificate signatures:
+
+```text
+X1->YR: signature verify=1 (PASS)
+YR->YR1: signature verify=1 (PASS)
+YR1-TAMPER: tamper verify=-155 (REJECT)
+```
+
+The isolated wolfSSL build and MIPS EE cross-link completed successfully.
+Physical N4F outcome is **NOT YET TESTED**: compiling MIPS does not
+confirm the MIPS RSA implementation returns the same verification result.
+
+Direct test files:
+
+- [N4F ELF (RAW)](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4f-direct-download/diagnostics/n4f/V12_N4F_RSA_OFFLINE_RO.ELF)
+- [N4F offline README](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4f-direct-download/diagnostics/n4f/README-N4F.txt)
+- [SHA256SUMS](https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n4f-direct-download/diagnostics/n4f/SHA256SUMS)
+
+ELF size: **3,392,988 bytes**; SHA-256:
+`0936d267fae3e1f9663e22d8f2eb48277b5775f8a23df4b26bd59bb4101dc09b`.
+
 CI: `.github/workflows/v1.2-n4f-rsa-offline.yml`.
 Hardware N4F: **PENDING**. No XMB/manager/HDD/RTC writes.
 ## N4E SIGTRACE — locate certificate signature verification failure
