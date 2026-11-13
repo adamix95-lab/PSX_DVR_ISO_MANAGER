@@ -556,7 +556,33 @@ with reseed failure handling and timeouts, perform a read-only physical
 TLS handshake, then implement bounded artwork RAM download.
 No app PFS/RTC writes, XMB installer or changes to production 1.0.
 
-N4C CI: **PENDING**. N4C PSX physical TLS: **NOT YET TESTED**.
+**N4C CI: PASS (2026-11-13)** — [GitHub Actions run 43392171855](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/43392171855).
+
+Confirmed using isolated host wolfSSL 5.8.2-stable:
+
+- Conservative Roughtime UTC interval tests **PASS**, including RTT,
+  age, uncertainty, overflow, and certificate validity boundary rejection.
+- Local TLS 1.2 handshake with a CA-signed `localhost` certificate
+  and matching DNS subjectAltName / CA: **PASS**.
+- Same server and cert with deliberately wrong hostname: **REJECTED**.
+- Same server with unrelated trusted CA: **REJECTED**.
+- Strict peer verification, hostname and CA trust checks: **PASS**.
+- Host RNG uses the CI OS CSPRNG, not the PSX hardware.
+- No local private keys, seed contents or linked wolfSSL binaries
+  are published.
+
+This is **not** proof of CA/hostname/certificate-time validation on
+PS2: the TLS handshake used ephemeral localhost server/CA, CI host
+clock and sockets. The UTC window policy has not yet been integrated
+into actual EE certificate parsing, nor tested with a physical
+console's monotonic timer. No console RNG provisioning across reboot
+or validated network HTTPS handshake has been demonstrated.
+
+wolfSSL GPLv3 obligations must be reconciled with the entire linked
+binary/source/license set before a public downloadable wolfSSL ELF.
+
+**N4C physical PSX TLS: NOT YET TESTED.**
+
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
