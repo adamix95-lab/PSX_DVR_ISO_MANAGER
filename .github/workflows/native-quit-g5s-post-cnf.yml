@@ -1,0 +1,161 @@
+name: Native QUIT G5S - post-SYSTEM.CNF phase trace before EE clear USB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/native-quit-igr]
+    paths:
+      - 'native-quit-igr/g5s/**'
+      - 'native-quit-igr/g2/patch_usb_manager_folder.py'
+      - '.github/workflows/native-quit-g5s-post-cnf.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  manager:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Build isolated G5S USB Manager
+        shell: sh
+        run: |
+          set -eu
+          apk add --no-cache cmake build-base python3
+          python3 manager/native-quit-igr/g2/patch_usb_manager_folder.py \
+            manager/dvr-iso-manager/include/runtime_storage.h DESR_G5S
+          cmake -S manager/dvr-iso-manager -B build-manager
+          cmake --build build-manager --target DVR_ISO_MANAGER.ELF -j2
+          mkdir -p dist
+          cp build-manager/DVR_ISO_MANAGER.ELF dist/DVR_ISO_MANAGER.ELF
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          b=Path("dist/DVR_ISO_MANAGER.ELF").read_bytes()
+          assert b[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",b,18)[0]==8
+          assert b"mass0:/DESR_G5S/" in b
+          assert b"mass0:/DESR_DVR/" not in b
+          assert b"1.0 USB G5S" in b
+          assert b"dvr_pfs0:/ISO/" in b
+          print("PASS G5S Manager",len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G5S-manager
+          path: dist/DVR_ISO_MANAGER.ELF
+          if-no-files-found: error
+
+  neutrino:
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Patch pinned Neutrino with post-SYSTEM.CNF 92-105 safe checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD/neutrino"
+          test "$(git -C neutrino rev-parse HEAD)" = aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          git -C neutrino diff --exit-code
+          python3 manager/native-quit-igr/g5s/patch_after_system_cnf.py \
+            neutrino/ee/loader/src/main.c neutrino/ee/loader/Makefile
+          git -C neutrino diff --check
+          test "$(git -C neutrino diff --name-only)" = "$(printf 'ee/loader/Makefile\nee/loader/src/main.c')"
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("neutrino/ee/loader/src/main.c").read_text()
+          m=Path("neutrino/ee/loader/Makefile").read_text()
+          assert 'g5_note(1, "NEUTRINO ENTRY before ROMVER", argc);' in s
+          assert 'g5_stop(298, "Neutrino returned instead of EE", rc);' in s
+          assert s.count('g5_stop(199, "EE handoff reached; ISO/FHI PASS"')==1
+          assert "static int g5_screen_ready = 0" in s
+          assert s.count("init_scr();")==1
+          for stage in (92,93,94,95,96,97,98):
+            assert f"g5_note({stage}, " in s
+          assert s.count('g5_stop(105, "POST-CNF PASS; STOP BEFORE EE CLEAR"')==1
+          assert 'g5_stop(292, "SYSTEM.CNF BOOT2 missing", -1);' in s
+          for i in range(2,10):
+            assert f"g5_stage = {i}" in s
+          assert 'uint8_t in[4] = {0};' in s
+          assert 'sceCdApplySCmd(0x29, in, 1, out);' in s
+          assert 'sceCdApplySCmd(0x29, in, 4, out);' not in s
+          assert 'SifCallRpc(&clientSCmd, 0x2D' not in s
+          assert "PP.DVRISO" not in s
+          assert 'EE_LIBS = -lfileXio -lpatches -lcdvd -ldebug' in m
+          print("PASS G5S source: entry stage, return trap, phase map, GS once")
+          PY
+          make -C neutrino/ee/loader all
+          test -s neutrino/ee/loader/neutrino_unpacked.elf
+          test -s neutrino/ee/loader/neutrino.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct,hashlib
+          a=Path("neutrino/ee/loader/neutrino_unpacked.elf").read_bytes()
+          b=Path("neutrino/ee/loader/neutrino.elf").read_bytes()
+          for data in (a,b):
+            assert data[:6]==b'\x7fELF\x01\x01' and struct.unpack_from("<H",data,18)[0]==8
+          for needle in (b"PSX DESR NATIVE QUIT G5S / USB ONLY",
+                         b"NEUTRINO ENTRY before ROMVER",
+                         b"Neutrino returned instead of EE",
+                         b"LAST PHASE BEFORE STOP:",
+                         b"EE handoff reached; ISO/FHI PASS",
+                         b"POST-CNF PASS; STOP BEFORE EE CLEAR",
+                         b"Before BOOT2 filename parse",
+                         b"CDVDMAN media configured")::
+            assert needle in a, needle
+          print("PASS G5S unpacked diagnostic strings",len(a))
+          print("PASS G5S packed loader",len(b),hashlib.sha256(b).hexdigest())
+          PY
+          mkdir -p dist
+          cp neutrino/ee/loader/neutrino.elf dist/neutrino.elf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: G5S-neutrino
+          path: dist/neutrino.elf
+          if-no-files-found: error
+
+  package:
+    needs: [manager, neutrino]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact official USB 1.0 ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p input/release
+          gh release download 1.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern "PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            --dir input/release
+          test -s input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip
+      - uses: actions/download-artifact@v4
+        with:
+          name: G5S-manager
+          path: input/manager
+      - uses: actions/download-artifact@v4
+        with:
+          name: G5S-neutrino
+          path: input/neutrino
+      - name: Verify and package G5S USB only
+        run: |
+          python3 native-quit-igr/g5s/package_g5s.py \
+            --release input/release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip \
+            --manager input/manager/DVR_ISO_MANAGER.ELF \
+            --neutrino input/neutrino/neutrino.elf \
+            --output dist/DESR_QUIT_G5S_POST_CNF_USB.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DESR-QUIT-G5S-POST-CNF-USB-UNTESTED
+          path: dist/DESR_QUIT_G5S_POST_CNF_USB.zip
+          if-no-files-found: error
