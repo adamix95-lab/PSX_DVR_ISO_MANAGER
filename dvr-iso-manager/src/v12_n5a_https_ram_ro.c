@@ -140,16 +140,16 @@ void n5d_trace(unsigned int step) {
   n5d_trace_last=step;
   n5d_trace_count++;
   if(n5d_trace_count<=96U)
-    scr_printf("N5F WOLF step=%u count=%u\n",step,n5d_trace_count);
+    scr_printf("N5G WOLF step=%u count=%u\n",step,n5d_trace_count);
 }
 /* N5F: numeric TLS state only; handshake internals call from SendData.
  * This trace never prints secrets, nonces, keys or application data. */
 void n5f_handshake_state(int phase,int result,int handshakeState,
                           int connectState,int sslError) {
   if(!n5c_http_active)return;
-  scr_printf("N5F HS phase=%d result=%d hs=%d\n",
+  scr_printf("N5G HS phase=%d result=%d hs=%d\n",
               phase,result,handshakeState);
-  scr_printf("N5F HS connect=%d err=%d\n",
+  scr_printf("N5G HS connect=%d err=%d\n",
               connectState,sslError);
 }
 static int n5c_phase=0,n5c_write_calls=0,n5c_read_calls=0;
@@ -502,8 +502,13 @@ static int n5a_get_fixed_probe_ram(WOLFSSL *ssl) {
   int rc=0,read_count=0,recv_closed=0;
   n5a_http_result parsed={0};
   if(!ssl)return -710;
+  /* Clear old STAGE 1-9 lines so GS debug-console wrapping cannot
+   * masquerade as a new event or hide the last STAGE 10 marker. */
+  scr_clear();
+  scr_setCursor(0);
   n5c_http_active=1;
-  scr_printf("STAGE 10: N5F HANDSHAKE STATE TRACE\n");
+  scr_printf("N5G: Roughtime + 2 TLS bounds PASS\n");
+  scr_printf("STAGE 10: N5G TLS13 RESULT TRACE\n");
   {
     const char *cipher=wolfSSL_get_cipher(ssl);
     scr_printf("N5D CIPHER=%s\n",cipher?cipher:"unknown");
@@ -699,7 +704,7 @@ int main(void) {
   v12_net_config cfg;
   init_scr();
   scr_setCursor(0);
-  scr_printf("N5F HANDSHAKE STATE - STAGE 0\n");
+  scr_printf("N5G TLS13 RESULT - STAGE 0\n");
   scr_printf("MATH: FASTMATH PORTABLE C (NO SP/ASM)\n");
   scr_printf("FIXED GET INTO RAM; NO ART/HDD/RTC WRITES\n");
   sleep(1);
@@ -722,7 +727,7 @@ int main(void) {
     if(u<0 && rc==0)rc=-509;
   }
   scr_clear();
-  scr_printf("N5F HANDSHAKE - FINAL RESULT\n");
+  scr_printf("N5G TLS13 - FINAL RESULT\n");
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0) {
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
@@ -730,8 +735,8 @@ int main(void) {
     scr_printf("HTTPS GET 200 RAM: PASS\n");
     scr_printf("PAYLOAD %u BYTES: MATCH\n",n5a_http_info.body_bytes);
   } else {
-    scr_printf("N5F ERROR: %d\n",rc);
-    scr_printf("N5F STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
+    scr_printf("N5G ERROR: %d\n",rc);
+    scr_printf("N5G STEP=%u EVENTS=%u\n",n5d_trace_last,n5d_trace_count);
     scr_printf("IO PHASE=%d W=%d R=%d FAIL=%d\n",n5c_phase,n5c_write_calls,n5c_read_calls,diag_io_fail);
     if(rc==-523) {
       scr_printf("N5B LINK WAIT 20s FAILED\n");
