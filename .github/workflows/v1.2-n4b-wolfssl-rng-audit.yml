@@ -87,7 +87,7 @@ jobs:
           assert e[:4]==bytes((127,69,76,70)) and len(e)<3500000
           print('PASS: N4B wolfSSL custom seed callback linked; NOT executed, NOT distributed')
           PY
-      - name: Final boundary: never publish or run GPL wolfSSL-linked diagnostic
+      - name: "Final boundary: never publish or run GPL wolfSSL-linked diagnostic"
         shell: sh
         run: |
           set -eu
