@@ -743,6 +743,38 @@ No N4E.ENT is included in any CI artifact or test branch.
 `N4E.ENT` and report the full display/error code. Do not use this
 diagnostic as a release, trusted production clock or cover downloader.
 
+## N4E NETDIAG — physical TLS1.2 handshake failure RET=-649
+
+**Physical DESR-7000 user result: `RET=-649` (2026-11-13).**
+This means `wolfSSL_connect()` returned a failure **after TCP
+connection succeeded**, but does not identify whether the cause was
+CA/date/hostname, TLS protocol, network I/O or socket timeout.
+Do NOT label certificate verification as failed based only on -649.
+
+Root cause of missing useful detail: the original N4E tester printed
+`wolfSSL LOW/HIGH error=<code>` on the intermediate screen, then
+called `scr_clear()` before its FINAL RESULT. The error was lost.
+
+Diagnostic fix: **independent** `V12_N4E_NETDIAG_RO.ELF` on
+`test/n4e-netdiag-direct-download`; stock N4E binary and 1.0
+remain unchanged. Same `WOLFSSL_VERIFY_PEER`, SNI, pinned Roughtime
+and CA+hostname requirements. On RET=-649, the final display retains:
+
+- failed TLS bound: LOW or HIGH;
+- `SSL connect` return and `wolfSSL_get_error` code;
+- TCP connected and DNS result;
+- wolfSSL I/O callback receive/send counts plus last I/O failure;
+- whether the one-shot DRBG seed was consumed.
+
+I/O diagnostics: -701 wait/timeout receive, -702 peer closed,
+-703 recv error, -704 send readiness/timeout, -705 send error.
+These are internal diagnostic markers, not the final RET code.
+
+Test uses exactly the same FAT32 files as N4E (`N4E.CA`, a freshly
+generated **new** 160-byte `N4E.ENT`) plus NETDIAG ELF. Run via
+wLE-R3Z 4.80. **NEVER reuse a previous N4E.ENT** after any attempt.
+No HTTPS request body or cover writing. Physical NETDIAG: PENDING.
+CI: `.github/workflows/v1.2-n4e-netdiag.yml`.
 ## N3B — GUI boot regression after forensic build (DESR-7000)
 
 **Physical test on DESR-7000: FAIL (2026-11-10).** The complete
