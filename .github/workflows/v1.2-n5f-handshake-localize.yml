@@ -1,0 +1,357 @@
+name: N5F handshake predicate trace (DESR READ-ONLY)
+on:
+  push:
+    branches: [test/n5f-handshake-localize]
+    paths:
+      - '.github/workflows/v1.2-n5f-handshake-localize.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n5a_https_ram_ro.c'
+      - 'dvr-iso-manager/tools/generate_n5a_entropy.py'
+      - 'dvr-iso-manager/tools/n5d_instrument_wolfssl.py'
+      - 'dvr-iso-manager/tools/n5e_instrument_senddata.py'
+      - 'dvr-iso-manager/tools/n5f_instrument_handshake.py'
+      - 'dvr-iso-manager/src/net/n5a_http_ram.c'
+      - 'dvr-iso-manager/include/n5a_http_ram.h'
+      - 'dvr-iso-manager/tests/net/test_n5a_http_ram.c'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4e-tls-ro:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n5a
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: "Audit strict CA, hostname, Roughtime, entropy and read-only calls"
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import tempfile,subprocess,sys,base64,json,re
+          s=Path('dvr-iso-manager/src/v12_n5a_https_ram_ro.c').read_text()
+          g=Path('dvr-iso-manager/tools/generate_n5a_entropy.py')
+          for bad in ('WOLFSSL_VERIFY_NONE','fileXioWrite(', 'fileXioFormat(',
+                      'fileXioRename(', 'fileXioRemove(', 'FIO_MT_RDWR',
+                      'wolfSSL_send(', 'wc_SetTimeCb(NULL)==0',
+                      'x^=x<<13', 'clock() ^'):
+              assert bad not in s,bad
+          assert 'wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,diag_verify_cb)' in s
+          assert 'return preverify;' in s
+          assert 'VERIFY calls=%d fail=%d' in s
+          assert '#error "N4H requires portable FastMath' in s
+          assert 'MATH: FASTMATH PORTABLE C (NO SP/ASM)' in s
+          assert s.count('wolfSSL_write(') == 1
+          assert s.count('wolfSSL_read(') == 1
+          assert 'n5a_get_fixed_probe_ram' in s
+          assert 'HTTPS GET 200 RAM: PASS' in s
+          assert 'Connection: close' in s
+          assert 'GET /adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT HTTP/1.1' in s
+          assert 'FIRST CERT err=%d depth=%d' in s
+          for good in ('WOLFSSL_VERIFY_PEER','wolfSSL_check_domain_name',
+                       'wolfSSL_UseSNI','wolfSSL_connect','wc_SetTimeCb(signed_time_cb)',
+                       'v12_n3e_txryan_strict','N4E.CA','N4E.ENT',
+                       'v12_n4b_seed_provision(&tls_gate,seed,64)',
+                       'TLS1.2 CHAIN/HOST/DATE: PASS'):
+              assert good in s,good
+          assert 'secrets.token_bytes(160)' in g.read_text()
+          assert 'os.replace(' in g.read_text()
+          with tempfile.TemporaryDirectory() as td:
+              from pathlib import Path
+              a=Path(td)/'N4E.ENT'
+              subprocess.run([sys.executable,str(g),str(a)],check=True)
+              old=a.read_bytes()
+              subprocess.run([sys.executable,str(g),str(a)],check=True)
+              new=a.read_bytes()
+              assert len(old)==len(new)==160 and old!=new
+              assert new[32:96]!=new[96:]
+              assert subprocess.run([sys.executable,str(g),str(Path(td)/'wrong.bin')],capture_output=True).returncode!=0
+          eco=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          key=base64.b64decode(next(x for x in eco['servers'] if x['name']=='time.txryan.com')['publicKey'])
+          p=Path('dvr-iso-manager/src/net/v12_n3e_txryan.c').read_text()
+          root=p.split('static const uint8_t pinned_root[32]=',1)[1].split('};',1)[0]
+          actual=bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',root))
+          assert actual==key
+          print('PASS: N4E strict TLS and Roughtime, 160B private OS CSPRNG input, no PFS writes')
+          PY
+      - name: Host seed gate and signed UTC regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c -o /tmp/n4e-gate
+          /tmp/n4e-gate
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4c_cert_time.c \
+            dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c -o /tmp/n4e-utc
+          /tmp/n4e-utc
+      - name: Run standalone bounded HTTP parser host negative tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/n5a_http_ram.c \
+            dvr-iso-manager/tests/net/test_n5a_http_ram.c \
+            -o /tmp/n5a-parser
+          /tmp/n5a-parser
+          echo "PASS: N5A parser refuses redirects, malformed/oversize bodies and encoding confusion"
+      - name: Verify exact public 39-byte HTTPS probe on separate test branch
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --location --proto '=https' \
+            --tlsv1.2 \
+            https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT \
+            -o /tmp/n5a-public-body
+          python3 - <<'PY'
+          from pathlib import Path
+          from os import path
+          observed=Path('/tmp/n5a-public-body').read_bytes()
+          expected=b'PSX-DVR-ISO-MANAGER N5A HTTPS RAM PASS\n'
+          assert observed==expected,repr(observed)
+          print('PASS: exact public HTTPS target has fixed 39 byte marker')
+          PY
+      - name: Download public Mozilla CA bundle over verified HTTPS
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist
+          curl --fail --silent --show-error --location --proto '=https' \
+            --tlsv1.2 https://curl.se/ca/cacert.pem -o dist/N4E.CA
+          test "$(wc -c < dist/N4E.CA)" -gt 10000
+          test "$(wc -c < dist/N4E.CA)" -lt 350000
+          grep -q -- '-----BEGIN CERTIFICATE-----' dist/N4E.CA
+          sha256sum dist/N4E.CA > dist/N4E_CA_SHA256SUMS
+          echo "PASS: verified-source public CA PEM included (not secret)"
+      - name: Rebuild pinned NETFIX PS2SDK in isolated CI
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: N5D instrument pinned wolfSSL record-write path, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5d_instrument_wolfssl.py wolfssl-n5a
+          grep -q 'n5d_trace(200)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(230)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(110)' wolfssl-n5a/src/ssl.c
+      - name: N5E deep-trace pinned wolfSSL SendData calls, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5e_instrument_senddata.py wolfssl-n5a
+          grep -q 'n5d_trace(301)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(307)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(312)' wolfssl-n5a/src/internal.c
+      - name: N5F bracket IsSCR and ssl_in_handshake without changing TLS decisions
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5f_instrument_handshake.py wolfssl-n5a
+          grep -q 'n5d_trace(330)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(331)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(340)' wolfssl-n5a/src/internal.c
+      - name: Build separate wolfSSL v5.8.2 with callback, SNI and DRBG
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DHAVE_SNI=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0 -DFP_MAX_BITS=8192'
+          cmake -S wolfssl-n5a -B build-wolfssl-n5a \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes \
+            -DWOLFSSL_ASM=no \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n5a-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n5a -j2
+          cmake --install build-wolfssl-n5a
+          test -s n5a-wolfssl/lib/libwolfssl.a
+          grep -q 'USE_FAST_MATH' n5a-wolfssl/include/wolfssl/options.h
+          grep -q 'TFM_NO_ASM' n5a-wolfssl/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n5a-wolfssl/include/wolfssl/options.h; then
+            echo 'FATAL: SP_MATH still enabled in N4H'; exit 1
+          fi
+          grep -q 'TFM_TIMING_RESISTANT' n5a-wolfssl/include/wolfssl/options.h
+          echo 'PASS: wolfSSL EE configured for hardened portable FastMath'
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g n5a-wolfssl/lib/libwolfssl.a > /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
+          echo 'PASS: N4H FastMath wolfSSL exports RNG, TLS and SNI APIs'
+      - name: Compile N4E standalone EE ELF for physical test
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n5a \
+            -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_V12_N3B_MINI=ON \
+            -DDESR_V12_N4E_TLS_RO=ON
+          cmake --build build-n5a --target V12_N5A_HTTPS_RAM_RO.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n5a/V12_N5A_HTTPS_RAM_RO.ELF').read_bytes()
+          assert e[:4]==bytes((127,69,76,70)) and len(e)<12000000
+          for m in (b'N5F HANDSHAKE STATE - STAGE 0',b'raw.githubusercontent.com',
+                    b'PROBE.TXT', b'N5F HANDSHAKE - FINAL RESULT',
+                    b'HTTPS GET 200 RAM: PASS',
+                    b'PSX-DVR-ISO-MANAGER N5A HTTPS RAM PASS',
+                    b'ROUGHTIME SIGNED UTC: PASS',b'N4E.CA',b'N4E.ENT',
+                    b'TLS1.2 CHAIN/HOST/DATE: PASS',b'TWO BOUND CHECKS: PASS'):
+              assert m in e,m
+          for m in (b'N5F HANDSHAKE STATE - STAGE 0',b'N5E WOLF step=',b'N5F HANDSHAKE - FINAL RESULT'):
+              assert m in e,m
+          for bad in (b'WOLFSSL_VERIFY_NONE',b'hdd0:PP.DVRISO/BOOT.CNF',
+                      b'N4D.SEED'):
+              assert bad not in e,bad
+          print(f'PASS: N5A FastMath HTTPS GET RAM diagnostic ELF, size={len(e)}')
+          PY
+      - name: Bundle N4E source and license notices, never private entropy
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses dist/monocypher/src/optional
+          cp build-n5a/V12_N5A_HTTPS_RAM_RO.ELF dist/V12_N5F_HANDSHAKE_STATE_RO.ELF
+          cp dvr-iso-manager/tools/generate_n5a_entropy.py dist/tools/
+          cp dvr-iso-manager/tools/n5d_instrument_wolfssl.py dist/tools/
+          cp dvr-iso-manager/tools/n5e_instrument_senddata.py dist/tools/
+          cp dvr-iso-manager/tools/n5f_instrument_handshake.py dist/tools/
+          cp dvr-iso-manager/src/net/n5a_http_ram.c              dvr-iso-manager/tests/net/test_n5a_http_ram.c              dvr-iso-manager/src/v12_n5a_https_ram_ro.c \
+             dvr-iso-manager/src/net/v12_net_config.c \
+             dvr-iso-manager/src/net/v12_roughtime_verify.c \
+             dvr-iso-manager/src/net/v12_roughtime_wire.c \
+             dvr-iso-manager/src/net/v12_roughtime_monocypher.c \
+             dvr-iso-manager/src/net/v12_n3e_txryan.c \
+             dvr-iso-manager/src/net/v12_n3e_utc.c \
+             dvr-iso-manager/src/net/v12_n4a_entropy.c \
+             dvr-iso-manager/src/net/v12_n4b_seed_gate.c dist/source/
+          cp dvr-iso-manager/include/v12_n4b_seed_gate.h              dvr-iso-manager/include/n5a_http_ram.h dist/source/
+          cp monocypher-upstream/src/monocypher.c monocypher-upstream/src/monocypher.h dist/monocypher/src/
+          cp monocypher-upstream/src/optional/monocypher-ed25519.c \
+             monocypher-upstream/src/optional/monocypher-ed25519.h dist/monocypher/src/optional/
+          cp wolfssl-n5a/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cat > dist/README-N5A.txt <<'EOF'
+          N5A first HTTPS GET into RAM — PSX DESR-7000 READ-ONLY
+          Based on physical N4H TLS1.2 PASS with hardened portable FastMath.
+          This is an EXPERIMENTAL, manually provisioned diagnostic.
+          wolfSSL GPLv3, PS2SDK AFL-2.0; see NULD/ORBIT license precedent.
+          Public fixed response is on the test branch at:
+          https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT
+          Expected 39 bytes: "PSX-DVR-ISO-MANAGER N5A HTTPS RAM PASS\n".
+          This file is fetched only inside verified TLS after two strict
+          Roughtime-backed LOW/HIGH certificate validation checks.
+          Only HTTP 200 with EXACT payload accepted; no redirects.
+          Hard limits: 16KiB total HTTP response, 8KiB headers,
+          256B decoded body, 40 reads, each ≤1024B in RAM.
+          No USB/HDD/PFS/RTC/ART writes. No game boot or XMB install.
+          Put in FAT32 USB root:
+           - V12_N5A_HTTPS_RAM_RO.ELF
+           - N4E.CA (retain previous public variant 02_X1_YR_YR1)
+           - N4E.ENT (PRIVATE, EXACT 160 bytes, NEW every run)
+          Generate N4E.ENT on Windows 11 / Python 3:
+             py generate_n5a_entropy.py E:/N4E.ENT
+          This generator replaces old N4E.ENT atomically with fresh OS
+          CSPRNG bytes; never upload, display or reuse its contents.
+          Leave existing PP.DVRISO12/V12_NET.CNF unchanged.
+          Start ELF from wLE-R3Z 4.80 with Ethernet connected.
+          Success: ROUGHTIME SIGNED UTC: PASS;
+          TLS1.2 CHAIN/HOST/DATE: PASS; TWO BOUND CHECKS: PASS;
+          HTTPS GET 200 RAM: PASS; PAYLOAD 39 BYTES: MATCH; RET=0.
+          On failure, photograph entire final screen including
+          HTTP parser/wolfSSL code, TLS bound and NET counters.
+          NO production HTTPS clock: signed time margin is not yet
+          formally bounded by monotonic stopwatch/anti-replay on reboot.
+          Stable 1.0 and XMB untouched; no covers downloaded to HDD.
+          Source branch feature/v1.2-native-https, N5A workflow.
+          wolfSSL pinned decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          PS2SDK pinned d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          EOF
+          cat > dist/README-N5C.txt <<'EOF3'
+          N5C HTTPS I/O TRACE - PSX DESR-7000 EXPERIMENTAL READ ONLY
+          Use V12_N5C_HTTPS_IO_TRACE_RO.ELF on FAT32 USB.
+          Preserve the working N4E.CA and V12_NET.CNF.
+          Generate a NEW 160-byte N4E.ENT before EVERY attempt:
+            py tools/generate_n5a_entropy.py E:/N4E.ENT
+          Never upload N4E.ENT or log its bytes.
+          STAGE 10 instrumented: wolfSSL_write/read, lwip select/send/recv
+          enter/return markers. Photograph the last line if it stalls.
+          Callbacks use 5-second select calls, but a platform blocking syscall
+          could still stall; no hard end-to-end monotonic timeout is claimed.
+          Fixed HTTPS GET, immutable 39B expected probe, RAM only.
+          No HDD/ART/USB/RTC writes; experimental TLS time policy.
+          EOF3
+          cat > dist/README-N5F.txt <<'EOF4'
+          N5F handshake predicate state trace, DESR-7000, READ ONLY
+          TEST ELF: V12_N5F_HANDSHAKE_STATE_RO.ELF
+          Copy ELF and working N4E.CA to FAT32 USB root.
+          Before EVERY run, create new private 160-byte N4E.ENT:
+              py tools/generate_n5a_entropy.py E:/N4E.ENT
+          Do not upload, print or reuse N4E.ENT. Keep V12_NET.CNF unchanged.
+          Boot through wLE-R3Z 4.80 with Ethernet connected.
+          N5F adds the exact ssl_in_handshake(ssl,1) decision bracket:
+          302=before predicate; 330=wrapper entered; 336=predicate entered
+          334/335=IsSCR before/after; 331=predicate returned
+          340=continued past handshake block.
+          Prints numeric handShakeState, connectState, ssl->error and decision
+          (not secret) on either side. Compare the LAST N5F marker shown.
+          Trace steps:
+           100=wolfSSL_write_internal entry
+           110=before SendData, 120=after SendData
+           200=SendData entry
+           230=before BuildMessage, 240=BuildMessage entry if available
+           231=after BuildMessage
+           250=SendBuffered entry, 251=SendBuffered return.
+          201/202=SendData debug macro boundaries (where present)
+          301=RetrySendAlert, 302=ssl_in_handshake
+          303=wolfSSL_negotiate, 304=SetKeys
+          305/306=SendBuffered invocation, 307=CheckAvailableSize
+          308=GetOutputBuffer, 309=wolfSSL_GetMaxFragSize
+          310/311=record size calculations, 312=BuildMessage
+          313=WriteSEQ, 314=XMALLOC, 315=XMEMCPY, 316=XMEMSET
+          317=FreeAsyncCtx, 318=TLSv1.3 state query
+          If it stops, photograph last N5D WOLF step and surrounding lines.
+          No secrets, TLS payload or crypto material printed.
+          No changes to CA/hostname/date, verification or RNG policy.
+          No HDD, ART, USB or RTC writes; fixed HTTPS probe to RAM only.
+          The test may still hang in native blocking calls; no global
+          watchdog or hard end-to-end timeout is claimed.
+          Experimental TLS time policy; NOT production HTTPS.
+          Source and instrumentation script are in this archive.
+          wolfSSL pinned decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          EOF4
+          test ! -e dist/N4E.ENT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N5F-HANDSHAKE-STATE-READONLY
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
