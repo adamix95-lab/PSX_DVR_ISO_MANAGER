@@ -1,0 +1,73 @@
+name: Native QUIT - pinned audit and standalone USB probe (experimental)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/native-quit-igr
+    paths:
+      - "native-quit-igr/**"
+      - ".github/workflows/native-quit-igr.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    name: Source invariants - not a hardware result
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated manager branch
+        uses: actions/checkout@v4
+        with:
+          path: manager
+      - name: Checkout exact DVR Neutrino revision
+        uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          path: neutrino
+      - name: Checkout pinned OSDMenu reference
+        uses: actions/checkout@v4
+        with:
+          repository: pcm720/OSDMenu
+          ref: a2b847a2d1b319483fe1fa84d4dc14493b7bbc6f
+          path: osdmenu
+      - name: Checkout pinned PS2SDK reference
+        uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: ps2sdk
+      - name: Verify exact source-level claims
+        run: |
+          python3 manager/native-quit-igr/check_invariants.py manager neutrino osdmenu ps2sdk
+
+  usb-probe:
+    name: USB standalone ELF - does not touch HDD
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build isolated probe only
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C native-quit-igr/probe all
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          p = Path("native-quit-igr/probe/QUIT_MODE1_PROBE.ELF")
+          b = p.read_bytes()
+          assert b[:4] == b"\x7fELF", "Not an ELF"
+          assert struct.unpack_from("<H", b, 18)[0] == 8, "Not MIPS"
+          assert b"PP.DVRISO" not in b, "Probe must not embed app-partition path"
+          assert b"BOOT.CNF" not in b, "Probe must not include boot configuration"
+          print("PASS: standalone MIPS ELF", len(b), "bytes; hardware UNTESTED")
+          PY
+      - name: Publish USB-only probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: DESR-NATIVE-QUIT-MODE1-USB-PROBE-UNTESTED
+          path: native-quit-igr/probe/QUIT_MODE1_PROBE.ELF
+          if-no-files-found: error
