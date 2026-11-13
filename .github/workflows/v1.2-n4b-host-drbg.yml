@@ -1,0 +1,56 @@
+name: N4B host wolfSSL DRBG runtime seed test (not PS2)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4b-host-drbg.yml'
+      - 'dvr-iso-manager/tests/net/test_v12_n4b_wolfssl_runtime.c'
+      - 'dvr-iso-manager/src/net/v12_n4b_seed_gate.c'
+      - 'dvr-iso-manager/include/v12_n4b_seed_gate.h'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host-drbg:
+    runs-on: ubuntu-latest
+    container: alpine:3.23
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make gcc musl-dev git
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-host
+      - name: Build independent callback-enabled host wolfSSL
+        shell: sh
+        run: |
+          set -eu
+          cmake -S wolfssl-host -B build-n4b-host -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/host-wolfssl" \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=OFF -DWARNING_C_FLAGS=-w \
+            -DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1
+          cmake --build build-n4b-host -j2
+          cmake --install build-n4b-host
+          test -s host-wolfssl/lib/libwolfssl.a
+      - name: Test OS-CSPRNG callback, output and refusal to reseed from consumed input
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -DWC_RNG_SEED_CB=1 \
+            -Ihost-wolfssl/include -Idvr-iso-manager/include \
+            dvr-iso-manager/tests/net/test_v12_n4b_wolfssl_runtime.c \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            host-wolfssl/lib/libwolfssl.a -lm -lpthread \
+            -o /tmp/n4b-host-rng
+          /tmp/n4b-host-rng
+      - name: Never upload seed bytes, ELF or wolfSSL static library
+        shell: sh
+        run: |
+          set -eu
+          test ! -f N4B.SEED
+          echo "Host runtime test passed only if preceding checks passed."
+          echo "No PS2 ELF distribution, TLS, certificates or HTTPS."
