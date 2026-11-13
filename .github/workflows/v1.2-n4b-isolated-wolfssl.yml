@@ -1,0 +1,89 @@
+name: N4B isolated wolfSSL 5.8.2 custom seed callback (CI only)
+on:
+  push:
+    branches: [feature/v1.2-native-https]
+    paths:
+      - '.github/workflows/v1.2-n4b-isolated-wolfssl.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n4b_wolfssl_link_audit.c'
+      - 'dvr-iso-manager/src/net/v12_n4b_seed_gate.c'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  wolfssl-isolated:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n4b
+      - name: "Build isolated callback-enabled wolfSSL using official PS2 ports flags"
+        shell: sh
+        run: |
+          set -eu
+          test -f "$PS2DEV/share/ps2dev.cmake"
+          test -s "$PS2SDK/ports/lib/libwolfssl.a"
+          # Keep stock wolfSSL untouched; use separate PREFIX and build.
+          prefix="$GITHUB_WORKSPACE/n4b-wolfssl-install"
+          cmake -S wolfssl-n4b -B build-n4b-wolfssl \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$prefix" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF \
+            -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON \
+            -DWARNING_C_FLAGS=-w \
+            "-DCMAKE_C_FLAGS=-DWC_RNG_SEED_CB=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON(...)=0"
+          cmake --build build-n4b-wolfssl -j2
+          cmake --install build-n4b-wolfssl
+          test -s "$prefix/lib/libwolfssl.a"
+          test -r "$prefix/include/wolfssl/ssl.h"
+          printf 'PASS: isolated wolfSSL v5.8.2 built without modifying pinned SDK\n'
+      - name: Verify actual callback symbol and matching headers
+        shell: sh
+        run: |
+          set -eu
+          lib="$GITHUB_WORKSPACE/n4b-wolfssl-install/lib/libwolfssl.a"
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g "$lib" > /tmp/n4b-symbols.txt
+          grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$' /tmp/n4b-symbols.txt
+          echo "PASS: isolated library exports wc_SetSeed_Cb (not just a header define)"
+          if "$NM" -g "$PS2SDK/ports/lib/libwolfssl.a" |
+             grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$'; then
+              echo "NOTE: standard SDK now exports callback; do not modify it."
+          else
+              echo "CONFIRMED: standard SDK lacks callback; isolation is necessary."
+          fi
+      - name: Cross link N4B callback and fail-closed audit without execution
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n4b-wolfssl-install"
+          cmake -S dvr-iso-manager -B build-n4b-isolated \
+            -DDESR_V12_N4B_ISOLATED_RNG_AUDIT=ON
+          cmake --build build-n4b-isolated \
+            --target V12_N4B_ISOLATED_RNG_AUDIT.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          x=Path('build-n4b-isolated/V12_N4B_ISOLATED_RNG_AUDIT.ELF').read_bytes()
+          assert x[:4]==bytes((127,69,76,70)) and len(x)<3500000
+          assert b'ROUGHTIM' not in x
+          print(f'PASS: N4B custom-seed callback ABI links to isolated wolfSSL, {len(x)} bytes')
+          print('NO execution, NO TLS handshake, NO distributed ELF.')
+          PY
+      - name: No artifact and no mutation of production library
+        shell: sh
+        run: |
+          set -eu
+          test ! -e dist/V12_N4B_ISOLATED_RNG_AUDIT.ELF
+          test -s "$PS2SDK/ports/lib/libwolfssl.a"
+          echo "N4B isolated ABI proof only; production HTTPS and redistribution remain BLOCKED."
