@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install prerequisites
-        run: apk add --no-cache cmake make gcc musl-dev git openssl
+        run: apk add --no-cache cmake make gcc musl-dev git openssl python3
       - uses: actions/checkout@v4
         with:
           repository: wolfSSL/wolfssl
