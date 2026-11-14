@@ -9,7 +9,7 @@
  * USB root ART is the ONLY writable destination, no auto-overwrite.
  */
 #define N6_BATCH_MAX 4
-#define N6_ENT_BYTES (32U + 2U * N6_BATCH_MAX * 64U)
+#define N6_ENT_BYTES (32U + 4U * N6_BATCH_MAX * 64U)
 #define N6_COVER_CAP (256U * 1024U)
 #define N6_HTTP_CAP (N6_COVER_CAP + 8192U)
 
