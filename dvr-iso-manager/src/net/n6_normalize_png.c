@@ -48,7 +48,7 @@ int n6_normalize_png(const uint8_t *input,size_t bytes,
   png_uint_32 width,height;
   int depth,color,channels;
   unsigned fit_w,fit_h,off_x,off_y;
-  int valid=0;
+  volatile int valid=0; /* defined across libpng longjmp error paths */
   if(!output||!output_len)return -1;
   *output=NULL;*output_len=0;
   if(probe_png_check(input,bytes)!=0)return -2;
