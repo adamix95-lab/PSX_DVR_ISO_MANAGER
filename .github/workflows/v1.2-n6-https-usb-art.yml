@@ -337,62 +337,7 @@ jobs:
           cp wolfssl-n5a/LICENSING dist/licenses/WOLFSSL-LICENSING
           cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
           cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
-          cat > dist/README-N5A.txt <<'EOF'
-          N5A first HTTPS GET into RAM — PSX DESR-7000 READ-ONLY
-          Based on physical N4H TLS1.2 PASS with hardened portable FastMath.
-          This is an EXPERIMENTAL, manually provisioned diagnostic.
-          wolfSSL GPLv3, PS2SDK AFL-2.0; see NULD/ORBIT license precedent.
-          Public fixed response is on the test branch at:
-          https://raw.githubusercontent.com/adamix95-lab/PSX_DVR_ISO_MANAGER/test/n5a-direct-download/diagnostics/n5a/PROBE.TXT
-          Expected 39 bytes: "PSX-DVR-ISO-MANAGER N5A HTTPS RAM PASS\n".
-          This file is fetched only inside verified TLS after two strict
-          Roughtime-backed LOW/HIGH certificate validation checks.
-          Only HTTP 200 with EXACT payload accepted; no redirects.
-          Hard limits: 16KiB total HTTP response, 8KiB headers,
-          256B decoded body, 40 reads, each ≤1024B in RAM.
-          No USB/HDD/PFS/RTC/ART writes. No game boot or XMB install.
-          Put in FAT32 USB root:
-           - V12_N5A_HTTPS_RAM_RO.ELF
-           - N4E.CA (retain previous public variant 02_X1_YR_YR1)
-           - N4E.ENT (PRIVATE, EXACT 160 bytes, NEW every run)
-          Generate N4E.ENT on Windows 11 / Python 3:
-             py generate_n5a_entropy.py E:/N4E.ENT
-          This generator replaces old N4E.ENT atomically with fresh OS
-          CSPRNG bytes; never upload, display or reuse its contents.
-          Leave existing PP.DVRISO12/V12_NET.CNF unchanged.
-          Start ELF from wLE-R3Z 4.80 with Ethernet connected.
-          Success: ROUGHTIME SIGNED UTC: PASS;
-          TLS1.2 CHAIN/HOST/DATE: PASS; TWO BOUND CHECKS: PASS;
-          HTTPS GET 200 RAM: PASS; PAYLOAD 39 BYTES: MATCH; RET=0.
-          On failure, photograph entire final screen including
-          HTTP parser/wolfSSL code, TLS bound and NET counters.
-          NO production HTTPS clock: signed time margin is not yet
-          formally bounded by monotonic stopwatch/anti-replay on reboot.
-          Stable 1.0 and XMB untouched; no covers downloaded to HDD.
-          Source branch feature/v1.2-native-https, N5A workflow.
-          N5G delta from N5F:
-          Clear screen at STAGE 10 so old STAGE 1-9 text cannot linger.
-          318=before IsAtLeastTLSv1_3(); 319=predicate returned.
-          302=before ssl_in_handshake; 330/336/334/335/331/340
-          bracket predicate entry and exit. Record the LAST marker.
-          Still READ-ONLY. SSL writes can still block; no global watchdog.
-          wolfSSL pinned decea12e223869c8f8f3ab5a53dc90b69f436eb2
-          PS2SDK pinned d41ea62946e53d9a0c8788bb9eb8c8faf488b559
-          EOF
-          cat > dist/README-N5C.txt <<'EOF3'
-          N5C HTTPS I/O TRACE - PSX DESR-7000 EXPERIMENTAL READ ONLY
-          Use V12_N5C_HTTPS_IO_TRACE_RO.ELF on FAT32 USB.
-          Preserve the working N4E.CA and V12_NET.CNF.
-          Generate a NEW 160-byte N4E.ENT before EVERY attempt:
-            py tools/generate_n5a_entropy.py E:/N4E.ENT
-          Never upload N4E.ENT or log its bytes.
-          STAGE 10 instrumented: wolfSSL_write/read, lwip select/send/recv
-          enter/return markers. Photograph the last line if it stalls.
-          Callbacks use 5-second select calls, but a platform blocking syscall
-          could still stall; no hard end-to-end monotonic timeout is claimed.
-          Fixed HTTPS GET, immutable 39B expected probe, RAM only.
-          No HDD/ART/USB/RTC writes; experimental TLS time policy.
-          EOF3
+          cat > dist/README-N6.txt <<'EOF4'
           N6 HTTPS USB ART -- SONY DESR-7000 EXPERIMENTAL FIRST TEST
           ELF: V12_N6_HTTPS_USB_ART.ELF
           This is a NEW experiment; first physical N6 result is still unknown.
@@ -438,6 +383,8 @@ jobs:
           Manually copy/import after validation; do not assume auto-display.
           This is NOT production-grade clock/entropy/reboot freshness yet.
           EOF4
+          test -s dist/README-N6.txt
+          test -s dist/V12_N6_HTTPS_USB_ART.ELF
           test ! -e dist/N4E.ENT
           test ! -e dist/N6.ENT
       - uses: actions/upload-artifact@v4
