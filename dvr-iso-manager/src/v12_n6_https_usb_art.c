@@ -59,6 +59,7 @@
 #include "n6_usb_art.h"
 #include "cover_index.h"
 #include "probe_png.h"
+#include "n6_normalize_png.h"
 
 #define PART "hdd0:PP.DVRISO12"
 #define MOUNT "pfs1:"
@@ -76,6 +77,8 @@
  * No redirect or arbitrary remote URLs are accepted. */
 #define N6_ARCHIVE "Luden02/psx-ps2-opl-art-database"
 #define N6_PIN "e14b9abce3cc42a06bb4ad2e4056e289c8872a07"
+#define N6_FALLBACK_ARCHIVE "CosmicScale/psbbn-art-database"
+#define N6_FALLBACK_PIN "41daedfd81562cd21a255582358fb60f12899a0b"
 static char n6_request[448];
 static char n6_current_id[12];
 static char n6_targets[N6_BATCH_MAX][12];
@@ -84,6 +87,7 @@ static const uint8_t *n6_png=0;
 static size_t n6_png_size=0;
 static size_t n6_wire_bytes=0;
 static int n6_http_rc=0;
+static int n6_source=0; /* 0: OPL Manager dump, 1: CosmicScale */
 
 #if !defined(WC_RNG_SEED_CB) || !defined(HAVE_HASHDRBG) || !defined(HAVE_SNI)
 #error "N4E BLOCKED: require custom wolfSSL DRBG seed callback and SNI"
@@ -325,11 +329,11 @@ static int read_cfg(v12_net_config *cfg) {
 /* N4E one-shot private input: 32 RT nonce + 2 x 64 TLS seeds.
  * Host CSPRNG, raw bytes; no deterministic fallback or secret logging.
  */
-/* One-time host CSPRNG input: 32-byte Roughtime nonce + eight DISTINCT
+/* One-time host CSPRNG input: 32-byte Roughtime nonce + sixteen DISTINCT
  * 64-byte seeds (LOW/HIGH per each of four possible TLS downloads).
  * Never cache, print, upload or regenerate on the console. */
 static int read_entropy_usb(uint8_t nonce[32],
-                            uint8_t seeds[N6_BATCH_MAX][2][64]) {
+                            uint8_t seeds[N6_BATCH_MAX][4][64]) {
   uint8_t data[N6_ENT_BYTES]={0};
   int rc,fd=-1,n,got=0,extra,closed;
   uint8_t tail=0;
@@ -361,7 +365,7 @@ static int read_entropy_usb(uint8_t nonce[32],
   { uint8_t bits=0;
     for(int i=0;i<32;i++)bits|=data[i];
     if(!bits){v12_n4a_wipe(data,sizeof(data));return -516;}
-    for(int i=0;i<N6_BATCH_MAX*2;i++) {
+    for(int i=0;i<N6_BATCH_MAX*4;i++) {
       bits=0;
       for(int j=0;j<64;j++)bits|=data[32+i*64+j];
       if(!bits){v12_n4a_wipe(data,sizeof(data));return -516;}
@@ -374,7 +378,7 @@ static int read_entropy_usb(uint8_t nonce[32],
   memcpy(nonce,data,32);
   memcpy(seeds,data+32,sizeof(data)-32);
   v12_n4a_wipe(data,sizeof(data));
-  scr_printf("N6: fresh nonce + 8 distinct TLS seeds loaded\n");
+  scr_printf("N6: fresh nonce + 16 distinct TLS seeds loaded\n");
   return 0;
 }
 
@@ -607,15 +611,24 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
   size_t png_size=0;
   if(!ssl || !desr_valid_game_id(n6_current_id))return -710;
   n6_png=NULL;n6_png_size=0;n6_wire_bytes=0;n6_http_rc=0;
-  len=snprintf(n6_request,sizeof(n6_request),
-    "GET /" N6_ARCHIVE "/" N6_PIN "/PS2/%s/%s_COV.png HTTP/1.1\r\n"
-    "Host: raw.githubusercontent.com\r\n"
-    "User-Agent: PSX-DVR-ISO-MANAGER-N6/1.2\r\n"
-    "Accept: image/png\r\nAccept-Encoding: identity\r\n"
-    "Connection: close\r\n\r\n",n6_current_id,n6_current_id);
+  if(n6_source==0)
+    len=snprintf(n6_request,sizeof(n6_request),
+      "GET /" N6_ARCHIVE "/" N6_PIN "/PS2/%s/%s_COV.png HTTP/1.1\r\n"
+      "Host: raw.githubusercontent.com\r\n"
+      "User-Agent: PSX-DVR-ISO-MANAGER-N6/1.2\r\n"
+      "Accept: image/png\r\nAccept-Encoding: identity\r\n"
+      "Connection: close\r\n\r\n",n6_current_id,n6_current_id);
+  else
+    len=snprintf(n6_request,sizeof(n6_request),
+      "GET /" N6_FALLBACK_ARCHIVE "/" N6_FALLBACK_PIN "/art/%s.png HTTP/1.1\r\n"
+      "Host: raw.githubusercontent.com\r\n"
+      "User-Agent: PSX-DVR-ISO-MANAGER-N6/1.2\r\n"
+      "Accept: image/png\r\nAccept-Encoding: identity\r\n"
+      "Connection: close\r\n\r\n",n6_current_id);
   if(len<=0 || len>=(int)sizeof(n6_request))return -710;
   scr_clear();scr_setCursor(0);
-  scr_printf("N6 HTTPS GAME: %s\n",n6_current_id);
+  scr_printf("N6 HTTPS GAME: %s source=%s\n",n6_current_id,
+             n6_source==0?"OPL":"PSBBN");
   scr_printf("TRUST: SIGNED UTC, TLS PEER/HOST BOTH BOUNDS\n");
   scr_printf("STAGE 10: HTTPS GET COVER -> RAM\n");
   n5c_http_active=1;
@@ -800,8 +813,8 @@ static int verify_two_bound_tls(const v12_rt_signed_time *signed_time,
 
 int main(void) {
   int rc,rt_pass=0,targets=0,iso_count=0,ids_count=0;
-  int missing=0,saved=0,not_found=0,failed=0;
-  uint8_t nonce[32]={0},tls_seeds[N6_BATCH_MAX][2][64]={0};
+  int missing=0,saved=0,not_found=0,failed=0,primary_saved=0,fallback_saved=0;
+  uint8_t nonce[32]={0},tls_seeds[N6_BATCH_MAX][4][64]={0};
   v12_rt_signed_time signed_time={0,0};
   v12_net_config cfg;
   init_scr();scr_setCursor(0);
@@ -832,23 +845,43 @@ int main(void) {
     scr_printf("N6 STRICT SIGNED UTC: PASS\n");
     for(int i=0;i<targets;i++){
       int one_result;
+      const uint8_t *normalized=NULL;
+      size_t normalized_size=0;
       memcpy(n6_current_id,n6_targets[i],sizeof(n6_current_id));
-      scr_printf("N6 COVER %d/%d: %s\n",i+1,targets,n6_current_id);
+      n6_source=0;
+      scr_printf("N6 COVER %d/%d: %s (OPL)\n",i+1,targets,n6_current_id);
       one_result=verify_two_bound_tls(&signed_time,
-                      tls_seeds[i][0],tls_seeds[i][1]);
+                       tls_seeds[i][0],tls_seeds[i][1]);
+      if(one_result==0 &&
+        (!n6_png || n6_normalize_png(n6_png,n6_png_size,
+                             &normalized,&normalized_size)!=0))
+        one_result=-565;
+      /* PC ART 0.8 order: OPL first, PSBBN only if missing/invalid.
+       * Fatal TLS/network errors never trigger silent fallback. */
+      if(one_result==-404 || one_result==-565){
+        n6_source=1;
+        scr_printf("N6 PSBBN FALLBACK: %s\n",n6_current_id);
+        one_result=verify_two_bound_tls(&signed_time,
+                         tls_seeds[i][2],tls_seeds[i][3]);
+        if(one_result==0 &&
+           (!n6_png || n6_normalize_png(n6_png,n6_png_size,
+                               &normalized,&normalized_size)!=0))
+          one_result=-566;
+      }
       if(one_result==-404){
         not_found++;
-        scr_printf("N6 NOT FOUND: %s\n",n6_current_id);
+        scr_printf("N6 NOT FOUND (OPL+PSBBN): %s\n",n6_current_id);
         continue;
       }
       if(one_result<0){failed++;rc=one_result;break;}
-      if(n6_png==NULL||n6_png_size==0U){failed++;rc=-720;break;}
-      one_result=n6_write_usb_art(n6_current_id,n6_png,n6_png_size);
-      if(one_result<0){
-        failed++;rc=one_result;break;
-      }
+      if(!normalized || !normalized_size){failed++;rc=-720;break;}
+      one_result=n6_write_usb_art(n6_current_id,normalized,normalized_size);
+      if(one_result<0){failed++;rc=one_result;break;}
       saved++;
+      if(n6_source==0)primary_saved++;
+      else fallback_saved++;
       scr_printf("N6 SAVED: mass0:/ART/%s_COV.png\n",n6_current_id);
+      scr_printf("SOURCE=%s RGB 140x200\n",n6_source==0?"OPL":"PSBBN");
       usleep(200000);
     }
   }
@@ -864,6 +897,7 @@ int main(void) {
       iso_count,ids_count,missing);
   scr_printf("BATCH=%d SAVED=%d NOT_FOUND=%d FAIL=%d\n",
       targets,saved,not_found,failed);
+  scr_printf("SOURCE OPL=%d PSBBN=%d\n",primary_saved,fallback_saved);
   if(rt_pass)scr_printf("ROUGHTIME SIGNED UTC: PASS\n");
   if(rc==0 && targets>0){
     scr_printf("TLS1.2 CHAIN/HOST/DATE: PASS\n");
