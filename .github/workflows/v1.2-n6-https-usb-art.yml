@@ -7,6 +7,9 @@ on:
       - 'dvr-iso-manager/CMakeLists.txt'
       - 'dvr-iso-manager/src/v12_n6_https_usb_art.c'
       - 'dvr-iso-manager/src/net/n6_usb_art.c'
+      - 'dvr-iso-manager/src/net/n6_normalize_png.c'
+      - 'dvr-iso-manager/include/n6_normalize_png.h'
+      - 'dvr-iso-manager/tests/net/test_n6_normalize_png.c'
       - 'dvr-iso-manager/include/n6_usb_art.h'
       - 'dvr-iso-manager/tools/generate_n6_entropy.py'
       - 'dvr-iso-manager/src/v12_n5a_https_ram_ro.c'
@@ -28,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install prerequisites
-        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates
+        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
       - uses: actions/checkout@v4
         with:
           repository: ps2dev/ps2sdk
@@ -68,6 +71,9 @@ jobs:
           assert 'return preverify;' in s
           assert 'N6_PIN "e14b9abce3cc42a06bb4ad2e4056e289c8872a07"' in s
           assert 'N6_ARCHIVE "Luden02/psx-ps2-opl-art-database"' in s
+          assert 'N6_FALLBACK_ARCHIVE "CosmicScale/psbbn-art-database"' in s
+          assert 'N6_FALLBACK_PIN "41daedfd81562cd21a255582358fb60f12899a0b"' in s
+          assert 'n6_normalize_png(' in s and 'tls_seeds[i][3]' in s
           assert s.count('wolfSSL_write(')==1 and s.count('wolfSSL_read(')==1
           assert 'n6_scan_dvr(' in s and 'n6_write_usb_art(' in s
           assert 'n6_get_cover_ram(ssl)' in s
@@ -91,14 +97,19 @@ jobs:
           assert 'scr_printf' not in trace
           assert 'HEARTBEAT=%u' in s and 'n5h_start_observer()' in s
           assert 'secrets.token_bytes(LENGTH)' in g.read_text()
+          norm=Path('dvr-iso-manager/src/net/n6_normalize_png.c').read_text()
+          assert 'TARGET_W 140U' in norm and 'TARGET_H 200U' in norm
+          assert 'probe_png_check(input,bytes)' in norm
+          assert 'PNG_COLOR_TYPE_RGB' in norm
+          assert 'png_read_row(' in norm and 'png_write_row(' in norm
           with tempfile.TemporaryDirectory() as td:
               dest=Path(td)/'N6.ENT'
               for i in range(2):
                   subprocess.run([sys.executable,str(g),str(dest)],check=True)
                   data=dest.read_bytes()
-                  assert len(data)==544
-                  seeds=[data[32+64*j:32+64*(j+1)] for j in range(8)]
-                  assert len(set(seeds))==8 and all(any(v) for v in seeds)
+                  assert len(data)==1056
+                  seeds=[data[32+64*j:32+64*(j+1)] for j in range(16)]
+                  assert len(set(seeds))==16 and all(any(v) for v in seeds)
                   if i==0:first=data
                   else:assert data!=first
               assert subprocess.run([sys.executable,str(g),str(Path(td)/'bad.ent')],
@@ -134,6 +145,16 @@ jobs:
             -o /tmp/n6-png-test
           /tmp/n6-png-test
           echo 'PASS N6: binary PNG CRC and HTTP/1.1 payload validation'
+      - name: N6 RGB 140x200 normalization regression with libpng
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/src/net/n6_normalize_png.c \
+            dvr-iso-manager/tests/net/test_n6_normalize_png.c \
+            -lpng -lz -o /tmp/n6-normalize
+          /tmp/n6-normalize
       - name: Run standalone bounded HTTP parser host negative tests
         shell: sh
         run: |
@@ -162,6 +183,20 @@ jobs:
           assert 'content-type: image/png' in headers
           print(f'PASS N6: pinned source real valid PNG, {len(data)} bytes')
           print('REMOTE HEADER CONTENT-LENGTH:', 'content-length:' in headers)
+          PY
+      - name: Verify pinned CosmicScale PSBBN fallback artwork over HTTPS
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/41daedfd81562cd21a255582358fb60f12899a0b/art/SLES_538.86.png \
+            -o /tmp/n6-fallback.png
+          python3 - <<'PY'
+          from pathlib import Path
+          data=Path('/tmp/n6-fallback.png').read_bytes()
+          assert 57<len(data)<=256*1024
+          assert data[:8]==b'\x89PNG\r\n\x1a\n'
+          print('PASS N6: pinned PSBBN fallback valid PNG header',len(data))
           PY
       - name: Download public Mozilla CA bundle over verified HTTPS
         shell: sh
@@ -280,6 +315,8 @@ jobs:
           cp dvr-iso-manager/tools/n5f_instrument_handshake.py dist/tools/
           cp dvr-iso-manager/tools/n5g_instrument_tls13.py dist/tools/
           cp dvr-iso-manager/src/net/n6_usb_art.c \
+             dvr-iso-manager/src/net/n6_normalize_png.c \
+             dvr-iso-manager/include/n6_normalize_png.h \
              dvr-iso-manager/include/n6_usb_art.h \
              dvr-iso-manager/src/net/probe_png.c \
              dvr-iso-manager/src/cover_index.c \
@@ -356,40 +393,50 @@ jobs:
           Fixed HTTPS GET, immutable 39B expected probe, RAM only.
           No HDD/ART/USB/RTC writes; experimental TLS time policy.
           EOF3
-          cat > dist/README-N6.txt <<'EOF4'
-          N6 HTTPS USB ART - PHYSICAL DESR-7000 FIRST TEST (EXPERIMENTAL)
+          N6 HTTPS USB ART -- SONY DESR-7000 EXPERIMENTAL FIRST TEST
           ELF: V12_N6_HTTPS_USB_ART.ELF
-          N5H HTTPS GET 39B was hardware-proven 200/PASS/RET=0.
-          This new N6 is NOT yet hardware tested; allow 4 covers maximum.
-          1. Copy ELF and the working public N4E.CA to FAT32 USB root.
-          2. Generate a NEW private 544B N6.ENT on Windows 11 in tools:
-             py .\generate_n6_entropy.py I:/N6.ENT
-             Never reuse, copy to issue tracker, log or upload N6.ENT.
-          3. Keep PP.DVRISO12/V12_NET.CNF unchanged.
-          4. Start ELF from wLE-R3Z 4.80 with Ethernet connected.
-          5. Scans dvr_pfs0:/ISO as READ-ONLY. Reads ISO9660 SYSTEM.CNF
-             BOOT2 or unique root PS2 executable ID. Does not guess ID
-             from filename. Skips existing ART/%GAMEID%_COV.png/.jpg on USB.
-          6. Fetches up to 4 missing verified PNG covers via pinned
-             HTTPS raw.githubusercontent.com from OPL Manager archive:
-             https://github.com/Luden02/psx-ps2-opl-art-database
-             Pinned commit e14b9abce3cc42a06bb4ad2e4056e289c8872a07.
-             Expects strict 200, Content-Length, image/png, valid CRC,
-             <=256KiB. HTTP 404 means art not found, no write for that ID.
-             No redirects, mismatched content, gzip, chunked or cross-host.
-          7. Creates only mass0:/ART when needed; writes new .PART on
-             USB, closes, reads back and compares full data, then renames
-             to ART/%GAMEID%_COV.png. Never overwrites an existing png,
-             jpg or .PART. Failed .PART is deliberately retained to avoid
-             destroying evidence or existing files.
-          8. HDMI/TV final screen shows ISO, IDs, missing, saved, 404 and RET.
-             Success of a batch means verified downloads to USB only;
-             it does NOT update the Manager's HDD pfs1:/ART automatically.
-          Protection: DVR HDD + PP.DVRISO12 READ ONLY. No RTC changes.
-          Fresh host entropy per run: 32B nonce + 8 distinct 64B TLS seeds.
-          Two wolfSSL TLS1.2 chain/hostname/date bounds per request.
-          Signed UTC margins & reboot anti-replay remain experimental.
-          This is NOT production HTTPS or a Manager 1.2 release.
+          This is a NEW experiment; first physical N6 result is still unknown.
+          It is based on the hardware-proven N5H 39-byte verified HTTPS PASS.
+          Copy ELF and working public N4E.CA to FAT32 USB root.
+          From tools on Windows 11 create a new PRIVATE 1056B N6.ENT per run:
+              py .\generate_n6_entropy.py I:/N6.ENT
+          NEVER reuse/print/upload N6.ENT. Retain PP.DVRISO12/V12_NET.CNF.
+          Launch via wLE-R3Z 4.80 with Ethernet cable already connected.
+
+          Scans dvr_pfs0:/ISO read-only. Disc ID extracted from ISO9660
+          BOOT2, falling back only to a unique valid root executable.
+          ISO filenames are never trusted to supply a Game ID.
+          Skips existing mass0:/ART/GAMEID_COV.png or .jpg without overwrite.
+          At most 4 missing IDs in a single test run, 128 ISO scan cap.
+
+          COVER SOURCES follow our PC ART Server 0.8 preference:
+          PRIMARY: OPL Manager GameArt Database, using a pinned static
+            copy on GitHub (Luden02, commit e14b9abc...) rather than
+            Archive.org's redirecting ZIP host.
+          FALLBACK: CosmicScale PSBBN Art Database, pinned GitHub commit
+            41daedfd...; only used for OPL 404 or invalid source PNG.
+          Both use HTTPS raw.githubusercontent.com and strict verified TLS.
+          Both are transformed to 140x200 RGB PNG on black canvas to
+          match PC ART Server 0.8. On console uses nearest-neighbor instead
+          of Pillow/LANCZOS, but keeps proportions and avoids stretching.
+          Rejects input >256KiB, image dimensions >512x512, invalid CRC,
+          redirects, mismatched Content-Length/MIME or chunked responses.
+          A game missing from BOTH sources is skipped (no new USB file).
+
+          OUTPUT: new mass0:/ART/GAMEID_COV.png only.
+          1. Create USB ART folder if needed.
+          2. Stage verified PNG as GAMEID_COV.png.PART.
+          3. Close then read-back and byte-compare with RAM.
+          4. Rename .PART to .png only after verification.
+          Existing .png/.jpg/.PART NEVER overwritten or removed.
+          An incomplete .PART stays for manual inspection.
+          HDD DVR and PP.DVRISO12 are strictly read-only; no RTC writes.
+          No existing Manager 1.0 binary or XMB changes.
+          NOTE: HDD Manager 1.0 ART directory is PFS1:/ART and USB Manager
+          uses mass0:/DESR_DVR/ART -- this isolated test intentionally writes
+          mass0:/ART as explicitly requested, not the running Manager index.
+          Manually copy/import after validation; do not assume auto-display.
+          This is NOT production-grade clock/entropy/reboot freshness yet.
           EOF4
           test ! -e dist/N4E.ENT
           test ! -e dist/N6.ENT
