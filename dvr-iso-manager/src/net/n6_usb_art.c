@@ -23,6 +23,7 @@
 static unsigned char sector[SECTOR];
 static char cnf[8192];
 static char seen[GAME_LIMIT][DESR_COVER_ID_CAP];
+static char scanned_iso[GAME_LIMIT][DESR_FILENAME_CAP];
 static unsigned char verify_chunk[1024];
 
 static int read_at(int fd,uint32_t offset,void *dst,int bytes) {
@@ -111,43 +112,52 @@ int n6_usb_cover_present(const char id[12]) {
   if(paths(id,png,jpg,tmp)<0)return -1;
   return exists(png)||exists(jpg);
 }
+/* Match stable Manager v1.0 behavior: finish DVR directory enumeration
+ * FIRST, then open individual ISOs sequentially, never while dir is open.
+ * This avoids relying on DVR module support for overlapping dir/file FDs.
+ */
 int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
                 int *iso_count,int *ids_count,int *missing_count){
-  int fd,n,seen_count=0,chosen=0;
+  int dir,n,closed,seen_count=0,chosen=0;
   iox_dirent_t ent;
   if(!ids||!iso_count||!ids_count||!missing_count)return -1;
   *iso_count=*ids_count=*missing_count=0;
   memset(seen,0,sizeof(seen));
-  fd=fileXioDopen(DVR_DIR);
-  if(fd<0)return -530;
-  while((n=fileXioDread(fd,&ent))>0) {
-    char id[12];int rc,duplicate=0,present;
+  dir=fileXioDopen(DVR_DIR);
+  if(dir<0)return -530;
+  while((n=fileXioDread(dir,&ent))>0) {
+    size_t size;
     ent.name[sizeof(ent.name)-1]=0;
     if(!desr_filename_is_safe(ent.name))continue;
-    if(*iso_count>=GAME_LIMIT){fileXioDclose(fd);return -531;}
+    if(*iso_count>=GAME_LIMIT){fileXioDclose(dir);return -531;}
+    size=strlen(ent.name);
+    if(size>=DESR_FILENAME_CAP)continue;
+    memcpy(scanned_iso[*iso_count],ent.name,size+1U);
     (*iso_count)++;
-    rc=id_from_iso(ent.name,id);
-    if(rc<0){fileXioDclose(fd);return -532;}
+  }
+  closed=fileXioDclose(dir);
+  if(closed<0||n<0)return -535;
+  for(int index=0;index<*iso_count;index++) {
+    char id[12],png[72],jpg[72],part[80];
+    int rc,duplicate=0,present;
+    rc=id_from_iso(scanned_iso[index],id);
+    if(rc<0)return -532;
     if(rc==0)continue;
     (*ids_count)++;
     for(int i=0;i<seen_count;i++)
-      if(!strcmp(id,seen[i])) {duplicate=1;break;}
+      if(!strcmp(id,seen[i])){duplicate=1;break;}
     if(duplicate)continue;
     memcpy(seen[seen_count++],id,12);
     present=n6_usb_cover_present(id);
-    if(present<0){fileXioDclose(fd);return -533;}
+    if(present<0)return -533;
     if(present)continue;
     (*missing_count)++;
     if(chosen<N6_BATCH_MAX) {
-      char png[72],jpg[72],part[80];
-      if(paths(id,png,jpg,part)<0){fileXioDclose(fd);return -534;}
-      if(!exists(part)) {
-        memcpy(ids[chosen],id,12);
-        chosen++;
-      }
+      if(paths(id,png,jpg,part)<0)return -534;
+      if(!exists(part))
+        memcpy(ids[chosen++],id,12);
     }
   }
-  if(fileXioDclose(fd)<0||n<0)return -535;
   return chosen;
 }
 /* Final USB-only publish. Incomplete/old PART is left untouched for
