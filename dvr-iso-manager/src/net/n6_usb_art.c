@@ -164,6 +164,7 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
  * manual inspection. Always compare staged data with verified RAM bytes.
  * Existing .png/.jpg are never replaced, even on failed prior downloads.
  */
+#ifndef N6A_READONLY
 int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   char dst[72],jpg[72],part[80];
   int dir,fd=-1,w=0,ret;
@@ -207,3 +208,5 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   if(fileXioRename(part,dst)<0)return -560;
   return 0;
 }
+
+#endif /* N6A_READONLY: read-only scan helper only */
