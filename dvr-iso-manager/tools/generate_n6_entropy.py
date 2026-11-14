@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create a one-run N6.ENT for Sony PSX DESR-7000 experimental N6.
 
-32 bytes Roughtime nonce + 4 * (2 * 64 bytes) independent TLS DRBG seeds.
+32 bytes Roughtime nonce + 4 * (4 * 64 bytes) independent TLS DRBG seeds.
 Only a USB file target is accepted. Overwrites the prior local ENT using an
 atomic replace, NEVER uploads or prints its cryptographic content.
 """
@@ -11,7 +11,7 @@ import secrets
 import sys
 import tempfile
 
-LENGTH = 32 + 4 * 2 * 64  # 544 bytes
+LENGTH = 32 + 4 * 4 * 64  # 1056 bytes
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -26,8 +26,8 @@ def main() -> int:
         return 2
     data = secrets.token_bytes(LENGTH)
     # Reject any degenerate OS CSPRNG output; no deterministic fallback.
-    chunks = [data[32 + 64*i:32 + 64*(i+1)] for i in range(8)]
-    if not any(data[:32]) or any(not any(x) for x in chunks) or len(set(chunks)) != 8:
+    chunks = [data[32 + 64*i:32 + 64*(i+1)] for i in range(16)]
+    if not any(data[:32]) or any(not any(x) for x in chunks) or len(set(chunks)) != 16:
         print("OS entropy failed validation", file=sys.stderr)
         return 3
     temp = None
@@ -44,7 +44,7 @@ def main() -> int:
     finally:
         if temp is not None and temp.exists():
             temp.unlink()
-    print("OK: fresh 544-byte N6.ENT created (private; DO NOT reuse or upload)")
+    print("OK: fresh 1056-byte N6.ENT created (private; DO NOT reuse or upload)")
     return 0
 
 if __name__ == "__main__":
