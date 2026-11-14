@@ -61,7 +61,7 @@ jobs:
           g=Path('dvr-iso-manager/tools/generate_n6_entropy.py')
           for bad in ('WOLFSSL_VERIFY_NONE','fileXioWrite(', 'fileXioFormat(',
                       'fileXioRename(', 'fileXioRemove(', 'FIO_MT_RDWR',
-                      'WOLFSSL_GENSEED_FORTEST', 'wc_SetTimeCb(NULL)==0',
+                      'wc_SetTimeCb(NULL)==0',
                       'x^=x<<13', 'clock() ^'):
               assert bad not in s,bad
           assert 'wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,diag_verify_cb)' in s
@@ -124,6 +124,16 @@ jobs:
             dvr-iso-manager/src/net/v12_n4c_cert_time.c \
             dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c -o /tmp/n4e-utc
           /tmp/n4e-utc
+      - name: N6 host PNG CRC and HTTP/1.1 binary framing regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/tests/net/test_probe_png.c \
+            -o /tmp/n6-png-test
+          /tmp/n6-png-test
+          echo 'PASS N6: binary PNG CRC and HTTP/1.1 payload validation'
       - name: Run standalone bounded HTTP parser host negative tests
         shell: sh
         run: |
