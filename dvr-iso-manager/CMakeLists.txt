@@ -582,6 +582,7 @@ if(DESR_V12_N3B_MINI)
     add_executable(V12_N6_HTTPS_USB_ART.ELF EXCLUDE_FROM_ALL
       src/v12_n6_https_usb_art.c
       src/net/n6_usb_art.c
+      src/net/n6_normalize_png.c
       src/cover_index.c
       src/iso_utils.c
       src/net/probe_png.c
@@ -608,6 +609,8 @@ if(DESR_V12_N3B_MINI)
     target_link_libraries(V12_N6_HTTPS_USB_ART.ELF PRIVATE
       fileXio cdvd patches ps2ip netman
       "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a"
+      "$ENV{PS2SDK}/ports/lib/libpng.a"
+      "$ENV{PS2SDK}/ports/lib/libz.a"
       libdebug.a m)
     target_compile_options(V12_N6_HTTPS_USB_ART.ELF PRIVATE -Os -Wall -Wextra)
     target_link_options(V12_N6_HTTPS_USB_ART.ELF PRIVATE
