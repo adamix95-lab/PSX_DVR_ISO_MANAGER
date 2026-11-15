@@ -24,7 +24,9 @@ static unsigned char sector[SECTOR];
 static char cnf[8192];
 static char seen[GAME_LIMIT][DESR_COVER_ID_CAP];
 static char scanned_iso[GAME_LIMIT][DESR_FILENAME_CAP];
+#ifndef N6D_READONLY
 static unsigned char verify_chunk[1024];
+#endif
 
 static int read_at(int fd,uint32_t offset,void *dst,int bytes) {
   int done=0,n;
@@ -160,6 +162,7 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
   }
   return chosen;
 }
+#ifndef N6D_READONLY
 /* Final USB-only publish. Incomplete/old PART is left untouched for
  * manual inspection. Always compare staged data with verified RAM bytes.
  * Existing .png/.jpg are never replaced, even on failed prior downloads.
@@ -207,3 +210,5 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   if(fileXioRename(part,dst)<0)return -560;
   return 0;
 }
+
+#endif /* N6D_READONLY: compile-out all USB write paths */
