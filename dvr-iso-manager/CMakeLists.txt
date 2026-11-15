@@ -615,6 +615,47 @@ if(DESR_V12_N3B_MINI)
     target_compile_options(V12_N6_HTTPS_USB_ART.ELF PRIVATE -Os -Wall -Wextra)
     target_link_options(V12_N6_HTTPS_USB_ART.ELF PRIVATE
       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6_HTTPS_USB_ART.map")
+    # N6C: ONE new cover only, USB ART output, DVR/PP.DVRISO12 READONLY.
+    # Strict N6B PLAIN TLS handshake and N5H HTTPS write observer.
+    # Unlike N6, this target is opt-in/EXCLUDE_FROM_ALL and never ships
+    # in any 1.0 or 1.2 Manager release or XMB installer.
+    add_executable(V12_N6C_HTTPS_USB_ART_ONE.ELF EXCLUDE_FROM_ALL
+      src/v12_n6c_https_usb_art.c
+      src/net/n6_usb_art.c
+      src/net/n6_normalize_png.c
+      src/cover_index.c
+      src/iso_utils.c
+      src/net/probe_png.c
+      src/net/v12_net_config.c
+      src/net/v12_roughtime_wire.c
+      src/net/v12_roughtime_verify.c
+      src/net/v12_n3e_txryan.c
+      src/net/v12_n3e_utc.c
+      src/net/v12_n4a_entropy.c
+      src/net/v12_n4b_seed_gate.c
+      src/net/v12_roughtime_monocypher.c
+      "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+      "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+      ${N3D_USB_IRX}
+      "${CMAKE_CURRENT_BINARY_DIR}/dvrdrv_irx.c"
+      "${CMAKE_CURRENT_BINARY_DIR}/dvrfile_irx.c")
+    target_compile_definitions(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE
+      N6C_SINGLE_COVER=1
+      WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
+      NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
+    target_include_directories(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE include
+      "$ENV{V12_N4B_WOLFSSL_DIR}/include"
+      "$ENV{V12_MONOCYPHER_SRC}/src"
+      "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+    target_link_libraries(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE
+      fileXio cdvd patches ps2ip netman
+      "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a"
+      "$ENV{PS2SDK}/ports/lib/libpng.a"
+      "$ENV{PS2SDK}/ports/lib/libz.a" libdebug.a m)
+    target_compile_options(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE
+      -Os -Wall -Wextra)
+    target_link_options(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE
+      "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6C_HTTPS_USB_ART_ONE.map")
   endif()
   # N4D physical wolfCrypt RNG-only diagnostic; no TLS and no writes.
   # Link against isolated callback-enabled wolfSSL, never stock lib.
