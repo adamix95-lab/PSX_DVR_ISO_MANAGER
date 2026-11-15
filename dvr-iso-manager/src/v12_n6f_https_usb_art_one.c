@@ -102,8 +102,8 @@ static int normalize_download(const uint8_t **output,size_t *size,
                               int bad_image) {
   int rc=n6_normalize_png_into(n6_png,n6_png_size,n6_response,
                                sizeof(n6_response),size);
-  if(rc!=-3 && rc!=0)return bad_image;
   if(rc==-3)return -721; /* local workspace / decoder allocation failure */
+  if(rc!=0)return bad_image;
   *output=n6_response;
   return 0;
 }

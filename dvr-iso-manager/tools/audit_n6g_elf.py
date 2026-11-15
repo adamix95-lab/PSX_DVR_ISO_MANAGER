@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -20,7 +21,10 @@ def audit(elf, out):
     ordered = ee("nm", "-S", "--size-sort", "--defined-only", elf)
     symbols = {}
     for line in ee("nm", "-P", "-S", "--defined-only", elf).splitlines():
-        name, kind, addr, *size = line.split()
+        fields = line.split()
+        if len(fields) < 3:
+            continue  # unnamed local ELF symbols
+        name, _, addr, *size = fields
         symbols[name] = (int(addr, 16), int(size[0], 16) if size else 0)
     (out / f"{stem}.readelf.txt").write_text(sections, encoding="utf-8")
     (out / f"{stem}.size.txt").write_text(sizes, encoding="utf-8")
@@ -34,6 +38,16 @@ def audit(elf, out):
         if text:
             stack_usage.append(f"{path.relative_to(target)}\n{text}")
     assert stack_usage, elf
+    pdr = re.search(r"\.pdr\s+PROGBITS\s+\w+\s+(\w+)\s+(\w+)", sections)
+    assert pdr, elf
+    offset, length = (int(value, 16) for value in pdr.groups())
+    frames = {record[0]: record[5] for record in
+              struct.iter_unpack("<8I", elf.read_bytes()[offset:offset + length])}
+    selected = ("main", "tls_one_bound", "tls_send", "tls_recv", "verify_two_bound_tls",
+                "wolfSSL_connect", "ProcessPeerCerts", "fp_exptmod")
+    stack_usage.append("MIPS .pdr (statyczne ramki, bajty)\n" + "\n".join(
+        f"{name}\t{frames.get(symbols[name][0], 'brak')}" for name in selected
+    ))
     (out / f"{stem}.stack.txt").write_text("\n".join(stack_usage), encoding="utf-8")
 
     assert "ELF32" in sections and "MIPS" in sections and "EXEC" in sections, elf
@@ -72,7 +86,8 @@ def main():
     assert "n6_normalize_png_into" in final and "n6_write_usb_art" in final
     assert not (set(buffers) & final.keys()) and "verify_chunk" not in final
     assert b["bdmfs_fatfs_irx"][1] == e["bdmfs_fatfs_irx"][1]
-    assert final["dev9_ns_irx"][1] == e["dev9_ns_irx"][1]
+    for symbols in (e, f, a, b, final):
+        assert symbols["dev9_ns_irx"][1] == 11273 and "ps2dev9_irx" not in symbols
     for tag, marker in (("N6G-A", b"N6G-A STATIC RAM"),
                         ("N6G-B", b"N6G-B PNG LINK ONLY"),
                         ("N6G FINAL", b"N6G HTTPS USB ART - FINAL RESULT")):

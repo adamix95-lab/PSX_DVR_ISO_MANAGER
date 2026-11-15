@@ -189,9 +189,10 @@ jobs:
 
           # Rebuild both baselines from the original N6F tree (N6E is unchanged).
           n6f=952f8d07e2a9256446c628c16aa5160b5c2b193e
-          git fetch --no-tags --depth=1 origin "$n6f"
+          git -c safe.directory="$GITHUB_WORKSPACE" fetch --no-tags --depth=1 origin "$n6f"
           mkdir baseline
-          git archive "$n6f" dvr-iso-manager | tar -x -C baseline
+          git -c safe.directory="$GITHUB_WORKSPACE" archive "$n6f" dvr-iso-manager -o baseline/n6f.tar
+          tar -xf baseline/n6f.tar -C baseline
           cat >> baseline/dvr-iso-manager/CMakeLists.txt <<'EOF'
           target_link_options(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE
             "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6E_HTTPS_COVER_RAM_RO.map")
@@ -224,11 +225,12 @@ jobs:
           cp build-n6g/V12_N6G_*.ELF package/
           cp dvr-iso-manager/tools/generate_n6c_entropy.py package/tools/
           cp docs/n6g-desr7000-test.md package/README.md
+          cp docs/n6g-ee-audit.md package/evidence/
           cp audit/* package/evidence/
           cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
           cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
           cp monocypher-upstream/LICENCE.md package/licenses/MONOCYPHER-LICENCE.md
-          git rev-parse HEAD > package/SOURCE_COMMIT
+          printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
           sha256sum ./*.ELF > SHA256SUMS
           python3 -m zipfile -c ../PSX-DESR7000-N6G-EXPERIMENTAL.zip \
