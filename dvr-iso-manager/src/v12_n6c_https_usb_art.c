@@ -329,7 +329,7 @@ static int read_cfg(v12_net_config *cfg) {
 /* N4E one-shot private input: 32 RT nonce + 2 x 64 TLS seeds.
  * Host CSPRNG, raw bytes; no deterministic fallback or secret logging.
  */
-/* One-time host CSPRNG input: 32-byte Roughtime nonce + sixteen DISTINCT
+/* One-time host CSPRNG input: 32-byte Roughtime nonce + four DISTINCT
  * 64-byte seeds (LOW/HIGH per each of four possible TLS downloads).
  * Never cache, print, upload or regenerate on the console. */
 static int read_entropy_usb(uint8_t nonce[32],
@@ -337,7 +337,7 @@ static int read_entropy_usb(uint8_t nonce[32],
   uint8_t data[N6_ENT_BYTES]={0};
   int rc,fd=-1,n,got=0,extra,closed;
   uint8_t tail=0;
-  scr_printf("N6 USB N6C.ENT read-only: %u bytes\n",(unsigned)sizeof(data));
+  scr_printf("N6C USB N6C.ENT read-only: %u bytes\n",(unsigned)sizeof(data));
   rc=load_irx("bdm",bdm_irx,size_bdm_irx,NULL,0);
   if(rc<0)return -510;
   rc=load_irx("bdmfs_fatfs",bdmfs_fatfs_irx,size_bdmfs_fatfs_irx,NULL,0);
@@ -378,7 +378,7 @@ static int read_entropy_usb(uint8_t nonce[32],
   memcpy(nonce,data,32);
   memcpy(seeds,data+32,sizeof(data)-32);
   v12_n4a_wipe(data,sizeof(data));
-  scr_printf("N6: fresh nonce + 16 distinct TLS seeds loaded\n");
+  scr_printf("N6C: fresh nonce + 4 distinct TLS seeds loaded\n");
   return 0;
 }
 
@@ -646,7 +646,7 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
   }
   n5c_http_active=0;
   scr_clear();scr_setCursor(0);
-  scr_printf("N6 TLS WRITE DONE: %u bytes\n",(unsigned)sent);
+  scr_printf("N6C TLS WRITE DONE: %u bytes\n",(unsigned)sent);
   for(reads=0;reads<300;reads++) {
     size_t available=N6_HTTP_CAP-total;
     if(available<1U)return -713;
@@ -724,7 +724,7 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   /* N6B: no EE observer during TLS handshake. Unlike N6A,
    * this follows the already proven N5H threading model. */
   n5c_http_active=0; /* Same proven N6B PLAIN handshake path. */
-  scr_printf("N6C TLS PLAIN / NO EARLY OBSERVER\n");
+  scr_printf("N6C TLS PLAIN (N6B MATCH), NO EARLY OBSERVER\n");
   scr_printf("N6C STEP=801 START\n"); /* observer running */
   scr_printf("N6C STEP=802 SEED ENTER\n"); /* before fresh strict seed provision */
   if(v12_n4b_seed_provision(&tls_gate,seed,64)!=0){ret=-641;goto cleanup;}
