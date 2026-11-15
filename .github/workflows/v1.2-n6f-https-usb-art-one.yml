@@ -1,0 +1,426 @@
+name: N6F one verified HTTPS PS2 cover to USB ART (HDD READONLY)
+on:
+  push:
+    branches: [test/n6f-https-usb-art-one-cover]
+    paths:
+      - '.github/workflows/v1.2-n6f-https-usb-art-one.yml'
+      - 'dvr-iso-manager/CMakeLists.txt'
+      - 'dvr-iso-manager/src/v12_n6f_https_usb_art_one.c'
+      - 'dvr-iso-manager/src/net/n6_usb_art.c'
+      - 'dvr-iso-manager/src/net/n6_normalize_png.c'
+      - 'dvr-iso-manager/include/n6_normalize_png.h'
+      - 'dvr-iso-manager/tests/net/test_n6_normalize_png.c'
+      - 'dvr-iso-manager/include/n6_usb_art.h'
+      - 'dvr-iso-manager/tools/generate_n6c_entropy.py'
+      - 'dvr-iso-manager/src/v12_n5a_https_ram_ro.c'
+      - 'dvr-iso-manager/tools/generate_n5a_entropy.py'
+      - 'dvr-iso-manager/tools/n5d_instrument_wolfssl.py'
+      - 'dvr-iso-manager/tools/n5e_instrument_senddata.py'
+      - 'dvr-iso-manager/tools/n5f_instrument_handshake.py'
+      - 'dvr-iso-manager/tools/n5g_instrument_tls13.py'
+      - 'dvr-iso-manager/src/net/n5a_http_ram.c'
+      - 'dvr-iso-manager/include/n5a_http_ram.h'
+      - 'dvr-iso-manager/tests/net/test_n5a_http_ram.c'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  n4e-tls-ro:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n5a
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - uses: actions/checkout@v4
+        with:
+          repository: cloudflare/roughtime
+          ref: 75645289794cfbd71a08f0e7ecf9bc4f3f87d133
+          path: roughtime-upstream
+      - name: N6F audit strict TLS, ART-only write and entropy
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          import tempfile,subprocess,sys,base64,json,re
+          s=Path('dvr-iso-manager/src/v12_n6f_https_usb_art_one.c').read_text()
+          u=Path('dvr-iso-manager/src/net/n6_usb_art.c').read_text()
+          p=Path('dvr-iso-manager/src/net/n6_normalize_png.c').read_text()
+          cm=Path('dvr-iso-manager/CMakeLists.txt').read_text()
+          g=Path('dvr-iso-manager/tools/generate_n6c_entropy.py')
+          main=s[s.index('int main(void) {'):]
+          tls=s[s.index('static int tls_one_bound('):s.index('static int verify_two_bound_tls(')]
+          get=s[s.index('static int n6_get_cover_ram('):s.index('static int diag_verify_cb(')]
+          write=u[u.index('int n6_write_usb_art('):]
+          target=cm[cm.index('add_executable(V12_N6F_HTTPS_USB_ART_ONE.ELF'):cm.index('target_compile_options(V12_N6F_HTTPS_USB_ART_ONE.ELF')]
+          assert '#define N6_BATCH_MAX 1' in Path('dvr-iso-manager/include/n6_usb_art.h').read_text()
+          assert 'N6C_SINGLE_COVER=1' in target
+          assert 'N6D_READONLY=1' not in target
+          assert 'N6E_RAM_ONLY=1' not in target
+          assert 'src/net/n6_normalize_png.c' in target
+          assert 'src/net/n6_usb_art.c' in target
+          assert 'libpng.a' in target and 'libz.a' in target
+          assert 'n6_get_cover_ram(ssl)' in tls
+          assert 'rc=tls_one_bound(second_seed,upper,"HIGH",1);' in s
+          assert 'n5h_start_observer()' not in tls
+          assert 'n5h_start_observer()' in get
+          assert 'n5c_http_active=0;' in tls
+          between=tls.split('wolfSSL_SetIOReadCtx(ssl,&fd);',1)[1].split('rc=wolfSSL_connect(ssl);',1)[0]
+          assert 'scr_printf' not in between
+          for m in ('N6F %s: TCP CONNECTED, TLS START',
+                    'N6F %s: TLS RETURN=%d',
+                    'wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,diag_verify_cb)',
+                    'wolfSSL_check_domain_name(', 'wolfSSL_UseSNI(',
+                    'wc_SetTimeCb(signed_time_cb)',
+                    'v12_n3e_txryan_strict',
+                    'FIO_MT_RDONLY','N6C.ENT','N4E.CA'):
+              assert m in s,m
+          for x in ('N6_ARCHIVE "Luden02/psx-ps2-opl-art-database"',
+                    'N6_PIN "e14b9abce3cc42a06bb4ad2e4056e289c8872a07"',
+                    'N6_FALLBACK_ARCHIVE "CosmicScale/psbbn-art-database"',
+                    'N6_FALLBACK_PIN "41daedfd81562cd21a255582358fb60f12899a0b"'):
+              assert x in s,x
+          assert 'n6_scan_dvr(' in main
+          assert 'n6_normalize_png(n6_png,n6_png_size,' in main
+          assert 'probe_png_check(normalized,normalized_size)' in main
+          assert main.count('n6_write_usb_art(')==1
+          assert 'n6_write_usb_art(n6_current_id,normalized,normalized_size)' in main
+          assert main.index('rc=verify_two_bound_tls(')<main.index('rc=n6_write_usb_art(')
+          assert 'if(targets>0)' in main
+          assert 'if(rc==0 && targets>0)' in main
+          assert 'if(saved)' in main and 'BATCH=%d SAVED=%d NOT_FOUND=%d' in main
+          assert 'N6F BLOCKED: MISSING BUT NO SAFE NEW TARGET' in main
+          assert 'N6F USB ART SAVE FAILED' in main
+          assert 'N6F VERIFIED SAVE: mass0:/ART/' in main
+          assert '#define USB_DIR "mass0:/ART"' in u
+          assert '#define DVR_DIR "dvr_pfs0:/ISO"' in u
+          assert '#ifndef N6D_READONLY' in u
+          assert 'if(exists(dst)||exists(jpg)||exists(part))' in write
+          assert 'fileXioMkdir(USB_DIR,0777)' in write
+          assert 'FIO_O_WRONLY|FIO_O_CREAT|FIO_O_TRUNC' in write
+          assert 'fileXioWrite(fd,png+w,chunk)' in write
+          assert 'fileXioClose(fd)' in write
+          assert 'fileXioRead(fd,verify_chunk,chunk)' in write
+          assert 'memcmp(verify_chunk,png+w,(size_t)ret)' in write
+          assert 'fileXioRename(part,dst)' in write
+          assert 'probe_png_check(png,n)!=0' in write
+          for bad in ('hdd0:', 'pfs1:', 'FIO_MT_RDWR',
+                      'fileXioFormat(', 'fileXioRemove('):
+              assert bad not in u,bad
+          for bad in ('fileXioWrite(', 'fileXioRename(', 'fileXioMkdir(',
+                      'FIO_MT_RDWR','WOLFSSL_VERIFY_NONE'):
+              assert bad not in s,bad
+          assert 'TARGET_W 140U' in p and 'TARGET_H 200U' in p
+          assert 'PNG_COLOR_TYPE_RGB' in p
+          assert 'probe_png_check(input,bytes)' in p
+          assert 'probe_png_check(png_output,writer.at)' in p
+          assert 'secrets.token_bytes(LENGTH)' in g.read_text()
+          with tempfile.TemporaryDirectory() as td:
+              dest=Path(td)/'N6C.ENT'
+              for i in range(2):
+                  subprocess.run([sys.executable,str(g),str(dest)],check=True)
+                  ent=dest.read_bytes()
+                  assert len(ent)==288
+                  seeds=[ent[32+64*j:32+64*(j+1)] for j in range(4)]
+                  assert len(set(seeds))==4 and all(any(b) for b in seeds)
+                  if i==0:first=ent
+                  else: assert ent!=first
+          eco=json.loads(Path('roughtime-upstream/ecosystem.json').read_text())
+          key=base64.b64decode(next(x for x in eco['servers'] if x['name']=='time.txryan.com')['publicKey'])
+          t=Path('dvr-iso-manager/src/net/v12_n3e_txryan.c').read_text()
+          root=t.split('static const uint8_t pinned_root[32]=',1)[1].split('};',1)[0]
+          assert bytes(int(x,16) for x in re.findall(r'0x([0-9a-fA-F]{2})',root))==key
+          print('PASS N6F: strict TLS, RAM PNG, ONLY ONE NEW mass0:/ART .PART/readback/rename; HDD RO')
+          PY
+      - name: Host seed gate and signed UTC regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c -o /tmp/n4e-gate
+          /tmp/n4e-gate
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4c_cert_time.c \
+            dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c -o /tmp/n4e-utc
+          /tmp/n4e-utc
+      - name: N6 host PNG CRC and HTTP/1.1 binary framing regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/tests/net/test_probe_png.c \
+            -o /tmp/n6-png-test
+          /tmp/n6-png-test
+          echo 'PASS N6: binary PNG CRC and HTTP/1.1 payload validation'
+      - name: N6 RGB 140x200 normalization regression with libpng
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/src/net/n6_normalize_png.c \
+            dvr-iso-manager/tests/net/test_n6_normalize_png.c \
+            -lpng -lz -o /tmp/n6-normalize
+          /tmp/n6-normalize
+      - name: Run standalone bounded HTTP parser host negative tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/n5a_http_ram.c \
+            dvr-iso-manager/tests/net/test_n5a_http_ram.c \
+            -o /tmp/n5a-parser
+          /tmp/n5a-parser
+          echo "PASS: N5A parser refuses redirects, malformed/oversize bodies and encoding confusion"
+      - name: Verify pinned public OPL Manager cover PNG over HTTPS
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            -D /tmp/n6-cover-headers \
+            https://raw.githubusercontent.com/Luden02/psx-ps2-opl-art-database/e14b9abce3cc42a06bb4ad2e4056e289c8872a07/PS2/SLUS_203.12/SLUS_203.12_COV.png \
+            -o /tmp/n6-cover.png
+          python3 - <<'PY'
+          from pathlib import Path
+          data=Path('/tmp/n6-cover.png').read_bytes()
+          assert 57<len(data)<=256*1024
+          assert data[:8]==b'\x89PNG\r\n\x1a\n'
+          headers=Path('/tmp/n6-cover-headers').read_text().lower()
+          assert 'content-type: image/png' in headers
+          print(f'PASS N6: pinned source real valid PNG, {len(data)} bytes')
+          print('REMOTE HEADER CONTENT-LENGTH:', 'content-length:' in headers)
+          PY
+      - name: Verify pinned CosmicScale PSBBN fallback artwork over HTTPS
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/41daedfd81562cd21a255582358fb60f12899a0b/art/SLES_538.86.png \
+            -o /tmp/n6-fallback.png
+          python3 - <<'PY'
+          from pathlib import Path
+          data=Path('/tmp/n6-fallback.png').read_bytes()
+          assert 57<len(data)<=256*1024
+          assert data[:8]==b'\x89PNG\r\n\x1a\n'
+          print('PASS N6: pinned PSBBN fallback valid PNG header',len(data))
+          PY
+      - name: Download public Mozilla CA bundle over verified HTTPS
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist
+          curl --fail --silent --show-error --location --proto '=https' \
+            --tlsv1.2 https://curl.se/ca/cacert.pem -o dist/N4E.CA
+          test "$(wc -c < dist/N4E.CA)" -gt 10000
+          test "$(wc -c < dist/N4E.CA)" -lt 350000
+          grep -q -- '-----BEGIN CERTIFICATE-----' dist/N4E.CA
+          sha256sum dist/N4E.CA > dist/N4E_CA_SHA256SUMS
+          echo "PASS: verified-source public CA PEM included (not secret)"
+      - name: Rebuild pinned NETFIX PS2SDK in isolated CI
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: N5D instrument pinned wolfSSL record-write path, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5d_instrument_wolfssl.py wolfssl-n5a
+          grep -q 'n5d_trace(200)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(230)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(110)' wolfssl-n5a/src/ssl.c
+      - name: N5E deep-trace pinned wolfSSL SendData calls, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5e_instrument_senddata.py wolfssl-n5a
+          grep -q 'n5d_trace(301)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(307)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(312)' wolfssl-n5a/src/internal.c
+      - name: N5F bracket IsSCR and ssl_in_handshake without changing TLS decisions
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5f_instrument_handshake.py wolfssl-n5a
+          grep -q 'n5d_trace(330)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(331)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(340)' wolfssl-n5a/src/internal.c
+      - name: N5G add after-TLS-version marker on pinned wolfSSL
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5g_instrument_tls13.py wolfssl-n5a
+          grep -q 'n5d_trace(319)' wolfssl-n5a/src/internal.c
+          grep -q 'n5g_tls13_result' wolfssl-n5a/src/internal.c
+      - name: Build separate wolfSSL v5.8.2 with callback, SNI and DRBG
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DHAVE_SNI=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0 -DFP_MAX_BITS=8192'
+          cmake -S wolfssl-n5a -B build-wolfssl-n5a \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes \
+            -DWOLFSSL_ASM=no \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n5a-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n5a -j2
+          cmake --install build-wolfssl-n5a
+          test -s n5a-wolfssl/lib/libwolfssl.a
+          grep -q 'USE_FAST_MATH' n5a-wolfssl/include/wolfssl/options.h
+          grep -q 'TFM_NO_ASM' n5a-wolfssl/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n5a-wolfssl/include/wolfssl/options.h; then
+            echo 'FATAL: SP_MATH still enabled in N4H'; exit 1
+          fi
+          grep -q 'TFM_TIMING_RESISTANT' n5a-wolfssl/include/wolfssl/options.h
+          echo 'PASS: wolfSSL EE configured for hardened portable FastMath'
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g n5a-wolfssl/lib/libwolfssl.a > /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
+          echo 'PASS: N4H FastMath wolfSSL exports RNG, TLS and SNI APIs'
+      - name: Build isolated N6F one-cover HTTPS USB ART ELF
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-n5a \
+            -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_V12_N3B_MINI=ON \
+            -DDESR_V12_N4E_TLS_RO=ON
+          cmake --build build-n5a --target V12_N6F_HTTPS_USB_ART_ONE.ELF -j2
+          python3 - <<'PY'
+          from pathlib import Path
+          e=Path('build-n5a/V12_N6F_HTTPS_USB_ART_ONE.ELF').read_bytes()
+          assert e[:4]==b'\x7fELF' and 100000<len(e)<15000000
+          for marker in (
+            b'N6F ONE COVER HTTPS -> USB ART TEST',
+            b'N6F HTTPS USB ART - FINAL RESULT',
+            b'N6F %s: TCP CONNECTED, TLS START',
+            b'N6F %s: TLS RETURN=%d',
+            b'N6F HTTP: GET ENTER (POST TLS)',
+            b'N6F 140x200 RGB: PASS',
+            b'N6F VERIFIED SAVE: mass0:/ART/',
+            b'N6F USB ART SAVE FAILED',
+            b'USB ART .PART READBACK+RENAME: PASS',
+            b'GET /Luden02/psx-ps2-opl-art-database/',
+            b'/CosmicScale/psbbn-art-database/',
+            b'N6C.ENT',b'N4E.CA',b'ROUGHTIME SIGNED UTC',
+            b'dvr_pfs0:/ISO',b'mass0:/ART/'):
+              assert marker in e,marker
+          # PS2SDK fileXio exports write symbols independently of ELF
+          # caller behavior. No HDD writes are verified in source audits.
+          for banned in (b'WOLFSSL_VERIFY_NONE',
+                         b'hdd0:PP.DVRISO/BOOT.CNF'):
+              assert banned not in e,banned
+          print('PASS N6F one-cover physical ELF size',len(e),'bytes')
+          PY
+      - name: Bundle N6F ELF and instructions without private entropy
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p dist/source dist/tools dist/licenses
+          cp build-n5a/V12_N6F_HTTPS_USB_ART_ONE.ELF dist/
+          cp dvr-iso-manager/tools/generate_n6c_entropy.py dist/tools/
+          cp dvr-iso-manager/src/v12_n6f_https_usb_art_one.c \
+             dvr-iso-manager/src/net/n6_usb_art.c \
+             dvr-iso-manager/src/net/n6_normalize_png.c \
+             dvr-iso-manager/src/net/v12_n3e_txryan.c \
+             dvr-iso-manager/src/net/v12_net_config.c \
+             dvr-iso-manager/src/cover_index.c \
+             dvr-iso-manager/src/iso_utils.c \
+             dvr-iso-manager/src/net/probe_png.c dist/source/
+          cp dvr-iso-manager/include/n6_usb_art.h \
+             dvr-iso-manager/include/n6_normalize_png.h \
+             dvr-iso-manager/include/cover_index.h \
+             dvr-iso-manager/include/iso_utils.h dist/source/
+          cp wolfssl-n5a/LICENSING dist/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE dist/licenses/PS2SDK-AFL-2.0
+          cp monocypher-upstream/LICENCE.md dist/licenses/MONOCYPHER-LICENCE.md
+          cat > dist/README-N6F.txt <<'EOF'
+          N6F — ONE VERIFIED HTTPS COVER TO USB ART, SONY PSX DESR-7000
+          EXPERIMENTAL. WRITES ONLY A NEW COVER TO USB ROOT ART.
+          NOT a Manager 1.0 update; does not touch HDD cover directory
+          or XMB installer. PP.DVRISO12 and dvr_pfs0:/ISO are READ ONLY.
+          N6E real HTTPS image RAM TEST returned RET=0 on actual DESR.
+          N6F uses its identical minimal-log N6D signed TLS LOW/HIGH,
+          N5H observer ONLY around post-verified wolfSSL_write,
+          same pinned OPL Manager / CosmicScale sources, HTTP 200,
+          strict HTTPS peer/hostname/cert dates at both signed bounds,
+          and CRC-verified PNG in RAM.
+
+          NEW STEP: normalize image to 140x200 RGB PNG with black
+          letterboxing (nearest neighbor; like PC ART 0.8 geometry),
+          no stretching. No source >256KiB or >512x512 pixels.
+          Selects first missing Game ID from read-only DVR ISO scanner.
+          If all covers exist: NO TARGETS, no network or file writes.
+          If stale .PART blocks all missing: RET=-561, no deletion.
+          A missing image in both sources: RET=-404, no file created.
+          At most ONE new PNG per run; existing .png/.jpg/.PART
+          NEVER overwritten or removed.
+
+          ONLY USB OUT:
+              mass0:/ART/GAMEID_COV.png
+          1. Save verified PNG as GAMEID_COV.png.PART
+          2. Close and re-open .PART read-only
+          3. Read back and byte-compare entire output with RAM
+          4. Close and rename .PART to final .png (only if absent).
+          Failure MAY leave .PART for manual inspection. No certified
+          power-loss/crash durability of FAT is claimed. USB must have
+          free space; do not unplug it while a write is in progress.
+
+          HOW TO TEST:
+          1) Copy ELF and your working N4E.CA to FAT32 USB root:
+             V12_N6F_HTTPS_USB_ART_ONE.ELF
+             N4E.CA
+          2) From tools on Windows, create a NEW SECRET N6C.ENT on
+             USB root for EACH test, exactly 288 bytes:
+                 py .\generate_n6c_entropy.py I:/N6C.ENT
+             Replace I: with your USB drive. Do NOT reuse/upload/print it.
+          3) Keep HDD test PP.DVRISO12/V12_NET.CNF UNCHANGED.
+             Fully power-cycle DESR-7000; connect Ethernet; start
+             via wLE-R3Z 4.80.
+          4) Expected terminal screen for an actual saved cover:
+                BATCH=1 SAVED=1 NOT_FOUND=0
+                HTTPS RAW PNG + RGB 140x200: PASS
+                USB ART .PART READBACK+RENAME: PASS
+                RET=0
+          5) Check USB /ART/GAMEID_COV.png on Windows. It is a standalone
+             ART test file. Stable Manager 1.0 HDD ART is on HDD, and
+             Manager USB 1.0 uses mass0:/DESR_DVR/ART; the test does NOT
+             automatically import covers to either Manager directory.
+
+          If N6F freezes, photograph the LAST message (LOW/HIGH TLS,
+          HTTP GET or USB .PART+READBACK). Do not assume success from
+          RET=0 if SAVED=0, because no missing cover may exist.
+          EOF
+          test -s dist/README-N6F.txt
+          test -s dist/V12_N6F_HTTPS_USB_ART_ONE.ELF
+          test ! -e dist/N6C.ENT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V12-N6F-HTTPS-USB-ART-ONE-EXPERIMENTAL
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
