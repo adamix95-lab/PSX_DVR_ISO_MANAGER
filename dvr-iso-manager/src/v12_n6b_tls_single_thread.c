@@ -529,17 +529,13 @@ static int tls_recv(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX SELECT enter cap=%d\n",sz);
   FD_ZERO(&rfds); FD_SET(fd,&rfds);
   tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,&rfds,NULL,NULL,&tv);
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&rfds)) {
     diag_io_fail=-701;return WOLFSSL_CBIO_ERR_GENERAL;
   }
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX RECV enter\n");
   rc=lwip_recv(fd,buffer,sz,0);
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C RX RECV ret=%d\n",rc);
   if(rc==0) {diag_io_fail=-702;return WOLFSSL_CBIO_ERR_CONN_CLOSE;}
   if(rc<0) {diag_io_fail=-703;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_rx+=1;
@@ -551,17 +547,13 @@ static int tls_send(WOLFSSL *ssl,char *buffer,int sz,void *ctx) {
   struct timeval tv;
   (void)ssl;
   if(fd<0 || !buffer || sz<=0)return WOLFSSL_CBIO_ERR_GENERAL;
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SELECT enter bytes=%d\n",sz);
   FD_ZERO(&wfds); FD_SET(fd,&wfds);
   tv.tv_sec=5;tv.tv_usec=0;
   rc=lwip_select(fd+1,NULL,&wfds,NULL,&tv);
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SELECT ret=%d\n",rc);
   if(rc<=0 || !FD_ISSET(fd,&wfds)) {
     diag_io_fail=-704;return WOLFSSL_CBIO_ERR_GENERAL;
   }
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SEND enter\n");
   rc=lwip_send(fd,buffer,sz,0);
-  if(n5c_http_active && !n5h_watch_active) scr_printf("N5C TX SEND ret=%d\n",rc);
   if(rc<=0) {diag_io_fail=-705;return WOLFSSL_CBIO_ERR_GENERAL;}
   diag_io_tx+=1;
   return rc;
