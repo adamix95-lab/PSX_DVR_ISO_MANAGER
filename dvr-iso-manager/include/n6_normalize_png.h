@@ -9,4 +9,10 @@
  */
 int n6_normalize_png(const uint8_t *input,size_t bytes,
                      const uint8_t **output,size_t *output_len);
+#ifdef N6G_PNG_WORKSPACE
+/* The caller owns the output buffer. It may overlap input: encoding starts
+ * after the reader is destroyed. Scratch is allocated only for this call. */
+int n6_normalize_png_into(const uint8_t *input,size_t bytes,
+                          uint8_t *output,size_t capacity,size_t *output_len);
+#endif
 #endif

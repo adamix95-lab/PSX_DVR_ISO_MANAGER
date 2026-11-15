@@ -85,6 +85,11 @@ static char n6_request[448];
 static char n6_current_id[12];
 static char n6_targets[N6_BATCH_MAX][12];
 static uint8_t n6_response[N6_HTTP_CAP+1U];
+#ifdef N6G_STATIC_RAM
+/* N6F: PNG scan row + RGB canvas + PNG output + USB readback. */
+static volatile uint8_t n6g_bss_padding[2048U+140U*200U*3U+256U*1024U+1024U]
+  __attribute__((aligned(64)));
+#endif
 static const uint8_t *n6_png=0;
 static size_t n6_png_size=0;
 static size_t n6_wire_bytes=0;
@@ -838,6 +843,13 @@ int main(void) {
   v12_rt_signed_time signed_time={0,0};
   v12_net_config cfg;
   init_scr();scr_setCursor(0);
+#ifdef N6G_DIAGNOSTIC
+  scr_printf(N6G_DIAGNOSTIC "\n");
+#endif
+#ifdef N6G_STATIC_RAM
+  n6g_bss_padding[0]=0;
+  n6g_bss_padding[sizeof(n6g_bss_padding)-1U]=0;
+#endif
   scr_printf("N6E ONE COVER HTTPS -> RAM (READ-ONLY)\n");
   scr_printf("N6D-PASS LOW/HIGH TLS + N5H GET OBSERVER\n");
   scr_printf("NO USB ART, HDD, RTC OR XMB WRITES\n");

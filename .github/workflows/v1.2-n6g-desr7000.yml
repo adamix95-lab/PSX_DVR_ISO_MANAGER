@@ -1,0 +1,241 @@
+name: N6G DESR-7000 TLS memory experiment
+on:
+  push:
+    branches: [test/n6g-codex-png-ee-fix]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build and host test dependencies
+        run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n5a
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - name: Host seed gate and signed UTC regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4b_seed_gate.c \
+            dvr-iso-manager/tests/net/test_v12_n4b_seed_gate.c -o /tmp/n4e-gate
+          /tmp/n4e-gate
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/v12_n4c_cert_time.c \
+            dvr-iso-manager/tests/net/test_v12_n4c_cert_time.c -o /tmp/n4e-utc
+          /tmp/n4e-utc
+      - name: N6 host PNG CRC and HTTP/1.1 binary framing regression
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/tests/net/test_probe_png.c \
+            -o /tmp/n6-png-test
+          /tmp/n6-png-test
+          echo 'PASS N6: binary PNG CRC and HTTP/1.1 payload validation'
+      - name: N6 RGB 140x200 normalization regression with libpng
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/src/net/n6_normalize_png.c \
+            dvr-iso-manager/tests/net/test_n6_normalize_png.c \
+            -lpng -lz -o /tmp/n6-normalize
+          /tmp/n6-normalize
+      - name: Run standalone bounded HTTP parser host negative tests
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c99 -O2 -Wall -Wextra -Werror \
+            -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/n5a_http_ram.c \
+            dvr-iso-manager/tests/net/test_n5a_http_ram.c \
+            -o /tmp/n5a-parser
+          /tmp/n5a-parser
+          echo "PASS: N5A parser refuses redirects, malformed/oversize bodies and encoding confusion"
+      - name: Verify pinned public OPL Manager cover PNG over HTTPS
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            -D /tmp/n6-cover-headers \
+            https://raw.githubusercontent.com/Luden02/psx-ps2-opl-art-database/e14b9abce3cc42a06bb4ad2e4056e289c8872a07/PS2/SLUS_203.12/SLUS_203.12_COV.png \
+            -o /tmp/n6-cover.png
+          python3 - <<'PY'
+          from pathlib import Path
+          data=Path('/tmp/n6-cover.png').read_bytes()
+          assert 57<len(data)<=256*1024
+          assert data[:8]==b'\x89PNG\r\n\x1a\n'
+          headers=Path('/tmp/n6-cover-headers').read_text().lower()
+          assert 'content-type: image/png' in headers
+          print(f'PASS N6: pinned source real valid PNG, {len(data)} bytes')
+          print('REMOTE HEADER CONTENT-LENGTH:', 'content-length:' in headers)
+          PY
+      - name: Verify pinned CosmicScale PSBBN fallback artwork over HTTPS
+        shell: sh
+        run: |
+          set -eu
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/41daedfd81562cd21a255582358fb60f12899a0b/art/SLES_538.86.png \
+            -o /tmp/n6-fallback.png
+          python3 - <<'PY'
+          from pathlib import Path
+          data=Path('/tmp/n6-fallback.png').read_bytes()
+          assert 57<len(data)<=256*1024
+          assert data[:8]==b'\x89PNG\r\n\x1a\n'
+          print('PASS N6: pinned PSBBN fallback valid PNG header',len(data))
+          PY
+      - name: Check overlapping PNG input and output and bounded failure recovery
+        run: |
+          cc -std=c99 -O2 -Wall -Wextra -Werror -DN6G_PNG_WORKSPACE \
+            -Idvr-iso-manager/include dvr-iso-manager/src/net/probe_png.c \
+            dvr-iso-manager/src/net/n6_normalize_png.c \
+            dvr-iso-manager/tests/net/test_n6_normalize_png.c \
+            -lpng -lz -o /tmp/n6g-normalize
+          /tmp/n6g-normalize
+      - name: Rebuild pinned NETFIX PS2SDK in isolated CI
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: N5D instrument pinned wolfSSL record-write path, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5d_instrument_wolfssl.py wolfssl-n5a
+          grep -q 'n5d_trace(200)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(230)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(110)' wolfssl-n5a/src/ssl.c
+      - name: N5E deep-trace pinned wolfSSL SendData calls, trace only
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5e_instrument_senddata.py wolfssl-n5a
+          grep -q 'n5d_trace(301)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(307)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(312)' wolfssl-n5a/src/internal.c
+      - name: N5F bracket IsSCR and ssl_in_handshake without changing TLS decisions
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5f_instrument_handshake.py wolfssl-n5a
+          grep -q 'n5d_trace(330)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(331)' wolfssl-n5a/src/internal.c
+          grep -q 'n5d_trace(340)' wolfssl-n5a/src/internal.c
+      - name: N5G add after-TLS-version marker on pinned wolfSSL
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/n5g_instrument_tls13.py wolfssl-n5a
+          grep -q 'n5d_trace(319)' wolfssl-n5a/src/internal.c
+          grep -q 'n5g_tls13_result' wolfssl-n5a/src/internal.c
+      - name: Build separate wolfSSL v5.8.2 with callback, SNI and DRBG
+        shell: sh
+        run: |
+          set -eu
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DHAVE_SNI=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0 -DFP_MAX_BITS=8192'
+          cmake -S wolfssl-n5a -B build-wolfssl-n5a \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes \
+            -DWOLFSSL_ASM=no \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n5a-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n5a -j2
+          cmake --install build-wolfssl-n5a
+          test -s n5a-wolfssl/lib/libwolfssl.a
+          grep -q 'USE_FAST_MATH' n5a-wolfssl/include/wolfssl/options.h
+          grep -q 'TFM_NO_ASM' n5a-wolfssl/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n5a-wolfssl/include/wolfssl/options.h; then
+            echo 'FATAL: SP_MATH still enabled in N4H'; exit 1
+          fi
+          grep -q 'TFM_TIMING_RESISTANT' n5a-wolfssl/include/wolfssl/options.h
+          echo 'PASS: wolfSSL EE configured for hardened portable FastMath'
+          NM="$(find "$PS2DEV/ee/bin" -maxdepth 1 -name '*-nm' | head -n 1)"
+          test -n "$NM"
+          "$NM" -g n5a-wolfssl/lib/libwolfssl.a > /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wc_SetSeed_Cb$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
+          grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
+          echo 'PASS: N4H FastMath wolfSSL exports RNG, TLS and SNI APIs'
+      - name: Build N6G-only FAT driver with exclusive file creation
+        run: sh dvr-iso-manager/tools/build_n6g_fat.sh sdk-source "$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
+      - name: Cross-build N6E, N6F and all N6G ELFs and linker maps
+        shell: sh
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          export V12_N6G_FAT_IRX="$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
+
+          # Rebuild both baselines from the original N6F tree (N6E is unchanged).
+          n6f=952f8d07e2a9256446c628c16aa5160b5c2b193e
+          git fetch --no-tags --depth=1 origin "$n6f"
+          mkdir baseline
+          git archive "$n6f" dvr-iso-manager | tar -x -C baseline
+          cat >> baseline/dvr-iso-manager/CMakeLists.txt <<'EOF'
+          target_link_options(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE
+            "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6E_HTTPS_COVER_RAM_RO.map")
+          foreach(base V12_N6E_HTTPS_COVER_RAM_RO.ELF V12_N6F_HTTPS_USB_ART_ONE.ELF)
+            target_compile_options(${base} PRIVATE -fstack-usage)
+          endforeach()
+          EOF
+          configure() {
+            cmake -S "$1" -B "$2" -DDESR_BUILD_HDD_NETFIX=ON \
+              -DDESR_V12_N3B_MINI=ON -DDESR_V12_N4E_TLS_RO=ON
+          }
+          configure baseline/dvr-iso-manager build-baseline
+          cmake --build build-baseline -j2 --target \
+            V12_N6E_HTTPS_COVER_RAM_RO.ELF V12_N6F_HTTPS_USB_ART_ONE.ELF
+          cmake -S dvr-iso-manager -B build-n6g -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_V12_N3B_MINI=ON -DDESR_V12_N4E_TLS_RO=ON -DDESR_V12_N6G=ON
+          cmake --build build-n6g -j2 --target V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_FINAL.ELF
+      - name: Measure EE memory and verify linked variant contents
+        run: |
+          python3 dvr-iso-manager/tools/audit_n6g_elf.py build-baseline build-n6g audit
+          cp "$PS2SDK/HDD_NETFIX_BUILD.txt" audit/
+          sha256sum "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a" \
+            "$PS2SDK/iop/irx/bdmfs_fatfs.irx" n6g-bdmfs_fatfs.irx > audit/PORTS_SHA256SUMS
+          cat audit/EE-memory.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Package console tests and evidence
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p package/tools package/evidence package/licenses
+          cp build-n6g/V12_N6G_*.ELF package/
+          cp dvr-iso-manager/tools/generate_n6c_entropy.py package/tools/
+          cp docs/n6g-desr7000-test.md package/README.md
+          cp audit/* package/evidence/
+          cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
+          cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
+          cp monocypher-upstream/LICENCE.md package/licenses/MONOCYPHER-LICENCE.md
+          git rev-parse HEAD > package/SOURCE_COMMIT
+          cd package
+          sha256sum ./*.ELF > SHA256SUMS
+          python3 -m zipfile -c ../PSX-DESR7000-N6G-EXPERIMENTAL.zip \
+            ./*.ELF README.md tools evidence licenses SOURCE_COMMIT SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSX-DESR7000-N6G-EXPERIMENTAL
+          path: PSX-DESR7000-N6G-EXPERIMENTAL.zip
+          if-no-files-found: error
+          retention-days: 30

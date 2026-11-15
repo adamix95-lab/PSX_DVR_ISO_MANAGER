@@ -64,6 +64,7 @@ target_compile_options(DVR_ISO_MANAGER_HDD_LAN_PROBE.ELF PRIVATE -Os -Wall -Wext
 # Interactive HDD builds require the same patched SDK as the tested NETFIX.
 # USB, the read-only preview and the diagnostic can use the stock SDK.
 option(DESR_BUILD_HDD_NETFIX "Build the interactive HDD Manager with the patched SDK" OFF)
+option(DESR_V12_N6G "Enable the isolated N6G experiments" OFF)
 if(DESR_BUILD_HDD_NETFIX)
   if(NOT EXISTS "$ENV{PS2SDK}/HDD_NETFIX_BUILD.txt")
     message(FATAL_ERROR "HDD Manager requires its patched SDK; run hdd-netfix/build_sdk.sh first")
@@ -780,7 +781,56 @@ if(DESR_V12_N3B_MINI)
     target_link_options(V12_N6F_HTTPS_USB_ART_ONE.ELF PRIVATE
       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6F_HTTPS_USB_ART_ONE.map")
 
-
+    if(DESR_V12_N6G)
+      set(n6e V12_N6E_HTTPS_COVER_RAM_RO.ELF)
+      set(n6f V12_N6F_HTTPS_USB_ART_ONE.ELF)
+      foreach(variant A B FINAL)
+        set(probe "V12_N6G_${variant}.ELF")
+        if(variant STREQUAL "FINAL")
+          set(base ${n6f})
+        else()
+          set(base ${n6e})
+        endif()
+        get_target_property(probe_sources ${base} SOURCES)
+        get_target_property(probe_definitions ${base} COMPILE_DEFINITIONS)
+        get_target_property(probe_includes ${base} INCLUDE_DIRECTORIES)
+        get_target_property(probe_libraries ${base} LINK_LIBRARIES)
+        if(variant STREQUAL "FINAL")
+          if(NOT EXISTS "$ENV{V12_N6G_FAT_IRX}")
+            message(FATAL_ERROR "Set V12_N6G_FAT_IRX to the N6G bdmfs_fatfs module")
+          endif()
+          set(n6g_fat "${CMAKE_CURRENT_BINARY_DIR}/n6g_bdmfs_fatfs_irx.c")
+          add_custom_command(OUTPUT "${n6g_fat}"
+            COMMAND "$ENV{PS2SDK}/bin/bin2c" "$ENV{V12_N6G_FAT_IRX}"
+                    "${n6g_fat}" bdmfs_fatfs_irx
+            DEPENDS "$ENV{V12_N6G_FAT_IRX}" VERBATIM)
+          list(FIND probe_sources "${CMAKE_CURRENT_BINARY_DIR}/bdmfs_fatfs_irx.c" fat_index)
+          list(REMOVE_AT probe_sources ${fat_index})
+          list(INSERT probe_sources ${fat_index} "${n6g_fat}")
+        endif()
+        add_executable(${probe} EXCLUDE_FROM_ALL ${probe_sources})
+        target_compile_definitions(${probe} PRIVATE ${probe_definitions})
+        target_include_directories(${probe} PRIVATE ${probe_includes})
+        target_link_libraries(${probe} PRIVATE ${probe_libraries})
+        target_compile_options(${probe} PRIVATE -Os -Wall -Wextra -fstack-usage)
+        target_link_options(${probe} PRIVATE
+          "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6G_${variant}.map")
+        if(variant STREQUAL "A")
+          target_compile_definitions(${probe} PRIVATE
+            N6G_STATIC_RAM=1 "N6G_DIAGNOSTIC=\"N6G-A STATIC RAM\"")
+        elseif(variant STREQUAL "B")
+          target_compile_definitions(${probe} PRIVATE
+            "N6G_DIAGNOSTIC=\"N6G-B PNG LINK ONLY\"")
+          target_sources(${probe} PRIVATE src/net/n6_normalize_png.c)
+          target_link_libraries(${probe} PRIVATE "$ENV{PS2SDK}/ports/lib/libpng.a"
+            "$ENV{PS2SDK}/ports/lib/libz.a" m)
+          # Archive members must actually be linked, even with no call.
+          target_link_options(${probe} PRIVATE "-Wl,--undefined=n6_normalize_png")
+        else()
+          target_compile_definitions(${probe} PRIVATE N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1)
+        endif()
+      endforeach()
+    endif()
 
   endif()
   # N4D physical wolfCrypt RNG-only diagnostic; no TLS and no writes.

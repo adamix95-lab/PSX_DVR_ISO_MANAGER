@@ -11,6 +11,7 @@
 #include <setjmp.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define TARGET_W 140U
@@ -21,9 +22,16 @@
 
 typedef struct {const uint8_t *p;size_t size,at;} png_reader;
 typedef struct {uint8_t *p;size_t cap,at;} png_writer;
+#ifdef N6G_PNG_WORKSPACE
+typedef struct {
+  uint8_t scan_row[MAX_W*4U];
+  uint8_t image_rgb[TARGET_W*TARGET_H*3U];
+} png_workspace;
+#else
 static uint8_t scan_row[MAX_W*4U];
 static uint8_t image_rgb[TARGET_W*TARGET_H*3U];
 static uint8_t png_output[OUT_CAP];
+#endif
 
 static void on_read(png_structp png,png_bytep dst,png_size_t n) {
   png_reader *r=(png_reader*)png_get_io_ptr(png);
@@ -39,21 +47,49 @@ static void on_write(png_structp png,png_bytep src,png_size_t n) {
 }
 static void on_flush(png_structp png) {(void)png;}
 
+#ifdef N6G_PNG_WORKSPACE
+int n6_normalize_png_into(const uint8_t *input,size_t bytes,
+                          uint8_t *png_output,size_t capacity,size_t *output_len) {
+#else
 int n6_normalize_png(const uint8_t *input,size_t bytes,
                      const uint8_t **output,size_t *output_len) {
+#endif
   png_structp rd=NULL,wr=NULL;
   png_infop rinfo=NULL,winfo=NULL;
   png_reader reader={input,bytes,0U};
+#ifdef N6G_PNG_WORKSPACE
+  png_writer writer={png_output,capacity<OUT_CAP?capacity:OUT_CAP,0U};
+  png_workspace *work;
+  uint8_t *scan_row,*image_rgb;
+#else
   png_writer writer={png_output,sizeof(png_output),0U};
+#endif
   png_uint_32 width,height;
   int depth,color,channels;
   unsigned fit_w,fit_h,off_x,off_y;
   volatile int valid=0; /* defined across libpng longjmp error paths */
-  if(!output||!output_len)return -1;
-  *output=NULL;*output_len=0;
+  if(!output_len)return -1;
+  *output_len=0;
+#ifdef N6G_PNG_WORKSPACE
+  if(!png_output||!capacity)return -1;
+#else
+  if(!output)return -1;
+  *output=NULL;
+#endif
   if(probe_png_check(input,bytes)!=0)return -2;
+#ifdef N6G_PNG_WORKSPACE
+  work=malloc(sizeof(*work));
+  if(!work)return -3;
+  scan_row=work->scan_row;
+  image_rgb=work->image_rgb;
+#endif
   rd=png_create_read_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);
-  if(!rd)return -3;
+  if(!rd){
+#ifdef N6G_PNG_WORKSPACE
+    free(work);
+#endif
+    return -3;
+  }
   rinfo=png_create_info_struct(rd);
   if(!rinfo)goto done;
   if(setjmp(png_jmpbuf(rd)))goto done;
@@ -76,7 +112,7 @@ int n6_normalize_png(const uint8_t *input,size_t bytes,
   png_read_update_info(rd,rinfo);
   channels=png_get_channels(rd,rinfo);
   if(channels!=4 || png_get_rowbytes(rd,rinfo)!=width*4U)goto done;
-  memset(image_rgb,0,sizeof(image_rgb));
+  memset(image_rgb,0,TARGET_W*TARGET_H*3U);
   if((uint64_t)width*TARGET_H>=(uint64_t)height*TARGET_W) {
     fit_w=TARGET_W;
     fit_h=(unsigned)(((uint64_t)height*TARGET_W+width/2U)/width);
@@ -114,6 +150,7 @@ int n6_normalize_png(const uint8_t *input,size_t bytes,
   winfo=png_create_info_struct(wr);
   if(!winfo)goto done;
   if(setjmp(png_jmpbuf(wr)))goto done;
+  /* All input reads have finished. The writer can reuse its storage. */
   png_set_write_fn(wr,&writer,on_write,on_flush);
   png_set_IHDR(wr,winfo,TARGET_W,TARGET_H,8,
                PNG_COLOR_TYPE_RGB,PNG_INTERLACE_NONE,
@@ -124,11 +161,16 @@ int n6_normalize_png(const uint8_t *input,size_t bytes,
     png_write_row(wr,image_rgb+(size_t)y*TARGET_W*3U);
   png_write_end(wr,NULL);
   if(probe_png_check(png_output,writer.at)!=0)goto done;
+#ifndef N6G_PNG_WORKSPACE
   *output=png_output;
+#endif
   *output_len=writer.at;
   valid=1;
 done:
   if(rd)png_destroy_read_struct(&rd,&rinfo,NULL);
   if(wr)png_destroy_write_struct(&wr,&winfo);
+#ifdef N6G_PNG_WORKSPACE
+  free(work);
+#endif
   return valid?0:-4;
 }

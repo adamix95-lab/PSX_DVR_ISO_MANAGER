@@ -24,7 +24,7 @@ static unsigned char sector[SECTOR];
 static char cnf[8192];
 static char seen[GAME_LIMIT][DESR_COVER_ID_CAP];
 static char scanned_iso[GAME_LIMIT][DESR_FILENAME_CAP];
-#ifndef N6D_READONLY
+#if !defined(N6D_READONLY) && !defined(N6G_USB_SAFE)
 static unsigned char verify_chunk[1024];
 #endif
 
@@ -177,6 +177,15 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
   return chosen;
 }
 #ifndef N6D_READONLY
+#ifdef N6G_USB_SAFE
+/* The embedded bdmfs_fatfs returns negated FatFs FRESULT values.
+ * Fail closed on I/O errors, including when an existing path can't be read. */
+static int usb_art_absent(const char *path) {
+  iox_stat_t stat;
+  int rc=fileXioGetStat(path,&stat);
+  return rc==-4 /* FR_NO_FILE */ || rc==-5 /* FR_NO_PATH */;
+}
+#endif
 /* Final USB-only publish. Incomplete/old PART is left untouched for
  * manual inspection. Always compare staged data with verified RAM bytes.
  * Existing .png/.jpg are never replaced, even on failed prior downloads.
@@ -184,9 +193,20 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
 int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   char dst[72],jpg[72],part[80];
   int dir,fd=-1,w=0,ret;
+#ifdef N6G_USB_SAFE
+  /* The ISO scan is finished. Reuse its sector buffer for readback. */
+  uint8_t *verify_chunk=sector;
+  const int verify_cap=1024;
+#else
+  const int verify_cap=sizeof(verify_chunk);
+#endif
   if(!png||!n||n>N6_COVER_CAP||probe_png_check(png,n)!=0)return -550;
   if(paths(id,dst,jpg,part)<0)return -551;
+#ifdef N6G_USB_SAFE
+  if(!usb_art_absent(dst)||!usb_art_absent(jpg)||!usb_art_absent(part))return -552;
+#else
   if(exists(dst)||exists(jpg)||exists(part))return -552;
+#endif
   dir=fileXioDopen(USB_DIR);
   if(dir>=0)fileXioDclose(dir);
   else {
@@ -196,13 +216,17 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
     if(dir<0)return -553;
     fileXioDclose(dir);
   }
+#ifdef N6G_USB_SAFE
+  fd=fileXioOpen(part,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_EXCL,0666);
+#else
   fd=fileXioOpen(part,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_TRUNC,0666);
+#endif
   if(fd<0)return -554;
   while((size_t)w<n) {
     int chunk=(int)(n-(size_t)w);
     if(chunk>4096)chunk=4096;
     ret=fileXioWrite(fd,png+w,chunk);
-    if(ret<=0){fileXioClose(fd);return -555;}
+    if(ret<=0||ret>chunk){fileXioClose(fd);return -555;}
     w+=ret;
   }
   if(fileXioClose(fd)<0)return -556;
@@ -211,16 +235,20 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   w=0;
   while((size_t)w<n) {
     int chunk=(int)(n-(size_t)w);
-    if(chunk>(int)sizeof(verify_chunk))chunk=sizeof(verify_chunk);
+    if(chunk>verify_cap)chunk=verify_cap;
     ret=fileXioRead(fd,verify_chunk,chunk);
-    if(ret<=0||memcmp(verify_chunk,png+w,(size_t)ret)){
+    if(ret<=0||ret>chunk||memcmp(verify_chunk,png+w,(size_t)ret)){
       fileXioClose(fd);return -558;
     }
     w+=ret;
   }
   ret=fileXioRead(fd,verify_chunk,1);
   if(fileXioClose(fd)<0||ret!=0)return -559;
+#ifdef N6G_USB_SAFE
+  if(!usb_art_absent(dst)||!usb_art_absent(jpg))return -552;
+#else
   if(exists(dst)||exists(jpg))return -552;
+#endif
   if(fileXioRename(part,dst)<0)return -560;
   return 0;
 }

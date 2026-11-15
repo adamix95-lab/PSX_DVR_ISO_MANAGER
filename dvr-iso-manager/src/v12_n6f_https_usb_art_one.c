@@ -63,6 +63,12 @@
 #include "probe_png.h"
 #include "n6_normalize_png.h"
 
+#ifdef N6G_PNG_WORKSPACE
+#define USB_TEST_NAME "N6G"
+#else
+#define USB_TEST_NAME "N6F"
+#endif
+
 #define PART "hdd0:PP.DVRISO12"
 #define MOUNT "pfs1:"
 #define NET_CNF "pfs1:/V12_NET.CNF"
@@ -90,6 +96,18 @@ static size_t n6_png_size=0;
 static size_t n6_wire_bytes=0;
 static int n6_http_rc=0;
 static int n6_source=0; /* 0: OPL Manager dump, 1: CosmicScale */
+
+#ifdef N6G_PNG_WORKSPACE
+static int normalize_download(const uint8_t **output,size_t *size,
+                              int bad_image) {
+  int rc=n6_normalize_png_into(n6_png,n6_png_size,n6_response,
+                               sizeof(n6_response),size);
+  if(rc!=-3 && rc!=0)return bad_image;
+  if(rc==-3)return -721; /* local workspace / decoder allocation failure */
+  *output=n6_response;
+  return 0;
+}
+#endif
 
 #if !defined(WC_RNG_SEED_CB) || !defined(HAVE_HASHDRBG) || !defined(HAVE_SNI)
 #error "N4E BLOCKED: require custom wolfSSL DRBG seed callback and SNI"
@@ -631,7 +649,7 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
       "Connection: close\r\n\r\n",n6_current_id);
   if(len<=0 || len>=(int)sizeof(n6_request))return -710;
   scr_clear();scr_setCursor(0);
-  scr_printf("N6F HTTPS GAME: %s source=%s\n",n6_current_id,
+  scr_printf(USB_TEST_NAME " HTTPS GAME: %s source=%s\n",n6_current_id,
              n6_source==0?"OPL":"PSBBN");
   scr_printf("TRUST: SIGNED UTC, TLS PEER/HOST BOTH BOUNDS\n");
   scr_printf("STAGE 10: HTTPS GET COVER -> RAM\n");
@@ -650,7 +668,7 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
   }
   n5c_http_active=0;
   scr_clear();scr_setCursor(0);
-  scr_printf("N6F TLS WRITE DONE: %u bytes\n",(unsigned)sent);
+  scr_printf(USB_TEST_NAME " TLS WRITE DONE: %u bytes\n",(unsigned)sent);
   for(reads=0;reads<300;reads++) {
     size_t available=N6_HTTP_CAP-total;
     if(available<1U)return -713;
@@ -669,7 +687,7 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
       if(probe_http_extract_png(n6_response,total,&png,&png_size)==0){
         n6_png=png;
         n6_png_size=png_size;
-        scr_printf("N6F PNG verified CRC: %u bytes\n",(unsigned)png_size);
+        scr_printf(USB_TEST_NAME " PNG verified CRC: %u bytes\n",(unsigned)png_size);
         return 0;
       }
     }else{
@@ -728,7 +746,7 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   WOLFSSL *ssl=NULL;
   int fd=-1,rc,ret=-645;
   n5c_http_active=0;
-  scr_printf("N6F %s: seed/time/context\n",label);
+  scr_printf(USB_TEST_NAME " %s: seed/time/context\n",label);
   if(v12_n4b_seed_provision(&tls_gate,seed,64)!=0)return -641;
   signed_cert_clock=bound;
   if(wc_SetTimeCb(signed_time_cb)!=0){ret=-642;goto cleanup;}
@@ -748,30 +766,30 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   if(wolfSSL_check_domain_name(ssl,TLS_HOST)!=WOLFSSL_SUCCESS){
     ret=-647;goto cleanup;
   }
-  scr_printf("N6F %s: CA/SNI/HOST OK, TCP next\n",label);
+  scr_printf(USB_TEST_NAME " %s: CA/SNI/HOST OK, TCP next\n",label);
   fd=connect_tls_endpoint();
   if(fd<0){ret=-648;goto cleanup;}
-  scr_printf("N6F %s: TCP CONNECTED, TLS START\n",label);
+  scr_printf(USB_TEST_NAME " %s: TCP CONNECTED, TLS START\n",label);
   /* No screen writes or active diagnostic callbacks until return. */
   wolfSSL_SetIOReadCtx(ssl,&fd);
   wolfSSL_SetIOWriteCtx(ssl,&fd);
   rc=wolfSSL_connect(ssl);
   diag_ssl_connect_ret=rc;
   diag_gate_state=(int)tls_gate.state;
-  scr_printf("N6F %s: TLS RETURN=%d\n",label,rc);
+  scr_printf(USB_TEST_NAME " %s: TLS RETURN=%d\n",label,rc);
   if(rc!=WOLFSSL_SUCCESS){
     diag_ssl_error=wolfSSL_get_error(ssl,rc);
     ret=-649;goto cleanup;
   }
   if(tls_gate.state!=2U){ret=-650;goto cleanup;}
-  scr_printf("N6F %s: VERIFIED PEER/HOST PASS\n",label);
+  scr_printf(USB_TEST_NAME " %s: VERIFIED PEER/HOST PASS\n",label);
   /* Only after successful strict verification, execute HTTP GET to RAM.
    * N5H observer is started ONLY by n6_get_cover_ram() at wolfSSL_write,
    * not before TLS; never performs disk/ART writes. */
   if(do_http_get){
-    scr_printf("N6F HTTP: GET ENTER (POST TLS)\n");
+    scr_printf(USB_TEST_NAME " HTTP: GET ENTER (POST TLS)\n");
     ret=n6_get_cover_ram(ssl);
-    scr_printf("N6F HTTP: GET RETURN=%d STATUS=%d BYTES=%u\n",
+    scr_printf(USB_TEST_NAME " HTTP: GET RETURN=%d STATUS=%d BYTES=%u\n",
                ret,n6_http_rc,(unsigned)n6_wire_bytes);
     if(ret!=0)goto cleanup;
   }
@@ -840,8 +858,8 @@ int main(void) {
   size_t normalized_size=0;
   v12_net_config cfg;
   init_scr();scr_setCursor(0);
-  scr_printf("N6F ONE COVER HTTPS -> USB ART TEST\n");
-  scr_printf("N6E-PASS TLS+GET, USB .PART+READBACK+RENAME\n");
+  scr_printf(USB_TEST_NAME " ONE COVER HTTPS -> USB ART TEST\n");
+  scr_printf("SIGNED TLS+GET, USB .PART+READBACK+RENAME\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   scr_printf("ONLY WRITE mass0:/ART/ (ONE NEW COVER)\n");
   sleep(1);
@@ -853,7 +871,7 @@ int main(void) {
   if(rc==0)rc=read_entropy_usb(nonce,seeds);
   if(rc==0)rc=read_ca_bundle();
   if(rc==0) {
-    scr_printf("N6F SCAN DVR ISO READ-ONLY\n");
+    scr_printf(USB_TEST_NAME " SCAN DVR ISO READ-ONLY\n");
     targets=n6_scan_dvr(n6_targets,&iso_count,&ids_count,&missing);
     if(targets<0)rc=targets;
     else {
@@ -865,9 +883,9 @@ int main(void) {
       }else if(missing>0) {
         /* A pre-existing .PART blocks the only missing ID; never erase. */
         rc=-561;
-        scr_printf("N6F BLOCKED: MISSING BUT NO SAFE NEW TARGET\n");
+        scr_printf(USB_TEST_NAME " BLOCKED: MISSING BUT NO SAFE NEW TARGET\n");
       }else{
-        scr_printf("N6F NO MISSING COVERS: NO NETWORK OR FILE WRITES\n");
+        scr_printf(USB_TEST_NAME " NO MISSING COVERS: NO NETWORK OR FILE WRITES\n");
       }
     }
   }
@@ -875,30 +893,38 @@ int main(void) {
   if(rc==0 && targets>0)rc=live_signed_probe(nonce,&signed_time);
   if(rc==0 && targets>0) {
     rt_pass=1;
-    scr_printf("N6F ROUGHTIME SIGNED UTC: PASS\n");
+    scr_printf(USB_TEST_NAME " ROUGHTIME SIGNED UTC: PASS\n");
   }
   if(rc==0 && targets>0) {
     n6_source=0; /* pinned OPL Manager mirror first */
-    scr_printf("N6F SOURCE OPL START: %s\n",n6_current_id);
+    scr_printf(USB_TEST_NAME " SOURCE OPL START: %s\n",n6_current_id);
     rc=verify_two_bound_tls(&signed_time,seeds[0][0],seeds[0][1]);
+#ifdef N6G_PNG_WORKSPACE
+    if(rc==0)rc=normalize_download(&normalized,&normalized_size,-565);
+#else
     if(rc==0 && (!n6_png || n6_png_size==0 ||
                  probe_png_check(n6_png,n6_png_size)!=0 ||
                  n6_normalize_png(n6_png,n6_png_size,
                                   &normalized,&normalized_size)!=0))
       rc=-565;
+#endif
     if(rc==-404 || rc==-565 || (rc==-714 && n6_http_rc==200)) {
       /* Fallback ONLY for source-missing or invalid PNG.
        * TLS/cert/time/network failures never silently fall back. */
-      scr_printf("N6F FALLBACK PSBBN: SOURCE ERROR=%d\n",rc);
+      scr_printf(USB_TEST_NAME " FALLBACK PSBBN: SOURCE ERROR=%d\n",rc);
       n6_source=1;
       n6_png=NULL;n6_png_size=0;
       normalized=NULL;normalized_size=0;
       rc=verify_two_bound_tls(&signed_time,seeds[0][2],seeds[0][3]);
+#ifdef N6G_PNG_WORKSPACE
+      if(rc==0)rc=normalize_download(&normalized,&normalized_size,-566);
+#else
       if(rc==0 && (!n6_png || n6_png_size==0 ||
                    probe_png_check(n6_png,n6_png_size)!=0 ||
                    n6_normalize_png(n6_png,n6_png_size,
                                     &normalized,&normalized_size)!=0))
         rc=-566;
+#endif
     }
     if(rc==0) {
       if(!normalized || !normalized_size ||
@@ -906,27 +932,27 @@ int main(void) {
         rc=-720;
       else {
         verified=1;
-        scr_printf("N6F REAL PNG CRC: PASS %u bytes\n",
+        scr_printf(USB_TEST_NAME " REAL PNG CRC: PASS %u bytes\n",
                    (unsigned)n6_png_size);
-        scr_printf("N6F 140x200 RGB: PASS %u bytes\n",
+        scr_printf(USB_TEST_NAME " 140x200 RGB: PASS %u bytes\n",
                    (unsigned)normalized_size);
-        scr_printf("N6F USB .PART + READBACK START: %s\n",n6_current_id);
+        scr_printf(USB_TEST_NAME " USB .PART + READBACK START: %s\n",n6_current_id);
         rc=n6_write_usb_art(n6_current_id,normalized,normalized_size);
         if(rc==0) {
           saved=1;
           source_ok=n6_source;
-          scr_printf("N6F VERIFIED SAVE: mass0:/ART/%s_COV.png\n",
+          scr_printf(USB_TEST_NAME " VERIFIED SAVE: mass0:/ART/%s_COV.png\n",
                      n6_current_id);
           scr_printf("SOURCE=%s STAGED READBACK+RENAME: PASS\n",
                      n6_source==0?"OPL":"PSBBN");
         }else{
-          scr_printf("N6F USB ART SAVE FAILED: code %d\n",rc);
+          scr_printf(USB_TEST_NAME " USB ART SAVE FAILED: code %d\n",rc);
           scr_printf("Check .PART manually; NEVER auto-overwrite it\n");
         }
       }
     }else if(rc==-404){
       not_found=1;
-      scr_printf("N6F NOT FOUND in OPL or PSBBN: %s\n",n6_current_id);
+      scr_printf(USB_TEST_NAME " NOT FOUND in OPL or PSBBN: %s\n",n6_current_id);
     }
   }
   v12_n4a_wipe(nonce,sizeof(nonce));
@@ -936,7 +962,7 @@ int main(void) {
     if(unmount<0 && rc==0)rc=-509;
   }
   scr_clear();scr_setCursor(0);
-  scr_printf("N6F HTTPS USB ART - FINAL RESULT\n");
+  scr_printf(USB_TEST_NAME " HTTPS USB ART - FINAL RESULT\n");
   scr_printf("DVR ISO=%d ID=%d USB MISSING=%d\n",iso_count,ids_count,missing);
   scr_printf("BATCH=%d SAVED=%d NOT_FOUND=%d\n",targets,saved,not_found);
   scr_printf("GAME=%s SOURCE=%s\n",n6_current_id,
