@@ -82,15 +82,8 @@
 #define N6_PIN "e14b9abce3cc42a06bb4ad2e4056e289c8872a07"
 #define N6_FALLBACK_ARCHIVE "CosmicScale/psbbn-art-database"
 #define N6_FALLBACK_PIN "41daedfd81562cd21a255582358fb60f12899a0b"
-static char n6_request[448];
-static char n6_current_id[12];
+/* Only the small candidate array survives for the optional DVR scan. */
 static char n6_targets[N6_BATCH_MAX][12];
-static uint8_t n6_response[N6_HTTP_CAP+1U];
-static const uint8_t *n6_png=0;
-static size_t n6_png_size=0;
-static size_t n6_wire_bytes=0;
-static int n6_http_rc=0;
-static int n6_source=0; /* 0: OPL Manager dump, 1: CosmicScale */
 
 #if !defined(WC_RNG_SEED_CB) || !defined(HAVE_HASHDRBG) || !defined(HAVE_SNI)
 #error "N4E BLOCKED: require custom wolfSSL DRBG seed callback and SNI"
@@ -616,92 +609,7 @@ static int connect_tls_endpoint(void) {
  * All HTTP bytes stay in RAM until complete PNG CRC+framing checks pass.
  * The source file must be image/png with Content-Length (no chunked/redirects).
  */
-static int n6_get_cover_ram(WOLFSSL *ssl) {
-  int len,rc,got,reads=0;
-  size_t sent=0,total=0;
-  const uint8_t *png=NULL;
-  size_t png_size=0;
-  if(!ssl || !desr_valid_game_id(n6_current_id))return -710;
-  n6_png=NULL;n6_png_size=0;n6_wire_bytes=0;n6_http_rc=0;
-  if(n6_source==0)
-    len=snprintf(n6_request,sizeof(n6_request),
-      "GET /" N6_ARCHIVE "/" N6_PIN "/PS2/%s/%s_COV.png HTTP/1.1\r\n"
-      "Host: raw.githubusercontent.com\r\n"
-      "User-Agent: PSX-DVR-ISO-MANAGER-N6/1.2\r\n"
-      "Accept: image/png\r\nAccept-Encoding: identity\r\n"
-      "Connection: close\r\n\r\n",n6_current_id,n6_current_id);
-  else
-    len=snprintf(n6_request,sizeof(n6_request),
-      "GET /" N6_FALLBACK_ARCHIVE "/" N6_FALLBACK_PIN "/art/%s.png HTTP/1.1\r\n"
-      "Host: raw.githubusercontent.com\r\n"
-      "User-Agent: PSX-DVR-ISO-MANAGER-N6/1.2\r\n"
-      "Accept: image/png\r\nAccept-Encoding: identity\r\n"
-      "Connection: close\r\n\r\n",n6_current_id);
-  if(len<=0 || len>=(int)sizeof(n6_request))return -710;
-  scr_clear();scr_setCursor(0);
-  scr_printf("N6 HTTPS GAME: %s source=%s\n",n6_current_id,
-             n6_source==0?"OPL":"PSBBN");
-  scr_printf("TRUST: SIGNED UTC, TLS PEER/HOST BOTH BOUNDS\n");
-  scr_printf("STAGE 10: HTTPS GET COVER -> RAM\n");
-  n5c_http_active=1;
-  while(sent<(size_t)len) {
-    int watchid=n5h_start_observer();
-    if(watchid<0){n5c_http_active=0;return -717;}
-    n5c_phase=1;
-    rc=wolfSSL_write(ssl,n6_request+sent,len-(int)sent);
-    n5h_stop_observer(watchid);
-    if(rc<=0) {
-      n5a_http_tls_error=wolfSSL_get_error(ssl,rc);
-      n5c_http_active=0;return -710;
-    }
-    sent+=(size_t)rc;
-  }
-  n5c_http_active=0;
-  scr_clear();scr_setCursor(0);
-  scr_printf("N6 TLS WRITE DONE: %u bytes\n",(unsigned)sent);
-  for(reads=0;reads<300;reads++) {
-    size_t available=N6_HTTP_CAP-total;
-    if(available<1U)return -713;
-    if(available>2048U)available=2048U;
-    n5c_phase=2;
-    got=wolfSSL_read(ssl,n6_response+total,(int)available);
-    if(got>0) {
-      total+=(size_t)got;
-      n6_wire_bytes=total;
-      if(total>=13U) {
-        n6_http_rc=probe_http_status(n6_response,total);
-        if(n6_http_rc==404)return -404;
-        if(n6_http_rc>=300 || (n6_http_rc>0 && n6_http_rc!=200))
-          return -712;
-      }
-      if(probe_http_extract_png(n6_response,total,&png,&png_size)==0){
-        n6_png=png;
-        n6_png_size=png_size;
-        scr_printf("N6 PNG verified CRC: %u bytes\n",(unsigned)png_size);
-        return 0;
-      }
-    }else{
-      n5a_http_tls_error=wolfSSL_get_error(ssl,got);
-      if(got==0||n5a_http_tls_error==WOLFSSL_ERROR_ZERO_RETURN) {
-        if(probe_http_extract_png(n6_response,total,&png,&png_size)==0){
-          n6_png=png;n6_png_size=png_size;return 0;
-        }
-        return -714;
-      }
-      return -711;
-    }
-  }
-  return -715;
-}
-
-/* One distinct CSPRNG input for EACH TLS session.
- * Returns zero only after chain+hostname+date check in wolfSSL_connect.
- * No HTTP payload is sent even after success.
- */
-/* Called by wolfSSL while verifying each certificate. Read-only trace.
- * Do not call through this callback for an acceptance override:
- * returning preverify unchanged is the security boundary.
- */
+/* N6B: intentionally NO HTTP GET body or ART network functionality. */
 static int diag_verify_cb(int preverify,WOLFSSL_X509_STORE_CTX *store) {
   int code,depth;
   diag_cert_calls+=1;
