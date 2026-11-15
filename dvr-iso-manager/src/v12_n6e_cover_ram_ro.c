@@ -783,12 +783,23 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   ret=0;
 cleanup:
   n5c_http_active=0;
+#ifdef N6G_LOW_CLEANUP_TRACE
+  const int trace_low=ret==0 && !do_http_get;
+#else
+  const int trace_low=0;
+#endif
+  if(trace_low)scr_printf("LOW CLEAN 1: wolfSSL_free\n");
   if(ssl)wolfSSL_free(ssl);
-  if(fd>=0)lwip_close(fd);
+  if(trace_low)scr_printf("LOW CLEAN 2: lwip_close\n");
+  int close_rc=fd>=0?lwip_close(fd):0;
+  if(trace_low)scr_printf("LOW CLEAN 3: wolfSSL_CTX_free (close=%d)\n",close_rc);
   if(ctx)wolfSSL_CTX_free(ctx);
+  if(trace_low)scr_printf("LOW CLEAN 4: seed_clear\n");
   v12_n4b_seed_clear(&tls_gate);
-  wc_SetTimeCb(NULL);
+  if(trace_low)scr_printf("LOW CLEAN 5: clear clock callback\n");
+  int clock_rc=wc_SetTimeCb(NULL);
   signed_cert_clock=0;
+  if(trace_low)scr_printf("LOW CLEAN 6: return LOW (clock=%d)\n",clock_rc);
   return ret;
 }
 static int verify_two_bound_tls(const v12_rt_signed_time *signed_time,

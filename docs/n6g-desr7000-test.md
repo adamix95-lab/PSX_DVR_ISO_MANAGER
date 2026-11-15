@@ -1,6 +1,10 @@
 # N6G na Sony PSX DESR-7000
 
-Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Oba warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
+Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
+
+## Następna próba po zatrzymaniu B za LOW
+
+Jeżeli A skończył z `RET=0`, a B zatrzymał się na `LOW: VERIFIED PEER/HOST PASS`, uruchom `V12_N6G_TRACE.ELF` ze świeżym `N6C.ENT`. Wariant wykorzystuje ścieżkę B i pokazuje ponumerowane komunikaty tylko podczas zamykania zweryfikowanego połączenia LOW. Zapisz ostatni widoczny komunikat `LOW CLEAN` z numerem. Jeżeli pojawi się `STAGE 9`, zapisz ostatni komunikat HIGH lub końcowy wynik z ekranu.
 
 ## Przygotowanie USB i wykonanie prób
 
@@ -19,6 +23,7 @@ Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje n
 | --- | --- | --- |
 | `V12_N6G_A.ELF` | Dodatkowe 349 216 B bufora statycznego | `TLS LOW/HIGH: VERIFIED PASS`, `HTTP=200`, `CRC=PASS`, `RET=0` |
 | `V12_N6G_B.ELF` | Oryginalny normalizator z libpng/zlib i jego bufory dołączone do ELF. Kod normalizatora pozostaje niewywołany. | Jak w A |
+| `V12_N6G_TRACE.ELF` | Jak B, z komunikatami od `LOW CLEAN 1` do `LOW CLEAN 6` po udanej weryfikacji LOW | Jak w A, z widocznymi etapami zamknięcia połączenia |
 | `V12_N6G_FINAL.ELF` | Normalizacja po zwolnieniu TLS i zweryfikowany zapis USB | `HTTP=200`, `BATCH=1 SAVED=1`, `HTTPS RAW PNG + RGB 140x200: PASS`, `USB ART .PART READBACK+RENAME: PASS`, `RET=0` |
 
 ## Sprawdzenie zapisu

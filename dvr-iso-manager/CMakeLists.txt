@@ -784,7 +784,7 @@ if(DESR_V12_N3B_MINI)
     if(DESR_V12_N6G)
       set(n6e V12_N6E_HTTPS_COVER_RAM_RO.ELF)
       set(n6f V12_N6F_HTTPS_USB_ART_ONE.ELF)
-      foreach(variant A B FINAL)
+      foreach(variant A B TRACE FINAL)
         set(probe "V12_N6G_${variant}.ELF")
         if(variant STREQUAL "FINAL")
           set(base ${n6f})
@@ -818,9 +818,14 @@ if(DESR_V12_N3B_MINI)
         if(variant STREQUAL "A")
           target_compile_definitions(${probe} PRIVATE
             N6G_STATIC_RAM=1 "N6G_DIAGNOSTIC=\"N6G-A STATIC RAM\"")
-        elseif(variant STREQUAL "B")
-          target_compile_definitions(${probe} PRIVATE
-            "N6G_DIAGNOSTIC=\"N6G-B PNG LINK ONLY\"")
+        elseif(variant STREQUAL "B" OR variant STREQUAL "TRACE")
+          if(variant STREQUAL "TRACE")
+            target_compile_definitions(${probe} PRIVATE N6G_LOW_CLEANUP_TRACE=1
+              "N6G_DIAGNOSTIC=\"N6G-TRACE LOW CLEANUP\"")
+          else()
+            target_compile_definitions(${probe} PRIVATE
+              "N6G_DIAGNOSTIC=\"N6G-B PNG LINK ONLY\"")
+          endif()
           target_sources(${probe} PRIVATE src/net/n6_normalize_png.c)
           target_link_libraries(${probe} PRIVATE "$ENV{PS2SDK}/ports/lib/libpng.a"
             "$ENV{PS2SDK}/ports/lib/libz.a" m)

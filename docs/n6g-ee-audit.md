@@ -28,6 +28,10 @@ Kod `tls_one_bound` w N6F zachowuje wywołania N6E. Obserwator startuje dopiero 
 - Finalny N6G przydziela 86 048 B roboczych po zwolnieniu TLS. Po zakończeniu odczytu PNG normalizator używa bufora odpowiedzi HTTP jako wyjścia. Wynik 140×200 RGB przechodzi walidację PNG/CRC, a następnie porównanie z odczytem `.PART`.
 - Pinned PS2SDK mapował `O_CREAT` na otwarcie lub utworzenie i ignorował `O_EXCL`. Finalny N6G dołącza osobną kompilację samego modułu FAT z mapowaniem `O_CREAT|O_EXCL` na `FA_CREATE_NEW`. FatFs odmawia też przemianowania, gdy ścieżka docelowa istnieje. Wspólne moduły sieciowe NETFIX i jedyny DEV9 zostają te same.
 
-Kompilacja w GitHub Actions mierzy pięć ELF tym samym toolchainem. Do paczki trafiają mapy, dane `readelf`, wyniki `size` i `nm` oraz statyczne ramki stosu. Aktualne liczby dla N6G są w `evidence/EE-memory.md`. [Instrukcja testu sprzętowego](n6g-desr7000-test.md).
+GitHub Actions mierzy ELFy historyczne i warianty N6G tym samym toolchainem. Do paczki trafiają mapy, dane `readelf`, wyniki `size` i `nm` oraz statyczne ramki stosu. Aktualne liczby dla N6G są w `evidence/EE-memory.md`. [Instrukcja testu sprzętowego](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/test/n6g-codex-png-ee-fix/docs/n6g-desr7000-test.md).
 
-Na obecnym etapie działanie N6G i przyczyna sprzętowa zawieszenia pozostają do potwierdzenia na DESR-7000.
+## Pierwsza próba N6G na DESR-7000
+
+A zakończył próbę z `RET=0`. B i FINAL doszły do `LOW: VERIFIED PEER/HOST PASS`, po czym konsola się zatrzymała. W tych dwóch próbach LOW zdążył potwierdzić certyfikat, nazwę hosta i wykorzystanie zalążka DRBG. Kod po tym komunikacie zwalnia obiekt SSL, zamyka gniazdo TCP, zwalnia kontekst SSL, czyści zalążek i usuwa callback zegara. Dopiero po powrocie z tej ścieżki pojawia się `STAGE 9`.
+
+Sama dodatkowa `.bss` z wariantu A nie odtworzyła problemu. B nie wywołuje normalizatora i nie zawiera kodu zapisu, więc zatrzymanie w B może wystąpić przed tymi operacjami i bez ich udziału. TRACE powtarza B z komunikatami przed kolejnymi operacjami zamykania LOW. Zmiana układu ELF i czasu działania w wariancie z komunikatami jest częścią warunków tej próby. Jeżeli TRACE przejdzie, powtórz B i TRACE na tym samym zestawie danych wejściowych, ze świeżymi plikami entropii.
