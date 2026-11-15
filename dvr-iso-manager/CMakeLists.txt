@@ -699,6 +699,46 @@ if(DESR_V12_N3B_MINI)
     target_compile_definitions(V12_N6D_CONTROL_STAGE817_RO.ELF PRIVATE
       N6D_NO_DVR=1)
 
+    # N6E: physical read-only RAM-only one-real-cover HTTPS GET.
+    # Uses exactly the verified N6D handshake and N5H's observer ONLY for
+    # wolfSSL_write AFTER full peer/hostname/cert-time verification.
+    # No USB .PART/publish routines are compiled in; no PFS/HDD/RTC writes.
+    add_executable(V12_N6E_HTTPS_COVER_RAM_RO.ELF EXCLUDE_FROM_ALL
+      src/v12_n6e_cover_ram_ro.c
+      src/net/n6_usb_art.c
+      src/cover_index.c
+      src/iso_utils.c
+      src/net/probe_png.c
+      src/net/v12_net_config.c
+      src/net/v12_roughtime_wire.c
+      src/net/v12_roughtime_verify.c
+      src/net/v12_n3e_txryan.c
+      src/net/v12_n3e_utc.c
+      src/net/v12_n4a_entropy.c
+      src/net/v12_n4b_seed_gate.c
+      src/net/v12_roughtime_monocypher.c
+      "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+      "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+      ${N3D_USB_IRX}
+      "${CMAKE_CURRENT_BINARY_DIR}/dvrdrv_irx.c"
+      "${CMAKE_CURRENT_BINARY_DIR}/dvrfile_irx.c")
+    target_compile_definitions(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE
+      N6C_SINGLE_COVER=1 N6D_READONLY=1 N6E_RAM_ONLY=1
+      WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1
+      WOLFSSL_NO_SOCK=1 NO_WRITEV=1 USE_FAST_MATH=1
+      TFM_NO_ASM=1 FP_MAX_BITS=8192)
+    target_include_directories(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE include
+      "$ENV{V12_N4B_WOLFSSL_DIR}/include"
+      "$ENV{V12_MONOCYPHER_SRC}/src"
+      "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+    target_link_libraries(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE
+      fileXio cdvd patches ps2ip netman
+      "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a"
+      libdebug.a m)
+    target_compile_options(V12_N6E_HTTPS_COVER_RAM_RO.ELF PRIVATE
+      -Os -Wall -Wextra)
+
+
   endif()
   # N4D physical wolfCrypt RNG-only diagnostic; no TLS and no writes.
   # Link against isolated callback-enabled wolfSSL, never stock lib.
