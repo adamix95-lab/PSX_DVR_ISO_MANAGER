@@ -8,7 +8,11 @@
  * All game discovery happens on dvr_pfs0:/ISO, which is read-only.
  * USB root ART is the ONLY writable destination, no auto-overwrite.
  */
+#ifdef N6C_SINGLE_COVER
+#define N6_BATCH_MAX 1
+#else
 #define N6_BATCH_MAX 4
+#endif
 #define N6_ENT_BYTES (32U + 4U * N6_BATCH_MAX * 64U)
 #define N6_COVER_CAP (256U * 1024U)
 #define N6_HTTP_CAP (N6_COVER_CAP + 8192U)
