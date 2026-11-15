@@ -656,6 +656,49 @@ if(DESR_V12_N3B_MINI)
       -Os -Wall -Wextra)
     target_link_options(V12_N6C_HTTPS_USB_ART_ONE.ELF PRIVATE
       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/V12_N6C_HTTPS_USB_ART_ONE.map")
+    # N6D: matched CONTROL / DVR, no HTTPS GET or art writer.
+    # Both include N6C cover-size buffer and identical NETFIX/TLS stack.
+    # Only DVR modules+read-only ISO metadata scan differ.
+    foreach(n6d_target V12_N6D_CONTROL_STAGE817_RO.ELF
+                       V12_N6D_DVR_STAGE817_RO.ELF)
+      add_executable(${n6d_target} EXCLUDE_FROM_ALL
+        src/v12_n6d_stage817_ro.c
+        src/net/n6_usb_art.c
+        src/cover_index.c
+        src/iso_utils.c
+        src/net/probe_png.c
+        src/net/v12_net_config.c
+        src/net/v12_roughtime_wire.c
+        src/net/v12_roughtime_verify.c
+        src/net/v12_n3e_txryan.c
+        src/net/v12_n3e_utc.c
+        src/net/v12_n4a_entropy.c
+        src/net/v12_n4b_seed_gate.c
+        src/net/v12_roughtime_monocypher.c
+        "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+        "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+        ${N3D_USB_IRX}
+        "${CMAKE_CURRENT_BINARY_DIR}/dvrdrv_irx.c"
+        "${CMAKE_CURRENT_BINARY_DIR}/dvrfile_irx.c")
+      target_compile_definitions(${n6d_target} PRIVATE
+        N6C_SINGLE_COVER=1 N6D_READONLY=1
+        WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1
+        WOLFSSL_NO_SOCK=1 NO_WRITEV=1 USE_FAST_MATH=1
+        TFM_NO_ASM=1 FP_MAX_BITS=8192)
+      target_include_directories(${n6d_target} PRIVATE include
+        "$ENV{V12_N4B_WOLFSSL_DIR}/include"
+        "$ENV{V12_MONOCYPHER_SRC}/src"
+        "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+      target_link_libraries(${n6d_target} PRIVATE
+        fileXio cdvd patches ps2ip netman
+        "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a"
+        libdebug.a m)
+      target_compile_options(${n6d_target} PRIVATE
+        -Os -Wall -Wextra)
+    endforeach()
+    target_compile_definitions(V12_N6D_CONTROL_STAGE817_RO.ELF PRIVATE
+      N6D_NO_DVR=1)
+
   endif()
   # N4D physical wolfCrypt RNG-only diagnostic; no TLS and no writes.
   # Link against isolated callback-enabled wolfSSL, never stock lib.
