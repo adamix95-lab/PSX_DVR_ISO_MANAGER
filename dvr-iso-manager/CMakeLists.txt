@@ -659,6 +659,44 @@ if(DESR_V12_N3B_MINI)
       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/N6A_CONTROL.map")
     target_link_options(V12_N6A_DVR_TLS_DIAG.ELF PRIVATE
       "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/N6A_DVR.map")
+    # N6B: both variants are CONTROL/no-DVR and never start observer.
+    # PLAIN has inactive wolfSSL trace hooks, RAMTRACE writes volatile RAM.
+    foreach(n6b_target V12_N6B_PLAIN_TLS_RO.ELF V12_N6B_RAMTRACE_TLS_RO.ELF)
+      add_executable(${n6b_target} EXCLUDE_FROM_ALL
+        src/v12_n6b_tls_single_thread.c
+        src/net/n6_usb_art.c
+        src/cover_index.c
+        src/iso_utils.c
+        src/net/probe_png.c
+        src/net/v12_net_config.c
+        src/net/v12_roughtime_wire.c
+        src/net/v12_roughtime_verify.c
+        src/net/v12_n3e_txryan.c
+        src/net/v12_n3e_utc.c
+        src/net/v12_n4a_entropy.c
+        src/net/v12_n4b_seed_gate.c
+        src/net/v12_roughtime_monocypher.c
+        "$ENV{V12_MONOCYPHER_SRC}/src/monocypher.c"
+        "$ENV{V12_MONOCYPHER_SRC}/src/optional/monocypher-ed25519.c"
+        ${N3D_USB_IRX}
+        "${CMAKE_CURRENT_BINARY_DIR}/dvrdrv_irx.c"
+        "${CMAKE_CURRENT_BINARY_DIR}/dvrfile_irx.c")
+      target_compile_definitions(${n6b_target} PRIVATE
+        N6A_READONLY=1 N6A_CONTROL_NO_DVR=1 WC_RNG_SEED_CB=1
+        HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
+        NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
+      target_include_directories(${n6b_target} PRIVATE include
+        "$ENV{V12_N4B_WOLFSSL_DIR}/include"
+        "$ENV{V12_MONOCYPHER_SRC}/src"
+        "$ENV{V12_MONOCYPHER_SRC}/src/optional")
+      target_link_libraries(${n6b_target} PRIVATE
+        fileXio cdvd patches ps2ip netman
+        "$ENV{V12_N4B_WOLFSSL_DIR}/lib/libwolfssl.a" libdebug.a m)
+      target_compile_options(${n6b_target} PRIVATE -Os -Wall -Wextra)
+    endforeach()
+    target_compile_definitions(V12_N6B_RAMTRACE_TLS_RO.ELF PRIVATE
+      N6B_TRACE_ONLY=1)
+
   endif()
   # N4D physical wolfCrypt RNG-only diagnostic; no TLS and no writes.
   # Link against isolated callback-enabled wolfSSL, never stock lib.
