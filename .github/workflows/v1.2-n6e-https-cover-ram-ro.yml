@@ -293,8 +293,10 @@ jobs:
             b'N6C.ENT',b'N4E.CA',b'ROUGHTIME SIGNED UTC',
             b'dvr_pfs0:/ISO',b'NO FILE WRITES'):
               assert marker in e,marker
+          # The linked fileXio runtime exports write symbols even for RO
+          # programs. Absence of call sites is enforced in SOURCE audit
+          # above + N6D_READONLY preprocessor gate, not ELF symbol strings.
           for banned in (b'WOLFSSL_VERIFY_NONE',
-                         b'fileXioWrite',b'fileXioRename',b'fileXioMkdir',
                          b'hdd0:PP.DVRISO/BOOT.CNF'):
               assert banned not in e,banned
           print('PASS N6E MIPS ELF',len(e),'bytes; bounded GET to RAM only')
