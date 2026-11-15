@@ -121,6 +121,9 @@ int n6_usb_cover_present(const char id[12]) {
 int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
                 int *iso_count,int *ids_count,int *missing_count){
   int dir,n,closed,seen_count=0,chosen=0;
+#ifdef N6E_RAM_ONLY
+  char first_valid[12]={0}; /* fallback when every cover already exists */
+#endif
   iox_dirent_t ent;
   if(!ids||!iso_count||!ids_count||!missing_count)return -1;
   *iso_count=*ids_count=*missing_count=0;
@@ -150,6 +153,9 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
       if(!strcmp(id,seen[i])){duplicate=1;break;}
     if(duplicate)continue;
     memcpy(seen[seen_count++],id,12);
+#ifdef N6E_RAM_ONLY
+    if(first_valid[0]==0)memcpy(first_valid,id,12);
+#endif
     present=n6_usb_cover_present(id);
     if(present<0)return -533;
     if(present)continue;
@@ -160,6 +166,14 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
         memcpy(ids[chosen++],id,12);
     }
   }
+#ifdef N6E_RAM_ONLY
+  /* N6E never writes a cover. If USB already has ALL covers (or a stale
+   * .PART blocks the missing one), test a first valid ISO in RAM instead. */
+  if(chosen==0 && first_valid[0]) {
+    memcpy(ids[0],first_valid,12);
+    chosen=1;
+  }
+#endif
   return chosen;
 }
 #ifndef N6D_READONLY
