@@ -72,26 +72,31 @@ def main():
         "N6G-A": build / "V12_N6G_A.ELF",
         "N6G-B": build / "V12_N6G_B.ELF",
         "N6G-TRACE": build / "V12_N6G_TRACE.ELF",
+        "N6G-FREETRACE": build / "V12_N6G_FREETRACE.ELF",
         "N6G FINAL": build / "V12_N6G_FINAL.ELF",
     }
     results = {tag: audit(elf, out) for tag, elf in elfs.items()}
-    e, f, a, b, trace, final = [symbols for _, symbols in results.values()]
+    e, f, a, b, trace, free_trace, final = [symbols for _, symbols in results.values()]
     buffers = {"scan_row": 2048, "image_rgb": 84000, "png_output": 262144}
     assert all(f[name][1] == b[name][1] == count for name, count in buffers.items())
     assert a["n6g_bss_padding"][1] == sum(buffers.values()) + 1024
-    for symbols in (e, a, b, trace):
+    for symbols in (e, a, b, trace, free_trace):
         assert "n6_write_usb_art" not in symbols
     assert "n6_normalize_png" not in a and "png_read_info" not in a
     for symbol in ("n6_normalize_png", "png_read_info", "inflate", "deflate"):
-        assert symbol in b and symbol in trace, symbol
+        assert all(symbol in symbols for symbols in (b, trace, free_trace)), symbol
+    assert "n6g_free_trace" in free_trace
+    for symbols in (e, f, a, b, trace, final):
+        assert "n6g_free_trace" not in symbols
     assert "n6_normalize_png_into" in final and "n6_write_usb_art" in final
     assert not (set(buffers) & final.keys()) and "verify_chunk" not in final
     assert b["bdmfs_fatfs_irx"][1] == e["bdmfs_fatfs_irx"][1]
-    for symbols in (e, f, a, b, trace, final):
+    for symbols in (e, f, a, b, trace, free_trace, final):
         assert symbols["dev9_ns_irx"][1] == 11273 and "ps2dev9_irx" not in symbols
     for tag, marker in (("N6G-A", b"N6G-A STATIC RAM"),
                         ("N6G-B", b"N6G-B PNG LINK ONLY"),
                         ("N6G-TRACE", b"LOW CLEAN 6: return LOW"),
+                        ("N6G-FREETRACE", b"19 CTX reference decrement"),
                         ("N6G FINAL", b"N6G HTTPS USB ART - FINAL RESULT")):
         assert marker in elfs[tag].read_bytes(), tag
 

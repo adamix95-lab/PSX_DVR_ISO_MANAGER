@@ -177,6 +177,14 @@ jobs:
           grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
           grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
           echo 'PASS: N4H FastMath wolfSSL exports RNG, TLS and SNI APIs'
+      - name: Build a separate wolfSSL with LOW free checkpoints
+        shell: sh
+        run: |
+          set -eu
+          python3 dvr-iso-manager/tools/instrument_n6g_free.py wolfssl-n5a
+          cmake --build build-wolfssl-n5a -j2
+          cmake --install build-wolfssl-n5a --prefix "$GITHUB_WORKSPACE/n6g-free-wolfssl"
+          cmp n5a-wolfssl/include/wolfssl/options.h n6g-free-wolfssl/include/wolfssl/options.h
       - name: Build N6G-only FAT driver with exclusive file creation
         run: sh dvr-iso-manager/tools/build_n6g_fat.sh sdk-source "$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
       - name: Cross-build N6E, N6F and all N6G ELFs and linker maps
@@ -186,6 +194,7 @@ jobs:
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
           export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
           export V12_N6G_FAT_IRX="$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
+          export V12_N6G_FREE_WOLFSSL="$GITHUB_WORKSPACE/n6g-free-wolfssl"
 
           # Rebuild both baselines from the original N6F tree (N6E is unchanged).
           n6f=952f8d07e2a9256446c628c16aa5160b5c2b193e
@@ -210,7 +219,8 @@ jobs:
           cmake -S dvr-iso-manager -B build-n6g -DDESR_BUILD_HDD_NETFIX=ON \
             -DDESR_V12_N3B_MINI=ON -DDESR_V12_N4E_TLS_RO=ON -DDESR_V12_N6G=ON
           cmake --build build-n6g -j2 --target \
-            V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_TRACE.ELF V12_N6G_FINAL.ELF
+            V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_TRACE.ELF \
+            V12_N6G_FREETRACE.ELF V12_N6G_FINAL.ELF
       - name: Measure EE memory and verify linked variant contents
         run: |
           python3 dvr-iso-manager/tools/audit_n6g_elf.py build-baseline build-n6g audit

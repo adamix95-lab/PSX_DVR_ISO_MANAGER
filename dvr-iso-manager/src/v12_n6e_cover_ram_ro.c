@@ -727,6 +727,14 @@ static int diag_verify_cb(int preverify,WOLFSSL_X509_STORE_CTX *store) {
  * no scr_printf INSIDE wolfSSL or between I/O binding and wolfSSL_connect.
  * When the blocking TLS call returns, the main thread paints the result.
  * No hard timeout can be inferred from a frozen screen. */
+#ifdef N6G_FREE_TRACE
+static int n6g_free_trace_active;
+
+void n6g_free_trace(const char *step) {
+  if(n6g_free_trace_active)scr_printf("FREE %s\n",step);
+}
+#endif
+
 static int tls_one_bound(const uint8_t seed[64],time_t bound,
                          const char *label,int do_http_get) {
   WOLFSSL_CTX *ctx=NULL;
@@ -789,7 +797,13 @@ cleanup:
   const int trace_low=0;
 #endif
   if(trace_low)scr_printf("LOW CLEAN 1: wolfSSL_free\n");
+#ifdef N6G_FREE_TRACE
+  n6g_free_trace_active=trace_low;
+#endif
   if(ssl)wolfSSL_free(ssl);
+#ifdef N6G_FREE_TRACE
+  n6g_free_trace_active=0;
+#endif
   if(trace_low)scr_printf("LOW CLEAN 2: lwip_close\n");
   int close_rc=fd>=0?lwip_close(fd):0;
   if(trace_low)scr_printf("LOW CLEAN 3: wolfSSL_CTX_free (close=%d)\n",close_rc);
