@@ -220,7 +220,7 @@ jobs:
             -DDESR_V12_N3B_MINI=ON -DDESR_V12_N4E_TLS_RO=ON -DDESR_V12_N6G=ON
           cmake --build build-n6g -j2 --target \
             V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_TRACE.ELF \
-            V12_N6G_FREETRACE.ELF V12_N6G_FINAL.ELF
+            V12_N6G_FREETRACE.ELF V12_N6G_FINAL.ELF V12_N6G_SCREEN.ELF
       - name: Measure EE memory and verify linked variant contents
         run: |
           python3 dvr-iso-manager/tools/audit_n6g_elf.py build-baseline build-n6g audit

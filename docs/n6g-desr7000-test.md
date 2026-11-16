@@ -2,9 +2,11 @@
 
 Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
 
-## Następna próba po `FREE 07 FreeHandshakeHashes`
+## Następna próba z wyciszonym ekranem
 
-Uruchom nowy `V12_N6G_FREETRACE.ELF` ze świeżym `N6C.ENT`. Ta kompilacja pokazuje dodatkowe kroki od `FREE 07a` do `FREE 07h` wewnątrz `FreeHandshakeHashes()`. Niektóre kroki zależą od konfiguracji biblioteki. Zapisz ostatni komunikat `FREE` i linię `LOW HASH prior`, jeśli jest widoczna. Jeżeli przebieg przejdzie do `LOW CLEAN 2` lub dalej, zapisz ostatnią linię i końcowy `RET`, jeśli się pojawi.
+Uruchom `V12_N6G_SCREEN.ELF` ze świeżym `N6C.ENT`. Na pierwszą próbę pozostaw katalog główny USB bez pliku `N6G.SCREEN`. Po wybraniu gry powinien pojawić się napis `N6G SCREEN TEST: QUIET`. Ekran pozostaje wtedy na tym napisie aż do podsumowania. Daj konsoli dwie minuty. Zapisz `RET` i `SAVED`, a gdy ekran się nie zmieni, sprawdź po zakończeniu próby, czy powstała okładka.
+
+Ten sam ELF działa w trybie `VERBOSE` po umieszczeniu pustego pliku `N6G.SCREEN` w katalogu głównym USB. W obu trybach użyj znanego ID gry i świeżej entropii. Jeżeli QUIET zapisał okładkę, użyj osobnej kopii przygotowanej zawartości USB do porównania trybów na tym samym ID. Oba tryby zapisują maksymalnie jedną nową okładkę.
 
 ## Przygotowanie USB i wykonanie prób
 
@@ -26,6 +28,7 @@ Uruchom nowy `V12_N6G_FREETRACE.ELF` ze świeżym `N6C.ENT`. Ta kompilacja pokaz
 | `V12_N6G_TRACE.ELF` | Jak B, z komunikatami od `LOW CLEAN 1` do `LOW CLEAN 6` po udanej weryfikacji LOW | Jak w A, z widocznymi etapami zamknięcia połączenia |
 | `V12_N6G_FREETRACE.ELF` | Jak TRACE, z osobnym buildem wolfSSL pokazującym kroki wewnątrz `wolfSSL_free()` | Jak w TRACE, z komunikatami `FREE` po udanym LOW |
 | `V12_N6G_FINAL.ELF` | Normalizacja po zwolnieniu TLS i zweryfikowany zapis USB | `HTTP=200`, `BATCH=1 SAVED=1`, `HTTPS RAW PNG + RGB 140x200: PASS`, `USB ART .PART READBACK+RENAME: PASS`, `RET=0` |
+| `V12_N6G_SCREEN.ELF` | Ścieżka FINAL z przełącznikiem ekranu QUIET/VERBOSE wybieranym na USB | Jak w FINAL, z napisem o trybie ekranu |
 
 ## Sprawdzenie zapisu
 

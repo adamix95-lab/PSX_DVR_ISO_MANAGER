@@ -62,6 +62,9 @@
 #include "cover_index.h"
 #include "probe_png.h"
 #include "n6_normalize_png.h"
+#ifdef N6G_SCREEN_PROBE
+#include "n6g_screen_probe.h"
+#endif
 
 #ifdef N6G_PNG_WORKSPACE
 #define USB_TEST_NAME "N6G"
@@ -655,8 +658,14 @@ static int n6_get_cover_ram(WOLFSSL *ssl) {
   scr_printf("STAGE 10: HTTPS GET COVER -> RAM\n");
   n5c_http_active=1;
   while(sent<(size_t)len) {
-    int watchid=n5h_start_observer();
-    if(watchid<0){n5c_http_active=0;return -717;}
+    int watchid=-1;
+#ifdef N6G_SCREEN_PROBE
+    if(!n6g_screen_muted())
+#endif
+    {
+      watchid=n5h_start_observer();
+      if(watchid<0){n5c_http_active=0;return -717;}
+    }
     n5c_phase=1;
     rc=wolfSSL_write(ssl,n6_request+sent,len-(int)sent);
     n5h_stop_observer(watchid);
@@ -857,6 +866,9 @@ int main(void) {
   const uint8_t *normalized=NULL;
   size_t normalized_size=0;
   v12_net_config cfg;
+#ifdef N6G_SCREEN_PROBE
+  int quiet_run=0;
+#endif
   init_scr();scr_setCursor(0);
   scr_printf(USB_TEST_NAME " ONE COVER HTTPS -> USB ART TEST\n");
   scr_printf("SIGNED TLS+GET, USB .PART+READBACK+RENAME\n");
@@ -889,6 +901,15 @@ int main(void) {
       }
     }
   }
+#ifdef N6G_SCREEN_PROBE
+  if(rc==0 && targets>0) {
+    int marker=fileXioOpen("mass0:/N6G.SCREEN",FIO_O_RDONLY,0);
+    if(marker>=0)fileXioClose(marker);
+    quiet_run=marker<0;
+    scr_printf("N6G SCREEN TEST: %s\n",quiet_run?"QUIET":"VERBOSE");
+    n6g_mute_screen(quiet_run);
+  }
+#endif
   if(rc==0 && targets>0)rc=init_net(&cfg);
   if(rc==0 && targets>0)rc=live_signed_probe(nonce,&signed_time);
   if(rc==0 && targets>0) {
@@ -961,8 +982,14 @@ int main(void) {
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;
   }
+#ifdef N6G_SCREEN_PROBE
+  n6g_mute_screen(0);
+#endif
   scr_clear();scr_setCursor(0);
   scr_printf(USB_TEST_NAME " HTTPS USB ART - FINAL RESULT\n");
+#ifdef N6G_SCREEN_PROBE
+  if(targets>0)scr_printf("SCREEN TEST: %s\n",quiet_run?"QUIET":"VERBOSE");
+#endif
   scr_printf("DVR ISO=%d ID=%d USB MISSING=%d\n",iso_count,ids_count,missing);
   scr_printf("BATCH=%d SAVED=%d NOT_FOUND=%d\n",targets,saved,not_found);
   scr_printf("GAME=%s SOURCE=%s\n",n6_current_id,
