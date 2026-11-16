@@ -866,6 +866,8 @@ if(DESR_V12_N3B_MINI)
           if(variant STREQUAL "BATCH50")
             target_compile_definitions(${probe} PRIVATE N6G_BATCH_50=1)
             target_sources(${probe} PRIVATE src/net/n6g_batch_entropy.c)
+            target_link_options(${probe} PRIVATE
+              "-Wl,--wrap=InitSSL" "-Wl,--wrap=wc_InitRng_ex")
           endif()
         endif()
       endforeach()

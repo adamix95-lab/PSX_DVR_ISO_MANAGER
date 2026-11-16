@@ -73,6 +73,8 @@ static int n6g_use_arena=1;
 #ifdef N6G_BATCH_50
 #include "n6g_batch_entropy.h"
 static int batch_trace_prep;
+static int batch_trace_new;
+static int batch_ca_first;
 #endif
 
 #ifdef N6G_PNG_WORKSPACE
@@ -773,6 +775,42 @@ static int diag_verify_cb(int preverify,WOLFSSL_X509_STORE_CTX *store) {
   return preverify; /* CA, hostname and date verification NOT bypassed */
 }
 
+#ifdef N6G_BATCH_50
+int __real_InitSSL(WOLFSSL *ssl,WOLFSSL_CTX *ctx,int write_dup);
+int __real_wc_InitRng_ex(WC_RNG *rng,void *heap,int dev_id);
+
+/* Trace only the first game's constructor. Never print from a handshake. */
+int __wrap_InitSSL(WOLFSSL *ssl,WOLFSSL_CTX *ctx,int write_dup) {
+  int rc;
+  if(batch_trace_new)scr_printf("N6G50 SSL_NEW: INIT_SSL enter\n");
+  rc=__real_InitSSL(ssl,ctx,write_dup);
+  if(batch_trace_new)scr_printf("N6G50 SSL_NEW: INIT_SSL return=%d\n",rc);
+  return rc;
+}
+
+int __wrap_wc_InitRng_ex(WC_RNG *rng,void *heap,int dev_id) {
+  int rc;
+  if(batch_trace_new)scr_printf("N6G50 SSL_NEW: DRBG enter\n");
+  rc=__real_wc_InitRng_ex(rng,heap,dev_id);
+  if(batch_trace_new)scr_printf("N6G50 SSL_NEW: DRBG return=%d\n",rc);
+  return rc;
+}
+#endif
+
+static WOLFSSL *tls_make_session(WOLFSSL_CTX *ctx,const char *label) {
+#ifdef N6G_BATCH_50
+  WOLFSSL *ssl;
+  if(batch_trace_prep)scr_printf("N6G50 %s PREP: SSL_NEW\n",label);
+  batch_trace_new=batch_trace_prep;
+  ssl=wolfSSL_new(ctx);
+  batch_trace_new=0;
+  return ssl;
+#else
+  (void)label;
+  return wolfSSL_new(ctx);
+#endif
+}
+
 /* N6D: minimal single-thread status around verified TLS. No observer and
  * no scr_printf INSIDE wolfSSL or between I/O binding and wolfSSL_connect.
  * When the blocking TLS call returns, the main thread paints the result.
@@ -793,19 +831,24 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   ctx=wolfSSL_CTX_new(wolfTLSv1_2_client_method());
   if(!ctx){ret=-643;goto cleanup;}
   wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,diag_verify_cb);
+  wolfSSL_CTX_SetIORecv(ctx,tls_recv);
+  wolfSSL_CTX_SetIOSend(ctx,tls_send);
 #ifdef N6G_BATCH_50
+  /* InitSSL retains its context. Loading CA into that context must succeed
+   * before any TCP or TLS I/O in both allocation orders. */
+  if(!batch_ca_first) {
+    ssl=tls_make_session(ctx,label);
+    if(!ssl){ret=-645;goto cleanup;}
+  }
   if(batch_trace_prep)scr_printf("N6G50 %s PREP: LOAD_CA %u bytes\n",label,
                                  (unsigned)ca_bytes);
 #endif
   if(wolfSSL_CTX_load_verify_buffer(ctx,ca_bundle,(long)ca_bytes,
        WOLFSSL_FILETYPE_PEM)!=WOLFSSL_SUCCESS){ret=-644;goto cleanup;}
-  wolfSSL_CTX_SetIORecv(ctx,tls_recv);
-  wolfSSL_CTX_SetIOSend(ctx,tls_send);
-#ifdef N6G_BATCH_50
-  if(batch_trace_prep)scr_printf("N6G50 %s PREP: SSL_NEW\n",label);
-#endif
-  ssl=wolfSSL_new(ctx);
-  if(!ssl){ret=-645;goto cleanup;}
+  if(!ssl) {
+    ssl=tls_make_session(ctx,label);
+    if(!ssl){ret=-645;goto cleanup;}
+  }
 #ifdef N6G_BATCH_50
   if(batch_trace_prep)scr_printf("N6G50 %s PREP: SNI/HOST SETUP\n",label);
 #endif
@@ -982,7 +1025,7 @@ int main(void) {
   v12_net_config cfg;
   n6g_batch_entropy *entropy=NULL;
   init_scr();scr_setCursor(0);
-  scr_printf("N6G50 R2 BATCH HTTPS USB ART - MAX 50\n");
+  scr_printf("N6G50 R3 BATCH HTTPS USB ART - MAX 50\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   sleep(1);
   rc=init_io();
@@ -1001,6 +1044,12 @@ int main(void) {
     if(targets<0)rc=targets;
     else if(ids_count==0)rc=-562;
     else if(targets==0 && missing>0)rc=-561;
+  }
+  if(rc==0 && targets>0) {
+    int marker=fileXioOpen("mass0:/N6G.CAFIRST",FIO_O_RDONLY,0);
+    if(marker>=0)fileXioClose(marker);
+    batch_ca_first=marker>=0;
+    scr_printf("TLS INIT ORDER: %s\n",batch_ca_first?"CA FIRST":"SSL FIRST");
   }
   if(rc==0 && targets>0)rc=init_net(&cfg);
   if(rc==0 && targets>0)rc=save_batch(*entropy,targets,&attempted,&saved,&unavailable);

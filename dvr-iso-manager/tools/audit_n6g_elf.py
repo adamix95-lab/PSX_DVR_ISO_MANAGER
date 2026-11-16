@@ -104,6 +104,7 @@ def main():
         assert "n6g_tls_arena_begin" in symbols and "wolfSSL_SetAllocators" in symbols
     assert batch["n6_targets"][1] == 50 * 12 and "batch_entropy" not in batch
     assert "n6g_batch_entropy_valid" in batch
+    assert "__wrap_InitSSL" in batch and "__wrap_wc_InitRng_ex" in batch
     assert "n6g_tls_arena_begin" not in final
     assert b["bdmfs_fatfs_irx"][1] == e["bdmfs_fatfs_irx"][1]
     for symbols in (e, f, a, b, trace, free_trace, final, screen, headless, arena, batch):
@@ -121,7 +122,9 @@ def main():
     assert b"mass0:/N6G.SCREEN" not in elfs["N6G HEADLESS"].read_bytes()
     assert b"mass0:/N6G.NEWLIB" not in elfs["N6G BATCH50"].read_bytes()
     batch_bytes = elfs["N6G BATCH50"].read_bytes()
-    for marker in (b"N6G50 R2 BATCH", b"PREP: CTX_NEW", b"PREP: LOAD_CA", b"PREP: SSL_NEW"):
+    for marker in (b"N6G50 R3 BATCH", b"PREP: CTX_NEW", b"PREP: LOAD_CA",
+                   b"PREP: SSL_NEW", b"SSL_NEW: INIT_SSL enter", b"SSL_NEW: DRBG enter",
+                   b"mass0:/N6G.CAFIRST"):
         assert marker in batch_bytes, marker
     trace_bytes = elfs["N6G-FREETRACE"].read_bytes()
     for marker in (b"LOW HASH prior:", b"07a hashes empty", b"07f release hash block",
