@@ -2,9 +2,9 @@
 
 Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
 
-## Następna próba po `LOW CLEAN 1: wolfSSL_free`
+## Następna próba po `FREE 07 FreeHandshakeHashes`
 
-Uruchom `V12_N6G_FREETRACE.ELF` ze świeżym `N6C.ENT`. Wewnątrz `wolfSSL_free()` konsola wyświetli kroki `FREE 00`–`FREE 21`. Część numerów zależy od konfiguracji biblioteki. Wystarczy zdjęcie ostatniego komunikatu `FREE` lub przepisanie jego pełnej treści. Jeżeli przebieg przejdzie do `LOW CLEAN 2` lub dalej, zapisz ostatnią linię i końcowy `RET`, jeśli się pojawi.
+Uruchom nowy `V12_N6G_FREETRACE.ELF` ze świeżym `N6C.ENT`. Ta kompilacja pokazuje dodatkowe kroki od `FREE 07a` do `FREE 07h` wewnątrz `FreeHandshakeHashes()`. Niektóre kroki zależą od konfiguracji biblioteki. Zapisz ostatni komunikat `FREE` i linię `LOW HASH prior`, jeśli jest widoczna. Jeżeli przebieg przejdzie do `LOW CLEAN 2` lub dalej, zapisz ostatnią linię i końcowy `RET`, jeśli się pojawi.
 
 ## Przygotowanie USB i wykonanie prób
 

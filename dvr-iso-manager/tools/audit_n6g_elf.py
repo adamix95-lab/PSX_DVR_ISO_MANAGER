@@ -85,7 +85,7 @@ def main():
     assert "n6_normalize_png" not in a and "png_read_info" not in a
     for symbol in ("n6_normalize_png", "png_read_info", "inflate", "deflate"):
         assert all(symbol in symbols for symbols in (b, trace, free_trace)), symbol
-    assert "n6g_free_trace" in free_trace
+    assert "n6g_free_trace" in free_trace and "n6g_hash_checkpoint" in free_trace
     for symbols in (e, f, a, b, trace, final):
         assert "n6g_free_trace" not in symbols
     assert "n6_normalize_png_into" in final and "n6_write_usb_art" in final
@@ -99,6 +99,10 @@ def main():
                         ("N6G-FREETRACE", b"19 CTX reference decrement"),
                         ("N6G FINAL", b"N6G HTTPS USB ART - FINAL RESULT")):
         assert marker in elfs[tag].read_bytes(), tag
+    trace_bytes = elfs["N6G-FREETRACE"].read_bytes()
+    for marker in (b"LOW HASH prior:", b"07a hashes empty", b"07f release hash block",
+                   b"07g hash block released", b"07h hash cleanup finished"):
+        assert marker in trace_bytes, marker
 
     lines = [
         "# Układ pamięci EE z kompilacji GitHub Actions", "",

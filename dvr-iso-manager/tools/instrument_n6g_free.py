@@ -4,15 +4,21 @@ from pathlib import Path
 import sys
 
 
-def checkpoints(source, start, next_function, before):
+def insert_before(source, start, next_function, before):
     begin = source.index(start)
     end = source.index(next_function, begin + len(start))
     function = source[begin:end]
-    for anchor, label in before.items():
+    for anchor, probe in before.items():
         if function.count(anchor) != 1:
             raise SystemExit(f"Unexpected wolfSSL source at {start}: {anchor}")
-        function = function.replace(anchor, f'    n6g_free_trace("{label}");\n' + anchor)
+        function = function.replace(anchor, probe + "\n" + anchor)
     return source[:begin] + function + source[end:]
+
+
+def checkpoints(source, start, next_function, before):
+    return insert_before(source, start, next_function, {
+        anchor: f'    n6g_free_trace("{label}");' for anchor, label in before.items()
+    })
 
 
 root = Path(sys.argv[1]) / "src"
@@ -28,6 +34,30 @@ source = checkpoints(
 
 internal = root / "internal.c"
 body = internal.read_text()
+body = insert_before(
+    body, "void FreeHandshakeHashes(WOLFSSL* ssl)\n{",
+    "/* copy the hashes from source",
+    {
+        "    if (ssl->hsHashes) {":
+            '    n6g_hash_checkpoint(ssl, ssl->hsHashes != NULL, 0);\n'
+            '    n6g_free_trace(ssl->hsHashes ? "07a hashes present" : "07a hashes empty");',
+        "        wc_Sha256Free(&ssl->hsHashes->hashSha256);":
+            '        n6g_free_trace("07b SHA256 wipe");',
+        "        wc_Sha384Free(&ssl->hsHashes->hashSha384);":
+            '        n6g_free_trace("07c SHA384 wipe");',
+        "        wc_Sha512Free(&ssl->hsHashes->hashSha512);":
+            '        n6g_free_trace("07d SHA512 wipe");',
+        "            ForceZero(ssl->hsHashes->messages,":
+            '            n6g_free_trace("07e transcript wipe");',
+        "        XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);":
+            '        n6g_free_trace("07f release hash block");',
+        "        ssl->hsHashes = NULL;":
+            '        n6g_free_trace("07g hash block released");',
+        "\n}":
+            '\n    n6g_hash_checkpoint(ssl, ssl->hsHashes != NULL, 1);\n'
+            '    n6g_free_trace("07h hash cleanup finished");',
+    },
+)
 body = checkpoints(
     body, "void FreeSSL(WOLFSSL* ssl, void* heap)\n{",
     "#if !defined(NO_OLD_TLS)",
@@ -67,4 +97,6 @@ body = checkpoints(
 )
 
 ssl.write_text(declaration + source)
-internal.write_text(declaration + body)
+internal.write_text(declaration +
+    "extern void n6g_hash_checkpoint(const void* owner, int present, int done);\n\n"
+    + body)

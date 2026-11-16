@@ -729,9 +729,21 @@ static int diag_verify_cb(int preverify,WOLFSSL_X509_STORE_CTX *store) {
  * No hard timeout can be inferred from a frozen screen. */
 #ifdef N6G_FREE_TRACE
 static int n6g_free_trace_active;
+static const WOLFSSL *n6g_hash_owner;
+static unsigned n6g_hash_entered,n6g_hash_present,n6g_hash_returned;
 
 void n6g_free_trace(const char *step) {
   if(n6g_free_trace_active)scr_printf("FREE %s\n",step);
+}
+
+void n6g_hash_checkpoint(const void *owner,int present,int done) {
+  /* Observe the earlier handshake cleanup in RAM. No handshake screen I/O. */
+  if(owner!=n6g_hash_owner || n6g_free_trace_active)return;
+  if(done)n6g_hash_returned++;
+  else {
+    n6g_hash_entered++;
+    n6g_hash_present+=(unsigned)present;
+  }
 }
 #endif
 
@@ -768,6 +780,10 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   /* No screen writes or active diagnostic callbacks until return. */
   wolfSSL_SetIOReadCtx(ssl,&fd);
   wolfSSL_SetIOWriteCtx(ssl,&fd);
+#ifdef N6G_FREE_TRACE
+  n6g_hash_owner=do_http_get?NULL:ssl;
+  n6g_hash_entered=n6g_hash_present=n6g_hash_returned=0;
+#endif
   rc=wolfSSL_connect(ssl);
   diag_ssl_connect_ret=rc;
   diag_gate_state=(int)tls_gate.state;
@@ -796,6 +812,10 @@ cleanup:
 #else
   const int trace_low=0;
 #endif
+#ifdef N6G_FREE_TRACE
+  if(trace_low)scr_printf("LOW HASH prior: in=%u nonnull=%u out=%u\n",
+                          n6g_hash_entered,n6g_hash_present,n6g_hash_returned);
+#endif
   if(trace_low)scr_printf("LOW CLEAN 1: wolfSSL_free\n");
 #ifdef N6G_FREE_TRACE
   n6g_free_trace_active=trace_low;
@@ -803,6 +823,7 @@ cleanup:
   if(ssl)wolfSSL_free(ssl);
 #ifdef N6G_FREE_TRACE
   n6g_free_trace_active=0;
+  n6g_hash_owner=NULL;
 #endif
   if(trace_low)scr_printf("LOW CLEAN 2: lwip_close\n");
   int close_rc=fd>=0?lwip_close(fd):0;
