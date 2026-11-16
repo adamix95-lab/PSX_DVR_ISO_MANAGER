@@ -69,6 +69,10 @@
 #include "n6g_tls_arena.h"
 static int n6g_use_arena=1;
 #endif
+#ifdef N6G_BATCH_50
+#include "n6g_batch_entropy.h"
+static n6g_batch_entropy batch_entropy;
+#endif
 
 #ifdef N6G_PNG_WORKSPACE
 #define USB_TEST_NAME "N6G"
@@ -355,18 +359,11 @@ static int read_cfg(v12_net_config *cfg) {
 }
 
 
-/* N4E one-shot private input: 32 RT nonce + 2 x 64 TLS seeds.
- * Host CSPRNG, raw bytes; no deterministic fallback or secret logging.
- */
-/* One-time host CSPRNG input: 32-byte Roughtime nonce + four DISTINCT
- * 64-byte seeds (LOW/HIGH per each of four possible TLS downloads).
- * Never cache, print, upload or regenerate on the console. */
-static int read_entropy_usb(uint8_t nonce[32],
-                            uint8_t seeds[N6_BATCH_MAX][4][64]) {
-  uint8_t data[N6_ENT_BYTES]={0};
+/* Private entropy comes from the host CSPRNG and is read exactly once. */
+static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   int rc,fd=-1,n,got=0,extra,closed;
   uint8_t tail=0;
-  scr_printf("N6C USB N6C.ENT read-only: %u bytes\n",(unsigned)sizeof(data));
+  scr_printf("USB %s read-only: %d bytes\n",path,bytes);
   rc=load_irx("bdm",bdm_irx,size_bdm_irx,NULL,0);
   if(rc<0)return -510;
   rc=load_irx("bdmfs_fatfs",bdmfs_fatfs_irx,size_bdmfs_fatfs_irx,NULL,0);
@@ -376,21 +373,29 @@ static int read_entropy_usb(uint8_t nonce[32],
   rc=load_irx("usbmass_bd_mini",usbmass_bd_mini_irx,size_usbmass_bd_mini_irx,NULL,0);
   if(rc<0)return -510;
   for(int i=0;i<16;i++) {
-    fd=fileXioOpen("mass0:/N6C.ENT",FIO_O_RDONLY,0);
+    fd=fileXioOpen(path,FIO_O_RDONLY,0);
     if(fd>=0)break;
     usleep(500000);
   }
   if(fd<0)return -511;
-  while(got<(int)sizeof(data)) {
-    n=fileXioRead(fd,data+got,(int)sizeof(data)-got);
-    if(n<=0)break;
+  while(got<bytes) {
+    n=fileXioRead(fd,data+got,bytes-got);
+    if(n<=0 || n>bytes-got)break;
     got+=n;
   }
   extra=fileXioRead(fd,&tail,1);
   closed=fileXioClose(fd);
-  if(closed<0||extra!=0||got!=(int)sizeof(data)) {
-    v12_n4a_wipe(data,sizeof(data));return -512;
+  if(closed<0||extra!=0||got!=bytes) {
+    v12_n4a_wipe(data,(size_t)bytes);return -512;
   }
+  return 0;
+}
+#ifndef N6G_BATCH_50
+static int read_entropy_usb(uint8_t nonce[32],
+                            uint8_t seeds[N6_BATCH_MAX][4][64]) {
+  uint8_t data[N6_ENT_BYTES]={0};
+  int rc=read_entropy_file("mass0:/N6C.ENT",data,(int)sizeof(data));
+  if(rc!=0)return rc;
   { uint8_t bits=0;
     for(int i=0;i<32;i++)bits|=data[i];
     if(!bits){v12_n4a_wipe(data,sizeof(data));return -516;}
@@ -410,6 +415,7 @@ static int read_entropy_usb(uint8_t nonce[32],
   scr_printf("N6C: fresh nonce + 4 distinct TLS seeds loaded\n");
   return 0;
 }
+#endif
 
 static int read_ca_bundle(void) {
   int fd=-1,n,closed,extra;
@@ -879,6 +885,104 @@ static int verify_cover_tls(const v12_rt_signed_time *signed_time,
 #define verify_cover_tls verify_two_bound_tls
 #endif
 
+#ifdef N6G_BATCH_50
+static int fetch_batch_cover(const n6g_source_entropy *entropy,int source,
+                             const uint8_t **normalized,size_t *normalized_size) {
+  v12_rt_signed_time signed_time={0,0};
+  int rc;
+  n6_source=source;
+  n6_http_rc=0;
+  n6_wire_bytes=0;
+  n6_png=NULL;
+  n6_png_size=0;
+  *normalized=NULL;
+  *normalized_size=0;
+  rc=live_signed_probe(entropy->nonce,&signed_time);
+  if(rc==0)rc=verify_cover_tls(&signed_time,entropy->low,entropy->high);
+  if(rc==0)rc=normalize_download(normalized,normalized_size,-565);
+  return rc;
+}
+
+static int unavailable_cover(int rc) {
+  return rc==-404 || rc==-565 || (rc==-714 && n6_http_rc==200);
+}
+
+static int save_batch(int targets,int *attempted,int *saved,int *unavailable) {
+  int first_cover_error=0;
+  for(int game=0;game<targets;game++) {
+    const uint8_t *normalized=NULL;
+    size_t normalized_size=0;
+    int rc;
+    memcpy(n6_current_id,n6_targets[game],sizeof(n6_current_id));
+    *attempted=game+1;
+    scr_printf("N6G50 GAME %d/%d ID=%s SAVED=%d\n",
+               *attempted,targets,n6_current_id,*saved);
+    rc=fetch_batch_cover(&batch_entropy[game][0],0,&normalized,&normalized_size);
+    if(unavailable_cover(rc)) {
+      scr_printf("N6G50 FALLBACK PSBBN: %s (%d)\n",n6_current_id,rc);
+      rc=fetch_batch_cover(&batch_entropy[game][1],1,&normalized,&normalized_size);
+    }
+    v12_n4a_wipe(batch_entropy[game],sizeof(batch_entropy[game]));
+    if(unavailable_cover(rc)) {
+      if(first_cover_error==0)first_cover_error=rc;
+      (*unavailable)++;
+      scr_printf("N6G50 COVER UNAVAILABLE: %s (%d)\n",n6_current_id,rc);
+      continue;
+    }
+    if(rc!=0)return rc;
+    if(!normalized || !normalized_size ||
+       probe_png_check(normalized,normalized_size)!=0)return -720;
+    rc=n6_write_usb_art(n6_current_id,normalized,normalized_size);
+    if(rc!=0)return rc;
+    (*saved)++;
+    scr_printf("N6G50 SAVED %d: %s USB READBACK+RENAME PASS\n",
+               *saved,n6_current_id);
+  }
+  if(first_cover_error!=0 && *saved==0)return first_cover_error;
+  /* Completed batch with explicit unavailable count, or all selected saved. */
+  return 0;
+}
+
+int main(void) {
+  int rc,targets=0,iso_count=0,ids_count=0,missing=0;
+  int attempted=0,saved=0,unavailable=0;
+  v12_net_config cfg;
+  init_scr();scr_setCursor(0);
+  scr_printf("N6G50 BATCH HTTPS USB ART - MAX 50\n");
+  scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
+  sleep(1);
+  rc=init_io();
+  if(rc==0)rc=read_cfg(&cfg);
+  if(rc==0)rc=read_entropy_file("mass0:/N6G50.ENT",
+                               (uint8_t *)batch_entropy,(int)sizeof(batch_entropy));
+  if(rc==0 && !n6g_batch_entropy_valid(batch_entropy))rc=-516;
+  if(rc==0)rc=read_ca_bundle();
+  if(rc==0) {
+    scr_printf("N6G50 SCAN DVR ISO READ-ONLY\n");
+    targets=n6_scan_dvr(n6_targets,&iso_count,&ids_count,&missing);
+    if(targets<0)rc=targets;
+    else if(ids_count==0)rc=-562;
+    else if(targets==0 && missing>0)rc=-561;
+  }
+  if(rc==0 && targets>0)rc=init_net(&cfg);
+  if(rc==0 && targets>0)rc=save_batch(targets,&attempted,&saved,&unavailable);
+  v12_n4a_wipe(batch_entropy,sizeof(batch_entropy));
+  if(mounted){
+    int unmount=fileXioUmount(MOUNT);
+    if(unmount<0 && rc==0)rc=-509;
+  }
+  scr_clear();scr_setCursor(0);
+  scr_printf("N6G50 HTTPS USB ART - FINAL RESULT\n");
+  scr_printf("DVR ISO=%d ID=%d USB MISSING AT START=%d\n",
+             iso_count,ids_count,missing);
+  scr_printf("BATCH=%d ATTEMPTED=%d SAVED=%d UNAVAILABLE=%d\n",
+             targets,attempted,saved,unavailable);
+  scr_printf("LAST=%s HTTP=%d TLSERR=%d\n",n6_current_id,n6_http_rc,diag_ssl_error);
+  scr_printf("RET=%d\n",rc);
+  sleep(120);
+  return rc==0?0:1;
+}
+#else
 int main(void) {
   int rc=0,rt_pass=0,targets=0,iso_count=0,ids_count=0,missing=0;
   int verified=0,saved=0,not_found=0,source_ok=-1;
@@ -1052,3 +1156,4 @@ int main(void) {
   sleep(120);
   return rc==0?0:1;
 }
+#endif

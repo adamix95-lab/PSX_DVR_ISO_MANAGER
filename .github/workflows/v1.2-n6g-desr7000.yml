@@ -113,6 +113,16 @@ jobs:
             dvr-iso-manager/tests/net/test_n6_normalize_png.c \
             -lpng -lz -o /tmp/n6g-normalize
           /tmp/n6g-normalize
+      - name: Verify 50-game private entropy format and reject reused values
+        run: |
+          set -eu
+          work="$(mktemp -d)"
+          trap 'rm -f "$work/N6G50.ENT" "$work/check"; rmdir "$work"' EXIT
+          cc -std=c11 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/n6g_batch_entropy.c \
+            dvr-iso-manager/tests/net/test_n6g_batch_entropy.c -o "$work/check"
+          python3 dvr-iso-manager/tools/generate_n6g_batch_entropy.py "$work/N6G50.ENT"
+          "$work/check" "$work/N6G50.ENT"
       - name: Rebuild pinned NETFIX PS2SDK in isolated CI
         run: sh hdd-netfix/build_sdk.sh sdk-source
       - name: N5D instrument pinned wolfSSL record-write path, trace only
@@ -228,7 +238,7 @@ jobs:
           cmake --build build-n6g -j2 --target \
             V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_TRACE.ELF \
             V12_N6G_FREETRACE.ELF V12_N6G_FINAL.ELF V12_N6G_SCREEN.ELF \
-            V12_N6G_HEADLESS.ELF V12_N6G_ARENA.ELF
+            V12_N6G_HEADLESS.ELF V12_N6G_ARENA.ELF V12_N6G_BATCH50.ELF
       - name: Measure EE memory and verify linked variant contents
         run: |
           python3 dvr-iso-manager/tools/audit_n6g_elf.py build-baseline build-n6g audit
@@ -243,6 +253,7 @@ jobs:
           mkdir -p package/tools package/evidence package/licenses
           cp build-n6g/V12_N6G_*.ELF package/
           cp dvr-iso-manager/tools/generate_n6c_entropy.py package/tools/
+          cp dvr-iso-manager/tools/generate_n6g_batch_entropy.py package/tools/
           cp docs/n6g-desr7000-test.md package/README.md
           cp docs/n6g-ee-audit.md package/evidence/
           cp audit/* package/evidence/

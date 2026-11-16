@@ -2,6 +2,20 @@
 
 Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
 
+## Maksymalnie 50 okładek w jednym uruchomieniu
+
+`V12_N6G_BATCH50.ELF` wybiera do 50 brakujących unikatowych ID z DVR. Pobiera, sprawdza i publikuje każdą okładkę kolejno w `mass0:/ART/`. Użyj osobnego testowego USB FAT32 z działającym `N4E.CA` i pustym `ART`, aby policzyć nowe pliki w bibliotece 45 gier. Do próby 40 przygotuj testową kopię, w której brakuje 40 okładek. Na HDD pozostaw `V12_NET.CNF` na miejscu.
+
+Generator zbiorczy tworzy dokładnie 16 000 B. Każde ze 100 miejsc na próbę źródła zawiera osobną wartość Roughtime i dwie 64-bajtowe porcje entropii TLS. Przed każdym uruchomieniem wygeneruj nowy plik na USB:
+
+```powershell
+py .\tools\generate_n6g_batch_entropy.py I:/N6G50.ENT
+```
+
+Podłącz Ethernet i uruchom ELF przez wLaunchELF-R3Z. Zapisz końcowe `BATCH`, `ATTEMPTED`, `SAVED`, `UNAVAILABLE` i `RET`. `UNAVAILABLE` oznacza brak dostępnego poprawnego PNG po sprawdzeniu obu źródeł. Błąd TLS, sieci, pamięci lub zapisu przerywa próbę. Podczas ponownej próby wcześniej zweryfikowane okładki są pomijane. Istniejący `.PART` blokuje dany plik, pozostawiając go do inspekcji.
+
+Wariant zbiorczy czeka na próbę sprzętową. [Potwierdzona próba jednej okładki](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/test/n6g-codex-png-ee-fix/docs/n6g-tested-one-cover.md).
+
 ## Następna próba z osobną pulą pamięci TLS
 
 Uruchom `V12_N6G_ARENA.ELF` ze świeżym `N6C.ENT` i grą bez okładki w USB `ART`. Katalog główny USB pozostaw bez pliku `N6G.NEWLIB`, aby włączyć pulę. Napis `TLS HEAP: ARENA` potwierdzi wybór. Po powrocie z TLS pojawi się linia `ARENA bytes=… live=… oom=… invalid=… TLS=…`. Zapisz tę linię, a jeśli pojawi się podsumowanie, również `RET` i `SAVED`.
