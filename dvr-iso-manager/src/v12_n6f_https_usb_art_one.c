@@ -866,14 +866,18 @@ int main(void) {
   const uint8_t *normalized=NULL;
   size_t normalized_size=0;
   v12_net_config cfg;
-#ifdef N6G_SCREEN_PROBE
+#if defined(N6G_SCREEN_PROBE) && !defined(N6G_HEADLESS)
   int quiet_run=0;
 #endif
+#ifdef N6G_HEADLESS
+  n6g_mute_screen(1);
+#else
   init_scr();scr_setCursor(0);
   scr_printf(USB_TEST_NAME " ONE COVER HTTPS -> USB ART TEST\n");
   scr_printf("SIGNED TLS+GET, USB .PART+READBACK+RENAME\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   scr_printf("ONLY WRITE mass0:/ART/ (ONE NEW COVER)\n");
+#endif
   sleep(1);
   /* Keep N6E response-size memory pressure; normalizer adds static RAM. */
   ((volatile uint8_t*)n6_response)[0]=0;
@@ -901,7 +905,7 @@ int main(void) {
       }
     }
   }
-#ifdef N6G_SCREEN_PROBE
+#if defined(N6G_SCREEN_PROBE) && !defined(N6G_HEADLESS)
   if(rc==0 && targets>0) {
     int marker=fileXioOpen("mass0:/N6G.SCREEN",FIO_O_RDONLY,0);
     if(marker>=0)fileXioClose(marker);
@@ -985,9 +989,14 @@ int main(void) {
 #ifdef N6G_SCREEN_PROBE
   n6g_mute_screen(0);
 #endif
+#ifdef N6G_HEADLESS
+  init_scr();
+#endif
   scr_clear();scr_setCursor(0);
   scr_printf(USB_TEST_NAME " HTTPS USB ART - FINAL RESULT\n");
-#ifdef N6G_SCREEN_PROBE
+#ifdef N6G_HEADLESS
+  scr_printf("N6G HEADLESS - DISPLAY STARTED AT SUMMARY\n");
+#elif defined(N6G_SCREEN_PROBE)
   if(targets>0)scr_printf("SCREEN TEST: %s\n",quiet_run?"QUIET":"VERBOSE");
 #endif
   scr_printf("DVR ISO=%d ID=%d USB MISSING=%d\n",iso_count,ids_count,missing);
