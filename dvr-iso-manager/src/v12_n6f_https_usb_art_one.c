@@ -65,6 +65,10 @@
 #ifdef N6G_SCREEN_PROBE
 #include "n6g_screen_probe.h"
 #endif
+#ifdef N6G_TLS_ARENA
+#include "n6g_tls_arena.h"
+static int n6g_use_arena=1;
+#endif
 
 #ifdef N6G_PNG_WORKSPACE
 #define USB_TEST_NAME "N6G"
@@ -858,6 +862,23 @@ static int verify_two_bound_tls(const v12_rt_signed_time *signed_time,
   return rc;
 }
 
+#ifdef N6G_TLS_ARENA
+static int verify_cover_tls(const v12_rt_signed_time *signed_time,
+                            const uint8_t low[64],const uint8_t high[64]) {
+  n6g_tls_arena_stats stats;
+  int rc,status;
+  if(!n6g_use_arena)return verify_two_bound_tls(signed_time,low,high);
+  if(n6g_tls_arena_begin()!=0)return -730;
+  rc=verify_two_bound_tls(signed_time,low,high);
+  status=n6g_tls_arena_end(&stats);
+  scr_printf("ARENA bytes=%u live=%u oom=%u invalid=%u TLS=%d\n",
+             (unsigned)stats.used,stats.live,stats.exhausted,stats.invalid,rc);
+  return status==0?rc:-731;
+}
+#else
+#define verify_cover_tls verify_two_bound_tls
+#endif
+
 int main(void) {
   int rc=0,rt_pass=0,targets=0,iso_count=0,ids_count=0,missing=0;
   int verified=0,saved=0,not_found=0,source_ok=-1;
@@ -877,6 +898,9 @@ int main(void) {
   scr_printf("SIGNED TLS+GET, USB .PART+READBACK+RENAME\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   scr_printf("ONLY WRITE mass0:/ART/ (ONE NEW COVER)\n");
+#endif
+#ifdef N6G_TLS_ARENA
+  scr_printf("N6G ARENA - TLS HEAP COMPARISON\n");
 #endif
   sleep(1);
   /* Keep N6E response-size memory pressure; normalizer adds static RAM. */
@@ -914,6 +938,14 @@ int main(void) {
     n6g_mute_screen(quiet_run);
   }
 #endif
+#ifdef N6G_TLS_ARENA
+  if(rc==0 && targets>0) {
+    int marker=fileXioOpen("mass0:/N6G.NEWLIB",FIO_O_RDONLY,0);
+    if(marker>=0)fileXioClose(marker);
+    n6g_use_arena=marker<0;
+    scr_printf("TLS HEAP: %s\n",n6g_use_arena?"ARENA":"NEWLIB");
+  }
+#endif
   if(rc==0 && targets>0)rc=init_net(&cfg);
   if(rc==0 && targets>0)rc=live_signed_probe(nonce,&signed_time);
   if(rc==0 && targets>0) {
@@ -923,7 +955,7 @@ int main(void) {
   if(rc==0 && targets>0) {
     n6_source=0; /* pinned OPL Manager mirror first */
     scr_printf(USB_TEST_NAME " SOURCE OPL START: %s\n",n6_current_id);
-    rc=verify_two_bound_tls(&signed_time,seeds[0][0],seeds[0][1]);
+    rc=verify_cover_tls(&signed_time,seeds[0][0],seeds[0][1]);
 #ifdef N6G_PNG_WORKSPACE
     if(rc==0)rc=normalize_download(&normalized,&normalized_size,-565);
 #else
@@ -940,7 +972,7 @@ int main(void) {
       n6_source=1;
       n6_png=NULL;n6_png_size=0;
       normalized=NULL;normalized_size=0;
-      rc=verify_two_bound_tls(&signed_time,seeds[0][2],seeds[0][3]);
+      rc=verify_cover_tls(&signed_time,seeds[0][2],seeds[0][3]);
 #ifdef N6G_PNG_WORKSPACE
       if(rc==0)rc=normalize_download(&normalized,&normalized_size,-566);
 #else

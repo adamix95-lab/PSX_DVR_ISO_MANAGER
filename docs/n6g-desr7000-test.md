@@ -2,7 +2,13 @@
 
 Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
 
-## Następna próba z ekranem uruchamianym na końcu
+## Następna próba z osobną pulą pamięci TLS
+
+Uruchom `V12_N6G_ARENA.ELF` ze świeżym `N6C.ENT` i grą bez okładki w USB `ART`. Katalog główny USB pozostaw bez pliku `N6G.NEWLIB`, aby włączyć pulę. Napis `TLS HEAP: ARENA` potwierdzi wybór. Po powrocie z TLS pojawi się linia `ARENA bytes=… live=… oom=… invalid=… TLS=…`. Zapisz tę linię, a jeśli pojawi się podsumowanie, również `RET` i `SAVED`.
+
+Do próby kontrolnej użyj tego samego ELF-a z pustym plikiem `N6G.NEWLIB` w katalogu głównym USB i nowym `N6C.ENT`. Ekran pokaże `TLS HEAP: NEWLIB`. Porównaj próby dla tego samego ID gry. Jeśli wcześniejsza uruchomiona próba zapisała okładkę, użyj kopii testowej zawartości USB przygotowanej z tym ID bez okładki.
+
+## Próba z ekranem uruchamianym na końcu
 
 Uruchom `V12_N6G_HEADLESS.ELF` ze świeżym `N6C.ENT` i jedną grą bez okładki w USB `ART`. Ekran debugowy uruchomi się dopiero po zakończeniu próby, także gdy program zwróci błąd. W międzyczasie ekran może pozostać czarny lub wyświetlać ostatni obraz z programu uruchamiającego. Zapisz `RET` i `SAVED`. Jeśli po dwóch minutach nadal brak podsumowania, sprawdź na komputerze, czy w USB `ART` przybył PNG lub plik częściowy.
 
@@ -34,6 +40,7 @@ Ten sam ELF działa w trybie `VERBOSE` po umieszczeniu pustego pliku `N6G.SCREEN
 | `V12_N6G_FINAL.ELF` | Normalizacja po zwolnieniu TLS i zweryfikowany zapis USB | `HTTP=200`, `BATCH=1 SAVED=1`, `HTTPS RAW PNG + RGB 140x200: PASS`, `USB ART .PART READBACK+RENAME: PASS`, `RET=0` |
 | `V12_N6G_SCREEN.ELF` | Ścieżka FINAL z przełącznikiem ekranu QUIET/VERBOSE wybieranym na USB | Jak w FINAL, z napisem o trybie ekranu |
 | `V12_N6G_HEADLESS.ELF` | Ścieżka FINAL z pierwszym uruchomieniem ekranu debugowego przy podsumowaniu | Jak w FINAL, z nagłówkiem `N6G HEADLESS` |
+| `V12_N6G_ARENA.ELF` | Ścieżka FINAL z porównaniem osobnej puli dla wolfSSL i zwykłej sterty | Jak w FINAL. W trybie ARENA dodatkowo `live=0 oom=0 invalid=0 TLS=0` |
 
 ## Sprawdzenie zapisu
 

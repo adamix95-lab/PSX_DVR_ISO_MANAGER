@@ -76,9 +76,10 @@ def main():
         "N6G FINAL": build / "V12_N6G_FINAL.ELF",
         "N6G SCREEN": build / "V12_N6G_SCREEN.ELF",
         "N6G HEADLESS": build / "V12_N6G_HEADLESS.ELF",
+        "N6G ARENA": build / "V12_N6G_ARENA.ELF",
     }
     results = {tag: audit(elf, out) for tag, elf in elfs.items()}
-    e, f, a, b, trace, free_trace, final, screen, headless = [
+    e, f, a, b, trace, free_trace, final, screen, headless, arena = [
         symbols for _, symbols in results.values()
     ]
     buffers = {"scan_row": 2048, "image_rgb": 84000, "png_output": 262144}
@@ -90,16 +91,18 @@ def main():
     for symbol in ("n6_normalize_png", "png_read_info", "inflate", "deflate"):
         assert all(symbol in symbols for symbols in (b, trace, free_trace)), symbol
     assert "n6g_free_trace" in free_trace and "n6g_hash_checkpoint" in free_trace
-    for symbols in (e, f, a, b, trace, final, screen, headless):
+    for symbols in (e, f, a, b, trace, final, screen, headless, arena):
         assert "n6g_free_trace" not in symbols
-    for symbols in (final, screen, headless):
+    for symbols in (final, screen, headless, arena):
         assert "n6_normalize_png_into" in symbols and "n6_write_usb_art" in symbols
         assert not (set(buffers) & symbols.keys()) and "verify_chunk" not in symbols
     for symbols in (screen, headless):
         assert "__wrap_scr_printf" in symbols and "__wrap_scr_clear" in symbols
     assert "__wrap_scr_printf" not in final
+    assert "n6g_tls_arena_begin" in arena and "wolfSSL_SetAllocators" in arena
+    assert "n6g_tls_arena_begin" not in final
     assert b["bdmfs_fatfs_irx"][1] == e["bdmfs_fatfs_irx"][1]
-    for symbols in (e, f, a, b, trace, free_trace, final, screen, headless):
+    for symbols in (e, f, a, b, trace, free_trace, final, screen, headless, arena):
         assert symbols["dev9_ns_irx"][1] == 11273 and "ps2dev9_irx" not in symbols
     for tag, marker in (("N6G-A", b"N6G-A STATIC RAM"),
                         ("N6G-B", b"N6G-B PNG LINK ONLY"),
@@ -107,6 +110,7 @@ def main():
                         ("N6G-FREETRACE", b"19 CTX reference decrement"),
                         ("N6G SCREEN", b"N6G SCREEN TEST: %s"),
                         ("N6G HEADLESS", b"N6G HEADLESS - DISPLAY STARTED AT SUMMARY"),
+                        ("N6G ARENA", b"mass0:/N6G.NEWLIB"),
                         ("N6G FINAL", b"N6G HTTPS USB ART - FINAL RESULT")):
         assert marker in elfs[tag].read_bytes(), tag
     assert b"mass0:/N6G.SCREEN" not in elfs["N6G HEADLESS"].read_bytes()

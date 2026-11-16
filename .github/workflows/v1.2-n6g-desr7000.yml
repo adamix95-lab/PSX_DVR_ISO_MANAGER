@@ -177,6 +177,13 @@ jobs:
           grep -E '[[:space:]]T[[:space:]]wolfSSL_connect$' /tmp/n4e-nm.txt
           grep -E '[[:space:]]T[[:space:]]wolfSSL_UseSNI$' /tmp/n4e-nm.txt
           echo 'PASS: N4H FastMath wolfSSL exports RNG, TLS and SNI APIs'
+      - name: Check TLS arena callbacks on the host
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            -isystem n5a-wolfssl/include dvr-iso-manager/src/net/n6g_tls_arena.c \
+            dvr-iso-manager/src/net/v12_n4a_entropy.c \
+            dvr-iso-manager/tests/net/test_n6g_tls_arena.c -o /tmp/n6g-arena-test
+          /tmp/n6g-arena-test
       - name: Build a separate wolfSSL with LOW free checkpoints
         shell: sh
         run: |
@@ -221,7 +228,7 @@ jobs:
           cmake --build build-n6g -j2 --target \
             V12_N6G_A.ELF V12_N6G_B.ELF V12_N6G_TRACE.ELF \
             V12_N6G_FREETRACE.ELF V12_N6G_FINAL.ELF V12_N6G_SCREEN.ELF \
-            V12_N6G_HEADLESS.ELF
+            V12_N6G_HEADLESS.ELF V12_N6G_ARENA.ELF
       - name: Measure EE memory and verify linked variant contents
         run: |
           python3 dvr-iso-manager/tools/audit_n6g_elf.py build-baseline build-n6g audit
