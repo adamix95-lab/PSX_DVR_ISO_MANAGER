@@ -23,6 +23,7 @@
  */
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -71,7 +72,7 @@ static int n6g_use_arena=1;
 #endif
 #ifdef N6G_BATCH_50
 #include "n6g_batch_entropy.h"
-static n6g_batch_entropy batch_entropy;
+static int batch_trace_prep;
 #endif
 
 #ifdef N6G_PNG_WORKSPACE
@@ -363,6 +364,10 @@ static int read_cfg(v12_net_config *cfg) {
 static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   int rc,fd=-1,n,got=0,extra,closed;
   uint8_t tail=0;
+#ifdef N6G_BATCH_50
+  /* Bound each SIF read and keep DMA away from the private heap allocation. */
+  uint8_t transfer[4096] __attribute__((aligned(64)));
+#endif
   scr_printf("USB %s read-only: %d bytes\n",path,bytes);
   rc=load_irx("bdm",bdm_irx,size_bdm_irx,NULL,0);
   if(rc<0)return -510;
@@ -379,12 +384,25 @@ static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   }
   if(fd<0)return -511;
   while(got<bytes) {
-    n=fileXioRead(fd,data+got,bytes-got);
-    if(n<=0 || n>bytes-got)break;
+    int chunk=bytes-got;
+    uint8_t *destination=data+got;
+#ifdef N6G_BATCH_50
+    if(chunk>(int)sizeof(transfer))chunk=(int)sizeof(transfer);
+    destination=transfer;
+#endif
+    n=fileXioRead(fd,destination,chunk);
+    if(n<=0 || n>chunk)break;
+#ifdef N6G_BATCH_50
+    memcpy(data+got,transfer,(size_t)n);
+#endif
     got+=n;
   }
   extra=fileXioRead(fd,&tail,1);
   closed=fileXioClose(fd);
+  v12_n4a_wipe(&tail,sizeof(tail));
+#ifdef N6G_BATCH_50
+  v12_n4a_wipe(transfer,sizeof(transfer));
+#endif
   if(closed<0||extra!=0||got!=bytes) {
     v12_n4a_wipe(data,(size_t)bytes);return -512;
   }
@@ -769,15 +787,28 @@ static int tls_one_bound(const uint8_t seed[64],time_t bound,
   if(v12_n4b_seed_provision(&tls_gate,seed,64)!=0)return -641;
   signed_cert_clock=bound;
   if(wc_SetTimeCb(signed_time_cb)!=0){ret=-642;goto cleanup;}
+#ifdef N6G_BATCH_50
+  if(batch_trace_prep)scr_printf("N6G50 %s PREP: CTX_NEW\n",label);
+#endif
   ctx=wolfSSL_CTX_new(wolfTLSv1_2_client_method());
   if(!ctx){ret=-643;goto cleanup;}
   wolfSSL_CTX_set_verify(ctx,WOLFSSL_VERIFY_PEER,diag_verify_cb);
+#ifdef N6G_BATCH_50
+  if(batch_trace_prep)scr_printf("N6G50 %s PREP: LOAD_CA %u bytes\n",label,
+                                 (unsigned)ca_bytes);
+#endif
   if(wolfSSL_CTX_load_verify_buffer(ctx,ca_bundle,(long)ca_bytes,
        WOLFSSL_FILETYPE_PEM)!=WOLFSSL_SUCCESS){ret=-644;goto cleanup;}
   wolfSSL_CTX_SetIORecv(ctx,tls_recv);
   wolfSSL_CTX_SetIOSend(ctx,tls_send);
+#ifdef N6G_BATCH_50
+  if(batch_trace_prep)scr_printf("N6G50 %s PREP: SSL_NEW\n",label);
+#endif
   ssl=wolfSSL_new(ctx);
   if(!ssl){ret=-645;goto cleanup;}
+#ifdef N6G_BATCH_50
+  if(batch_trace_prep)scr_printf("N6G50 %s PREP: SNI/HOST SETUP\n",label);
+#endif
   if(wolfSSL_UseSNI(ssl,WOLFSSL_SNI_HOST_NAME,TLS_HOST,
          (unsigned short)strlen(TLS_HOST))!=WOLFSSL_SUCCESS){
     ret=-646;goto cleanup;
@@ -907,7 +938,8 @@ static int unavailable_cover(int rc) {
   return rc==-404 || rc==-565 || (rc==-714 && n6_http_rc==200);
 }
 
-static int save_batch(int targets,int *attempted,int *saved,int *unavailable) {
+static int save_batch(n6g_batch_entropy entropy,int targets,
+                      int *attempted,int *saved,int *unavailable) {
   int first_cover_error=0;
   for(int game=0;game<targets;game++) {
     const uint8_t *normalized=NULL;
@@ -915,14 +947,15 @@ static int save_batch(int targets,int *attempted,int *saved,int *unavailable) {
     int rc;
     memcpy(n6_current_id,n6_targets[game],sizeof(n6_current_id));
     *attempted=game+1;
+    batch_trace_prep=game==0;
     scr_printf("N6G50 GAME %d/%d ID=%s SAVED=%d\n",
                *attempted,targets,n6_current_id,*saved);
-    rc=fetch_batch_cover(&batch_entropy[game][0],0,&normalized,&normalized_size);
+    rc=fetch_batch_cover(&entropy[game][0],0,&normalized,&normalized_size);
     if(unavailable_cover(rc)) {
       scr_printf("N6G50 FALLBACK PSBBN: %s (%d)\n",n6_current_id,rc);
-      rc=fetch_batch_cover(&batch_entropy[game][1],1,&normalized,&normalized_size);
+      rc=fetch_batch_cover(&entropy[game][1],1,&normalized,&normalized_size);
     }
-    v12_n4a_wipe(batch_entropy[game],sizeof(batch_entropy[game]));
+    v12_n4a_wipe(entropy[game],sizeof(entropy[game]));
     if(unavailable_cover(rc)) {
       if(first_cover_error==0)first_cover_error=rc;
       (*unavailable)++;
@@ -947,15 +980,20 @@ int main(void) {
   int rc,targets=0,iso_count=0,ids_count=0,missing=0;
   int attempted=0,saved=0,unavailable=0;
   v12_net_config cfg;
+  n6g_batch_entropy *entropy=NULL;
   init_scr();scr_setCursor(0);
-  scr_printf("N6G50 BATCH HTTPS USB ART - MAX 50\n");
+  scr_printf("N6G50 R2 BATCH HTTPS USB ART - MAX 50\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   sleep(1);
   rc=init_io();
   if(rc==0)rc=read_cfg(&cfg);
+  if(rc==0) {
+    entropy=malloc(sizeof(*entropy));
+    if(!entropy)rc=-734;
+  }
   if(rc==0)rc=read_entropy_file("mass0:/N6G50.ENT",
-                               (uint8_t *)batch_entropy,(int)sizeof(batch_entropy));
-  if(rc==0 && !n6g_batch_entropy_valid(batch_entropy))rc=-516;
+                               (uint8_t *)entropy,(int)sizeof(*entropy));
+  if(rc==0 && !n6g_batch_entropy_valid(*entropy))rc=-516;
   if(rc==0)rc=read_ca_bundle();
   if(rc==0) {
     scr_printf("N6G50 SCAN DVR ISO READ-ONLY\n");
@@ -965,8 +1003,11 @@ int main(void) {
     else if(targets==0 && missing>0)rc=-561;
   }
   if(rc==0 && targets>0)rc=init_net(&cfg);
-  if(rc==0 && targets>0)rc=save_batch(targets,&attempted,&saved,&unavailable);
-  v12_n4a_wipe(batch_entropy,sizeof(batch_entropy));
+  if(rc==0 && targets>0)rc=save_batch(*entropy,targets,&attempted,&saved,&unavailable);
+  if(entropy) {
+    v12_n4a_wipe(entropy,sizeof(*entropy));
+    free(entropy);
+  }
   if(mounted){
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;

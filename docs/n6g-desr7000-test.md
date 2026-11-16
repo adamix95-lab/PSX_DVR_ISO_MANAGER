@@ -14,6 +14,8 @@ py .\tools\generate_n6g_batch_entropy.py I:/N6G50.ENT
 
 Podłącz Ethernet i uruchom ELF przez wLaunchELF-R3Z. Zapisz końcowe `BATCH`, `ATTEMPTED`, `SAVED`, `UNAVAILABLE` i `RET`. `UNAVAILABLE` oznacza brak dostępnego poprawnego PNG po sprawdzeniu obu źródeł. Błąd TLS, sieci, pamięci lub zapisu przerywa próbę. Podczas ponownej próby wcześniej zweryfikowane okładki są pomijane. Istniejący `.PART` blokuje dany plik, pozostawiając go do inspekcji.
 
+R2 wyświetla `N6G50 R2 BATCH` przy starcie. Dla pierwszej gry pokazuje kroki `PREP: CTX_NEW`, `LOAD_CA`, `SSL_NEW` i `SNI/HOST SETUP` przed handshake. Jeśli zatrzyma się na którymś kroku, zanotuj ostatnią linię wraz z numerem gry.
+
 Wariant zbiorczy czeka na próbę sprzętową. [Potwierdzona próba jednej okładki](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/test/n6g-codex-png-ee-fix/docs/n6g-tested-one-cover.md).
 
 ## Następna próba z osobną pulą pamięci TLS
