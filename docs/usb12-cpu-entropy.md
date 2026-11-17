@@ -1,9 +1,18 @@
 # PSX DVR ISO Manager 1.2 USB — test licznika CPU
 
-Testowy wariant jednego ELF-a na gałęzi `test/v1.2-usb-cpu-entropy`.
+Testowy wariant jednego ELF-a na gałęzi `test/v1.2-usb-cpu-thin`.
 Przygotowuje dane dla wolfSSL i Roughtime na konsoli, bez pliku
 `N6G50.ENT`. Zachowuje dotychczasową weryfikację podpisanej odpowiedzi
 Roughtime, łańcucha certyfikatów, nazwy hosta oraz PNG.
+
+R1 zapisał na DESR-7000 45 okładek w dwóch próbach (1 + 44), potem
+utknął na zielonym ekranie powrotu do Managera. R2 został zatrzymany
+na `TCP CONNECTED, TLS START`. R3 używa binarnie identycznego pobieracza
+jak R1. Dopina go za częścią ELF-a ładowaną przez konsolę przy starcie.
+Trójkąt czyta pobieracz z tego samego pliku. Przy powrocie loader
+wczytuje tylko segment menu. Powrót z R3 wymaga próby sprzętowej.
+R3 dziedziczy reakcję R1 na `RET=-508`: seria kończy się i można ją
+ponowić z menu. Nowa seria pomija zapisane pliki.
 
 ## Uruchomienie na DESR-7000
 
@@ -11,7 +20,8 @@ Roughtime, łańcucha certyfikatów, nazwy hosta oraz PNG.
    `DVR_ISO_MANAGER_V12_CPU.ELF` do `DESR_DVR/`.
 2. Zostaw `N4E.CA` w katalogu głównym USB i konfigurację testu BATCH50
    w `hdd0:PP.DVRISO12/V12_NET.CNF`. Konsola potrzebuje dostępu do internetu.
-3. Uruchom `mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`.
+3. Uruchom `mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF` z napisem
+   `1.2 USB CPU ENTROPY TEST R3`.
    Trójkąt na liście skanuje okładki. Na pytaniu **Trójkąt** wybiera HTTPS
    bezpośrednio z konsoli, **X** dotychczasowy serwer na PC, **Kółko** wraca
    do listy.

@@ -1,10 +1,11 @@
-name: Build USB Manager 1.2 CPU entropy experiment
+name: Build USB Manager 1.2 CPU entropy R3
 on:
   push:
-    branches: [test/v1.2-usb-cpu-entropy]
+    branches: [test/v1.2-usb-cpu-thin]
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -113,26 +114,47 @@ jobs:
           grep -Fx 'TLS INIT ORDER: %s' /tmp/worker-strings
           grep -Fx 'SSL FIRST' /tmp/worker-strings
           if grep -F 'N6G.CAFIRST' /tmp/worker-strings; then exit 1; fi
-      - name: Cross-build single-file Manager with the stock drivers and embedded worker
+      - name: Check the rebuilt worker against the hardware-tested CPU R1 binary
+        id: r1
+        run: |
+          set -eu
+          mips64r5900el-ps2-elf-strip --strip-debug \
+            -o build-worker/usb12-payload.elf build-worker/COVER_HTTPS_V12.ELF
+          if printf '%s\n' '23654c1755c1b79c3d30af32580f823ba451992dc3fcd654ce7bcfc234d7b489  build-worker/usb12-payload.elf' | sha256sum -c -; then
+            echo 'matches=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matches=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@v4
+        if: steps.r1.outputs.matches == 'false'
+        with:
+          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY
+          path: cpu-r1-reference
+          run-id: 44044593182
+          github-token: ${{ github.token }}
+      - name: Recover and verify the original R1 worker if the rebuild differs
+        if: steps.r1.outputs.matches == 'false'
+        run: python3 dvr-iso-manager/tools/pack_usb12_tail.py extract cpu-r1-reference/PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip build-worker/usb12-payload.elf
+      - name: Cross-build the thin Manager against stock drivers and append the exact R1 worker
         run: |
           set -eu
           export DESR_USB12_ELF_LOADER2_HEADER_DIR="$GITHUB_WORKSPACE/sdk-source/ee/elf-loader2/src/include"
           export DESR_USB12_ELF_LOADER2_LIBRARY="$PS2SDK/ee/lib/libelf-loader2.a"
           export DESR_USB12_PAYLOAD="$GITHUB_WORKSPACE/build-worker/usb12-payload.elf"
-          mips64r5900el-ps2-elf-strip --strip-debug -o "$DESR_USB12_PAYLOAD" build-worker/COVER_HTTPS_V12.ELF
           export PS2SDK="$RUNNER_TEMP/stock-ps2sdk"
           cmake -S dvr-iso-manager -B build-manager -DDESR_BUILD_USB12_ONE_ELF=ON \
-            -DDESR_USB12_USE_CPU_ENTROPY=ON
+            -DDESR_USB12_USE_CPU_ENTROPY=ON -DDESR_USB12_USE_TAIL_PAYLOAD=ON
           cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_CPU.ELF
           manager=build-manager/DVR_ISO_MANAGER_V12_CPU.ELF
-          python3 dvr-iso-manager/tools/audit_usb12_payload.py \
-            build-worker/COVER_HTTPS_V12.ELF "$DESR_USB12_PAYLOAD" "$manager"
+          mips64r5900el-ps2-elf-strip --strip-debug "$manager"
+          python3 dvr-iso-manager/tools/pack_usb12_tail.py pack "$manager" "$DESR_USB12_PAYLOAD"
           strings "$manager" > /tmp/usb12-strings
-          grep -Fx '1.2 USB CPU ENTROPY TEST' /tmp/usb12-strings
+          grep -Fx '1.2 USB CPU ENTROPY TEST R3' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
           grep -Fx 'ENTROPY: CPU COUNTER (EXPERIMENTAL)' /tmp/usb12-strings
+          grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
           if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
       - name: Package the single ELF for an existing USB 1.0 installation
@@ -148,11 +170,11 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
           sha256sum DESR_DVR/*.ELF > SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip \
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3.zip \
             DESR_DVR README.md licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY
-          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3
+          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3.zip
           if-no-files-found: error
           retention-days: 30
