@@ -1,6 +1,6 @@
 # N6G na Sony PSX DESR-7000
 
-Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Finalny ELF zapisuje najwyżej jedną nową okładkę w `mass0:/ART/`. Warianty diagnostyczne kończą pracę w RAM. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
+Pakiet eksperymentalny uruchamiany z wLaunchELF-R3Z 4.80. Zapis okładek odbywa się w `mass0:/ART/`. DVR ISO oraz `PP.DVRISO12` są montowane tylko do odczytu.
 
 ## Maksymalnie 50 okładek w jednym uruchomieniu
 
@@ -16,7 +16,7 @@ Podłącz Ethernet i uruchom ELF przez wLaunchELF-R3Z. Zapisz końcowe `BATCH`, 
 
 R3 wyświetla `N6G50 R3 BATCH` przy starcie. Na pierwszą próbę zostaw główny katalog USB bez pliku `N6G.CAFIRST`. Program wybierze `TLS INIT ORDER: SSL FIRST`. Tworzy kontekst i obiekt sesji, po czym wczytuje CA przed połączeniem TCP. Dla pierwszej gry pokazuje też znaczniki `SSL_NEW: INIT_SSL` i `SSL_NEW: DRBG`. Jeśli się zatrzyma, zanotuj ostatnią pełną linię i numer gry. Pusty `N6G.CAFIRST` przywraca do próby porównawczej wcześniejszą kolejność w tym samym ELF-ie.
 
-Wariant zbiorczy czeka na próbę sprzętową. [Potwierdzona próba jednej okładki](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/test/n6g-codex-png-ee-fix/docs/n6g-tested-one-cover.md).
+R3 zapisał 45 z 45 okładek w próbie na fizycznym DESR-7000, z `UNAVAILABLE=0` i `RET=0`. Limit 50 sprawdzono w symulacji. [Wynik BATCH50 R3](n6g-tested-batch50.md) · [Wynik jednej okładki](n6g-tested-one-cover.md).
 
 ## Następna próba z osobną pulą pamięci TLS
 
