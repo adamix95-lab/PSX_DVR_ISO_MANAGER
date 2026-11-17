@@ -497,12 +497,18 @@ static void launch_usb12_covers(void) {
 #endif
 }
 
+/* Consumer HTTPS summary. The worker still returns to this Manager using
+ * exactly the same R4 argv protocol. X/O dismissal is intentionally
+ * unchanged, and the detailed codes still travel in argv for diagnosis.
+ * The regular screen no longer exposes TLS, HTTP, RET or Roughtime logs.
+ */
 static int show_usb12_result(int argc, char **argv, int scan_result) {
   const unsigned dismiss = PAD_CROSS | PAD_CIRCLE;
   unsigned held = dismiss;
   struct padButtonStatus buttons;
-  int iso_count, ids, missing, batch, attempted, unavailable, http, tls, roughtime;
-  int identified, refresh_failed;
+  int iso_count=0, ids=0, missing=0, batch=0, attempted=0;
+  int unavailable=0, http=0, tls=0, roughtime=0;
+  int identified, refresh_failed, have_details=0, failed;
   long saved, result;
   char *end;
 
@@ -515,38 +521,43 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   force_english = strcmp(argv[4], "1") == 0;
   refresh_failed = saved > 0 && (scan_result < 0 ||
                                 desr_covers_refresh(games, count, covers, &identified) < 0);
-  if (refresh_failed)
-    snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld. TRIANGLE: rebuild index",
-             saved, result);
+  if (argc == 7 &&
+      sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
+             &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
+             &http, &tls, &roughtime) == 9 &&
+      batch >= 0 && batch <= N6G_BATCH_LIMIT &&
+      unavailable >= 0 && unavailable <= batch)
+    have_details=1;
+  /* If every attempted cover was unavailable in both sources, that is
+   * not a network/TLS failure, even if the R4 worker returns -404. */
+  failed=result!=0 && !(have_details && attempted==batch &&
+                         unavailable==batch && batch>0);
+  if(refresh_failed)
+    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld. ODSWIEZ OKLADKI TROJKATEM",saved);
+  else if(failed)
+    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld. BLAD POBIERANIA",saved);
   else
-    snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld", saved, result);
-  status_visible = 1;
+    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld OKLADEK",saved);
+  status_visible=1;
 
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
-  scr_setXY(2, 2);
-  scr_printf("PSX DVR ISO MANAGER 1.2 - HTTPS RESULT\n\n");
-#ifdef DESR_USB12_CPU_ENTROPY
-  scr_printf("ENTROPY: CPU COUNTER (EXPERIMENTAL)\n");
-#endif
-  scr_printf("%s. RET=%ld\n\n", result == 0 ? "BATCH COMPLETE" : "BATCH RETURNED WITH AN ERROR",
-             result);
-  if (argc == 7 &&
-      sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
-             &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
-             &http, &tls, &roughtime) == 9) {
-    scr_printf("DVR ISO=%d ID=%d USB MISSING AT START=%d\n", iso_count, ids, missing);
-    scr_printf("BATCH=%d ATTEMPTED=%d SAVED=%ld UNAVAILABLE=%d\n",
-               batch, attempted, saved, unavailable);
-    scr_printf("LAST=%.11s HTTP=%d TLSERR=%d\n", argv[6], http, tls);
-    if (roughtime != DESR_USB12_ROUGHTIME_NOT_CHECKED)
-      scr_printf("ROUGHTIME CRYPTO/TIME POLICY CODE=%d\n", roughtime);
-  } else
-    scr_printf("SAVED=%ld\n", saved);
-  if (refresh_failed)
-    scr_printf("\nIndex update failed. TRIANGLE from the game list to retry.\n");
-  scr_printf("\nX / O: RETURN TO GAME LIST");
+  scr_setXY(2,2);
+  scr_printf("PSX DVR ISO MANAGER 1.2 USB\n\n");
+  scr_printf("%s\n\n",failed?"POBIERANIE PRZERWANE":"POBIERANIE ZAKONCZONE");
+  if(have_details) {
+    scr_printf("POBRANO: %ld/%d\n",saved,batch);
+    scr_printf("POMINIETO: %d\n",unavailable);
+  }else {
+    scr_printf("POBRANO: %ld\n",saved);
+  }
+  if(failed)scr_printf("\nWYSTAPIL BLAD PODCZAS POBIERANIA\n");
+  if(refresh_failed)scr_printf("\nODSWIEZ OKLADKI TROJKATEM NA LISCIE\n");
+  scr_printf("\nX / O: POWROT DO LISTY GIER");
+
+  /* Preserve the confirmed hardware behavior: the summary is dismissed
+   * ONLY by a new X or O button press, never by a timeout. */
   for (;;) {
     if (padRead(0, 0, &buttons) > 0) {
       unsigned pressed = (0xffff ^ buttons.btns) & dismiss;
