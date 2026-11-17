@@ -166,7 +166,7 @@ jobs:
           /tmp/n6g-arena-test
       - name: Build N6G FAT driver with exclusive file creation
         run: sh dvr-iso-manager/tools/build_n6g_fat.sh sdk-source "$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
-      - name: Cross-build the embedded HTTPS worker with NETFIX
+      - name: Cross-build NEW minimal-UI HTTPS worker with pinned NETFIX
         run: |
           set -eu
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
@@ -177,33 +177,30 @@ jobs:
           cmake --build build-worker -j2 --target COVER_HTTPS_V12.ELF
           strings build-worker/COVER_HTTPS_V12.ELF > /tmp/worker-strings
           grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF' /tmp/worker-strings
-          grep -Fx 'ENTROPY SOURCE: CPU COUNTER (EXPERIMENTAL)' /tmp/worker-strings
           grep -F 'mass0:/DESR_DVR/ART' /tmp/worker-strings
-          grep -Fx 'TLS INIT ORDER: %s' /tmp/worker-strings
-          grep -Fx 'SSL FIRST' /tmp/worker-strings
+          grep -Fx 'TRWA POBIERANIE BRAKUJACYCH OKLADEK' /tmp/worker-strings
+          grep -Fx 'PROSZE CZEKAC...' /tmp/worker-strings
+          grep -Fx 'POBIERANIE ZAKONCZONE' /tmp/worker-strings
+          grep -Fx 'POMINIETO' /tmp/worker-strings
           if grep -F 'N6G.CAFIRST' /tmp/worker-strings; then exit 1; fi
-      - name: Check the rebuilt worker against the hardware-tested CPU R1 binary
-        id: r1
+      - name: Strip and verify UI worker without substituting old R4
         run: |
           set -eu
           mips64r5900el-ps2-elf-strip --strip-debug \
             -o build-worker/usb12-payload.elf build-worker/COVER_HTTPS_V12.ELF
-          if printf '%s\n' '23654c1755c1b79c3d30af32580f823ba451992dc3fcd654ce7bcfc234d7b489  build-worker/usb12-payload.elf' | sha256sum -c -; then
-            echo 'matches=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'matches=false' >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/download-artifact@v4
-        if: steps.r1.outputs.matches == 'false'
-        with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY
-          path: cpu-r1-reference
-          run-id: 44044593182
-          github-token: ${{ github.token }}
-      - name: Recover and verify the original R1 worker if the rebuild differs
-        if: steps.r1.outputs.matches == 'false'
-        run: python3 dvr-iso-manager/tools/pack_usb12_tail.py extract cpu-r1-reference/PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip build-worker/usb12-payload.elf
-      - name: Cross-build the thin Manager against stock drivers and append the exact R1 worker
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          worker=Path('build-worker/usb12-payload.elf').read_bytes()
+          assert worker[:4] == b'\x7fELF' and 200000 < len(worker) < 10000000
+          assert hashlib.sha256(worker).hexdigest() != '23654c1755c1b79c3d30af32580f823ba451992dc3fcd654ce7bcfc234d7b489'
+          for m in (b'TRWA POBIERANIE BRAKUJACYCH OKLADEK',
+                    b'PROSZE CZEKAC...',b'POBIERANIE ZAKONCZONE',
+                    b'POMINIETO',b'POBRANO: %d/%d'):
+              assert m in worker,m
+          print('NEW UI worker',len(worker),'SHA256',hashlib.sha256(worker).hexdigest())
+          PY
+      - name: Build thin Manager and embed exactly the NEW UI worker
         run: |
           set -eu
           export DESR_USB12_ELF_LOADER2_HEADER_DIR="$GITHUB_WORKSPACE/sdk-source/ee/elf-loader2/src/include"
@@ -215,14 +212,26 @@ jobs:
           cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_CPU.ELF
           manager=build-manager/DVR_ISO_MANAGER_V12_CPU.ELF
           mips64r5900el-ps2-elf-strip --strip-debug "$manager"
-          python3 dvr-iso-manager/tools/pack_usb12_tail.py pack "$manager" "$DESR_USB12_PAYLOAD"
-          printf '%s\n' "81a0f045e2597719d58d798499378afcdce7466a6c7ca967546c1499e2355741  $manager" | sha256sum -c -
+          python3 dvr-iso-manager/tools/pack_usb12_tail.py pack-ui "$manager" "$DESR_USB12_PAYLOAD"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,struct
+          manager=Path('build-manager/DVR_ISO_MANAGER_V12_CPU.ELF').read_bytes()
+          worker=Path('build-worker/usb12-payload.elf').read_bytes()
+          footer=struct.pack('<8sII',b'N6GCPUR3',len(worker),len(worker)^0xffffffff)
+          assert manager[-len(footer):] == footer
+          assert manager[-len(footer)-len(worker):-len(footer)] == worker
+          assert hashlib.sha256(manager).hexdigest() != '81a0f045e2597719d58d798499378afcdce7466a6c7ca967546c1499e2355741'
+          print('UI Manager SHA256',hashlib.sha256(manager).hexdigest())
+          print('Embedded worker SHA256',hashlib.sha256(worker).hexdigest())
+          PY
           strings "$manager" > /tmp/usb12-strings
           grep -Fx '1.2 USB CPU ENTROPY TEST R4' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
-          grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
-          grep -Fx 'ENTROPY: CPU COUNTER (EXPERIMENTAL)' /tmp/usb12-strings
+          grep -Fx 'PSX DVR ISO MANAGER 1.2 USB' /tmp/usb12-strings
+          grep -Fx 'POBIERANIE ZAKONCZONE' /tmp/usb12-strings
+          grep -Fx 'X / O: POWROT DO LISTY GIER' /tmp/usb12-strings
           grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings
           grep -Fx 'GET MANAGER FILE SIZE' /tmp/usb12-strings
           grep -Fx 'HTTPS PAYLOAD FOOTER' /tmp/usb12-strings
