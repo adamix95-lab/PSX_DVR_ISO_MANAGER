@@ -20,7 +20,7 @@ The code recognizes a matching HDD 1.0 XMB header and safely changes only the kn
 
 ## Existing HDD 1.0 installs
 
-The existing Manager is the only executable which may differ from the 84-file release manifest. A replacement is first staged in `.PDIMNEW`, synchronized and CRC-checked. The old ELF is preserved as `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, then the new ELF is moved into place and checked. The backup is never overwritten automatically. If an interrupted installation leaves a `.PDIMNEW` or backup with a missing main ELF, stop and recover manually from backup, not via formatting.
+The existing Manager is the only executable which may differ from the 84-file release manifest. A replacement is first staged in `.PDIMNEW`, synchronized and CRC-checked. The old ELF is preserved as `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, then the new ELF is moved into place and checked. Backups are never overwritten automatically; subsequent upgrades use .PDIMBAK2 through .PDIMBAK9 when necessary. If an interrupted installation leaves a `.PDIMNEW` or backup with a missing main ELF, stop and recover manually from backup, not via formatting.
 
 The installer does not touch user `BOOT*.CNF`, `V12_NET.CNF`, `ART/`, cover indexes, game ISOs or unrelated APA partitions. It does not supply a usable `V12_NET.CNF` automatically: copy your tested network values into `pfs1:/V12_NET.CNF` after installation (the USB archive provides a template only).
 
