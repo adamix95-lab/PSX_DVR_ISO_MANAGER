@@ -9,5 +9,6 @@
 #define DESR_USB12_CA_FILE "mass0:/N4E.CA"
 #define DESR_USB12_ENTROPY_FILE "mass0:/N6G50.ENT"
 #define DESR_USB12_ART_RESULT "--usb12-art-result"
+#define DESR_USB12_ROUGHTIME_NOT_CHECKED 1
 
 #endif

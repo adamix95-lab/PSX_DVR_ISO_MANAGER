@@ -1,9 +1,11 @@
 # PSX DVR ISO Manager 1.2 USB — prototyp
 
 Dodatek do [wydania 1.0 USB](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.0).
-Pobieracz bazuje na BATCH50 R3 (`314ed49752e42251c00ecfebc8fb0e3710745037`),
-który na DESR-7000 zapisał 45 z 45 okładek. Uruchomienie pobieracza z menu i
-powrót do prototypu wymagają próby na konsoli.
+Pobieracz bazuje na BATCH50 R3 (`314ed49752e42251c00ecfebc8fb0e3710745037`).
+Na DESR-7000 prototyp 1.2 zapisał 45 z 45 okładek w dwóch podejściach.
+Pierwszą serię przerwał błąd weryfikacji odpowiedzi Roughtime (`RET=-508`)
+po 12 zapisach. Manager wrócił do listy i pomijał zapisane okładki przy
+ponowieniu. Nowy ekran podsumowania czeka na próbę na konsoli.
 
 ## Instalacja na testowym USB FAT32
 
@@ -33,9 +35,10 @@ powrót do prototypu wymagają próby na konsoli.
 3. Na ekranie pytania X uruchamia dotychczasowe pobieranie przez aplikację
    na PC, Trójkąt uruchamia pobieranie HTTPS z konsoli (do 50 brakujących
    okładek), a Kółko wraca do listy.
-4. HTTPS zapisuje nowe PNG w `DESR_DVR/ART/` i wyświetla podsumowanie przez
-   osiem sekund. Po automatycznym powrocie Manager pokazuje liczbę zapisanych
-   okładek i kod `RET` oraz odświeża indeks, jeśli przybyły pliki.
+4. HTTPS zapisuje nowe PNG w `DESR_DVR/ART/`. Po automatycznym powrocie
+   Manager odświeża indeks, jeśli przybyły pliki, i pokazuje wynik serii.
+   Ekran pozostaje widoczny do wciśnięcia X lub Kółka. Przy błędzie zapisz
+   `RET`, `LAST` i, jeśli jest widoczny, kod weryfikacji Roughtime.
    Jeśli konsola pozostanie na ekranie pobieracza, zanotuj `SAVED` i `RET`,
    uruchom Manager 1.2 ponownie i wciśnij Trójkąt, żeby odświeżyć indeks.
 

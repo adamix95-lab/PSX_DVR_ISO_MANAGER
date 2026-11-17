@@ -477,25 +477,61 @@ static void launch_usb12_covers(void) {
   snprintf(status, sizeof(status), "HTTPS loader returned %d", rc);
 }
 
-static int read_usb12_result(int argc, char **argv, int scan_result) {
-  int identified;
+static int show_usb12_result(int argc, char **argv, int scan_result) {
+  const unsigned dismiss = PAD_CROSS | PAD_CIRCLE;
+  unsigned held = dismiss;
+  struct padButtonStatus buttons;
+  int iso_count, ids, missing, batch, attempted, unavailable, http, tls, roughtime;
+  int identified, refresh_failed;
   long saved, result;
   char *end;
 
-  if (argc != 5 || strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
+  if ((argc != 5 && argc != 7) || strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
   saved = strtol(argv[2], &end, 10);
   if (end == argv[2] || *end || saved < 0 || saved > N6G_BATCH_LIMIT) return 0;
   errno = 0;
   result = strtol(argv[3], &end, 10);
   if (end == argv[3] || *end || errno == ERANGE) return 0;
   force_english = strcmp(argv[4], "1") == 0;
-  if (saved > 0 && (scan_result < 0 ||
-                   desr_covers_refresh(games, count, covers, &identified) < 0))
+  refresh_failed = saved > 0 && (scan_result < 0 ||
+                                desr_covers_refresh(games, count, covers, &identified) < 0);
+  if (refresh_failed)
     snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld. TRIANGLE: rebuild index",
              saved, result);
   else
     snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld", saved, result);
   status_visible = 1;
+
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 2);
+  scr_printf("PSX DVR ISO MANAGER 1.2 - HTTPS RESULT\n\n");
+  scr_printf("%s. RET=%ld\n\n", result == 0 ? "BATCH COMPLETE" : "BATCH RETURNED WITH AN ERROR",
+             result);
+  if (argc == 7 &&
+      sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
+             &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
+             &http, &tls, &roughtime) == 9) {
+    scr_printf("DVR ISO=%d ID=%d USB MISSING AT START=%d\n", iso_count, ids, missing);
+    scr_printf("BATCH=%d ATTEMPTED=%d SAVED=%ld UNAVAILABLE=%d\n",
+               batch, attempted, saved, unavailable);
+    scr_printf("LAST=%.11s HTTP=%d TLSERR=%d\n", argv[6], http, tls);
+    if (roughtime != DESR_USB12_ROUGHTIME_NOT_CHECKED)
+      scr_printf("ROUGHTIME CRYPTO/TIME POLICY CODE=%d\n", roughtime);
+  } else
+    scr_printf("SAVED=%ld\n", saved);
+  if (refresh_failed)
+    scr_printf("\nIndex update failed. TRIANGLE from the game list to retry.\n");
+  scr_printf("\nX / O: RETURN TO GAME LIST");
+  for (;;) {
+    if (padRead(0, 0, &buttons) > 0) {
+      unsigned pressed = (0xffff ^ buttons.btns) & dismiss;
+      if (pressed & ~held) break;
+      held = pressed;
+    }
+    usleep(16000);
+  }
   return 1;
 }
 #endif
@@ -926,7 +962,7 @@ int main(int argc, char *argv[]) {
     return 2;
   }
 #ifdef DESR_USB12_HTTPS
-  prev_buttons = read_usb12_result(argc, argv, rc) ? 0xffff : 0;
+  prev_buttons = show_usb12_result(argc, argv, rc) ? 0xffff : 0;
 #else
   prev_buttons = 0;
 #endif

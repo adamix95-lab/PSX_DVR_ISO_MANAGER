@@ -167,6 +167,9 @@ static v12_n4b_seed_gate tls_gate={0};
 static time_t signed_cert_clock=0;
 /* Final screen survives scr_clear(). No private entropy or packet bytes. */
 static int diag_bound=0; /* 1 LOW, 2 HIGH */
+#ifdef DESR_USB12_HTTPS
+static int diag_roughtime_policy=DESR_USB12_ROUGHTIME_NOT_CHECKED;
+#endif
 static int diag_ssl_connect_ret=0,diag_ssl_error=0;
 static int diag_tcp_connected=0,diag_dns_rc=0;
 static int diag_io_rx=0,diag_io_tx=0,diag_io_fail=0;
@@ -569,6 +572,9 @@ static int live_signed_probe(const uint8_t nonce[32],
     scr_printf("STAGE 7: Ed25519 / SHA512\n");
     rc=v12_n3e_txryan_strict(response_packet,(size_t)received,
                               nonce,signed_time);
+#ifdef DESR_USB12_HTTPS
+    diag_roughtime_policy=rc;
+#endif
     scr_printf("CRYPTO/time policy code=%d\n",rc);
     verdict=rc==-5?-515:(rc<0?-508:0); /* No forensic fallback */
     break;
@@ -981,6 +987,10 @@ static int fetch_batch_cover(const n6g_source_entropy *entropy,int source,
   int rc;
   n6_source=source;
   n6_http_rc=0;
+#ifdef DESR_USB12_HTTPS
+  diag_ssl_error=0;
+  diag_roughtime_policy=DESR_USB12_ROUGHTIME_NOT_CHECKED;
+#endif
   n6_wire_bytes=0;
   n6_png=NULL;
   n6_png_size=0;
@@ -1035,16 +1045,17 @@ static int save_batch(n6g_batch_entropy entropy,int targets,
 }
 
 #ifdef DESR_USB12_HTTPS
-static void return_to_manager(int saved, int result, int english) {
+static void return_to_manager(int saved, int result, int english, char *details) {
   char saved_arg[12], result_arg[12];
-  char *args[]={DESR_USB12_ART_RESULT,saved_arg,result_arg,english?"1":"0"};
+  char *args[]={DESR_USB12_ART_RESULT,saved_arg,result_arg,english?"1":"0",
+                details,n6_current_id[0]?n6_current_id:"-"};
 
   snprintf(saved_arg,sizeof(saved_arg),"%d",saved);
   snprintf(result_arg,sizeof(result_arg),"%d",result);
   scr_printf("Returning to Manager 1.2 in 8 seconds...\n");
   sleep(8);
   scr_printf("Manager loader returned %d. Reopen Manager 1.2.\n",
-             LoadELFFromFile(DESR_USB12_MANAGER_ELF,4,args));
+             LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args));
 }
 
 int main(int argc, char **argv) {
@@ -1114,8 +1125,13 @@ int main(void) {
   scr_printf("LAST=%s HTTP=%d TLSERR=%d\n",n6_current_id,n6_http_rc,diag_ssl_error);
   scr_printf("RET=%d\n",rc);
 #ifdef DESR_USB12_HTTPS
-  if (io_ready) return_to_manager(saved,rc,english);
-  else scr_printf("Reopen Manager 1.2 after restarting the console.\n");
+  if(io_ready) {
+    char details[110];
+    snprintf(details,sizeof(details),"%d,%d,%d,%d,%d,%d,%d,%d,%d",
+             iso_count,ids_count,missing,targets,attempted,unavailable,
+             n6_http_rc,diag_ssl_error,diag_roughtime_policy);
+    return_to_manager(saved,rc,english,details);
+  } else scr_printf("Reopen Manager 1.2 after restarting the console.\n");
 #endif
   sleep(120);
   return rc==0?0:1;

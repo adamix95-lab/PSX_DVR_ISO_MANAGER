@@ -27,6 +27,8 @@ jobs:
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings
+          grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
+          grep -Fx 'X / O: RETURN TO GAME LIST' /tmp/usb12-strings
       - uses: actions/checkout@v4
         with:
           repository: ps2dev/ps2sdk
