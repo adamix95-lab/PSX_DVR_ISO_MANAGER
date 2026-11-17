@@ -343,7 +343,7 @@ jobs:
               assert not any(n.startswith('DESR_DVR/DVR_ISO_MANAGER_V12')
                              for n in paths)
               manager = z.read('DESR_DVR/DVR_ISO_MANAGER.ELF')
-              assert manager.startswith(b'\\x7fELF')
+              assert manager[:4] == bytes((0x7f, 69, 76, 70))
               assert b'mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF' in manager
               assert b'mass0:/DESR_DVR/V12_NET.CNF' in manager
               assert b'mass0:/DESR_DVR/N4E.CA' in manager
