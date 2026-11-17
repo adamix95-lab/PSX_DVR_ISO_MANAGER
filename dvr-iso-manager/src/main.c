@@ -447,7 +447,11 @@ static void draw_scan_art_question(int missing) {
   scr_setXY(2, 24);
 #ifdef DESR_HDD_TEST
 #ifdef DESR_HDD12_HTTPS
+#ifdef DESR_HDD_V12_PRODUCTION
+  scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
+#else
   scr_printf("Missing PNGs are saved to PP.DVRISO12/ART.");
+#endif
 #else
   scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
 #endif
