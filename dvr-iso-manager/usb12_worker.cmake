@@ -63,7 +63,12 @@ target_compile_definitions(${target} PRIVATE
   NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
 if(DESR_HDD12_HTTPS)
   target_compile_definitions(${target} PRIVATE
-    DESR_HDD12_HTTPS=1 DESR_HDD12_TARGET=1 DESR_HDD_TEST=1 N6G_HDD_SAFE=1)
+    DESR_HDD12_HTTPS=1 DESR_HDD_TEST=1 N6G_HDD_SAFE=1)
+  if(DESR_HDD_V12_PRODUCTION)
+    target_compile_definitions(${target} PRIVATE DESR_HDD_V12_PRODUCTION=1)
+  else()
+    target_compile_definitions(${target} PRIVATE DESR_HDD12_TARGET=1)
+  endif()
 else()
   target_compile_definitions(${target} PRIVATE N6G_USB_SAFE=1)
 endif()
