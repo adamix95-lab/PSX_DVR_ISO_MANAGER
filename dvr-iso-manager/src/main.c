@@ -531,8 +531,8 @@ static void launch_usb12_covers(void) {
  * The regular screen no longer exposes TLS, HTTP, RET or Roughtime logs.
  */
 #ifdef DESR_HDD12_HTTPS
-/* Resume after HTTPS worker: fresh PFS1 is RO. Remount the isolated
- * PP.DVRISO12 RW only if the requested HTTPS download saved new art. */
+/* Resume after HTTPS worker: fresh PFS1 is RO. Re-enable RW for
+ * the configured application partition only when new art was saved. */
 static int hdd_enable_writes(void);
 #endif
 static int show_usb12_result(int argc, char **argv, int scan_result) {
