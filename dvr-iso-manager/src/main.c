@@ -99,15 +99,28 @@ static int hdd_at_boot_system = -999, hdd_at_boot_osd = -999;
 static int hdd_at_boot_root = -999;
 #endif
 
+/* Only suppress successful boot messages when returning from HTTPS.
+ * All other Manager variants are unchanged; errors stay visible. */
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+static int usb12_quiet_return;
+#define BOOT_LOG(...) do { if (!usb12_quiet_return) scr_printf(__VA_ARGS__); } while (0)
+#else
+#define BOOT_LOG(...) scr_printf(__VA_ARGS__)
+#endif
+
 static int load_irx(const char *label, void *irx, unsigned size) {
   int rv = 0, id;
-  scr_printf("Loading %-18s ", label);
+  BOOT_LOG("Loading %-18s ", label);
   id = SifExecModuleBuffer(irx, size, 0, NULL, &rv);
   if (id < 0 || rv < 0) {
-    scr_printf("FAIL id=%d rv=%d\n", id, rv);
+    BOOT_LOG("FAIL id=%d rv=%d\n", id, rv);
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+    if (usb12_quiet_return)
+      scr_printf("DRIVER LOAD FAILED: %s (%d/%d)\n", label, id, rv);
+#endif
     return id < 0 ? id : rv;
   }
-  scr_printf("OK\n");
+  BOOT_LOG("OK\n");
   return 0;
 }
 
@@ -131,7 +144,7 @@ static int init_drivers(void) {
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   u32 notice_arg = 0;
 #endif
-  scr_printf("Resetting IOP (no disk writes)...\n");
+  BOOT_LOG("Resetting IOP (no disk writes)...\n");
   while (!SifIopReset("", 0)) { }
   while (!SifIopSync()) { }
   sceSifInitRpc(0);
@@ -192,7 +205,7 @@ static int init_drivers(void) {
 #if !defined(DESR_HDD_PREVIEW) && !defined(DESR_HDD_TEST)
   /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
   dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
-  scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
+  BOOT_LOG("DVR game-start notice: %d\n", dvr_notice_game_start);
   /* Let USB/DVR devices register. */
   sleep(2);
 #endif
@@ -477,6 +490,13 @@ static void launch_usb12_covers(void) {
     }
   }
 
+#ifdef DESR_USB12_UI_SIMPLE
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 5);
+  scr_printf("PLEASE WAIT...\n");
+#endif
   padPortClose(0, 0);
   padEnd();
 #ifdef DESR_USB12_ONE_ELF
@@ -533,11 +553,11 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   failed=result!=0 && !(have_details && attempted==batch &&
                          unavailable==batch && batch>0);
   if(refresh_failed)
-    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld. ODSWIEZ OKLADKI TROJKATEM",saved);
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld. RESCAN WITH TRIANGLE",saved);
   else if(failed)
-    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld. BLAD POBIERANIA",saved);
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld. DOWNLOAD ERROR",saved);
   else
-    snprintf(status,sizeof(status),"HTTPS: POBRANO %ld OKLADEK",saved);
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld COVERS",saved);
   status_visible=1;
 
   scr_setbgcolor(0x000000);
@@ -545,16 +565,16 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   scr_clear();
   scr_setXY(2,2);
   scr_printf("PSX DVR ISO MANAGER 1.2 USB\n\n");
-  scr_printf("%s\n\n",failed?"POBIERANIE PRZERWANE":"POBIERANIE ZAKONCZONE");
+  scr_printf("%s\n\n",failed?"DOWNLOAD INTERRUPTED":"DOWNLOAD COMPLETE");
   if(have_details) {
-    scr_printf("POBRANO: %ld/%d\n",saved,batch);
-    scr_printf("POMINIETO: %d\n",unavailable);
+    scr_printf("DOWNLOADED: %ld/%d\n",saved,batch);
+    scr_printf("SKIPPED: %d\n",unavailable);
   }else {
-    scr_printf("POBRANO: %ld\n",saved);
+    scr_printf("DOWNLOADED: %ld\n",saved);
   }
-  if(failed)scr_printf("\nWYSTAPIL BLAD PODCZAS POBIERANIA\n");
-  if(refresh_failed)scr_printf("\nODSWIEZ OKLADKI TROJKATEM NA LISCIE\n");
-  scr_printf("\nX / O: POWROT DO LISTY GIER");
+  if(failed)scr_printf("\nERROR DURING DOWNLOAD\n");
+  if(refresh_failed)scr_printf("\nRESCAN COVERS WITH TRIANGLE\n");
+  scr_printf("\nX / O: RETURN TO GAME LIST");
 
   /* Preserve the confirmed hardware behavior: the summary is dismissed
    * ONLY by a new X or O button press, never by a timeout. */
@@ -954,12 +974,22 @@ int main(int argc, char *argv[]) {
 #ifndef DESR_USB12_HTTPS
   (void)argc; (void)argv;
 #endif
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+  usb12_quiet_return = (argc == 5 || argc == 7) && argv && argv[1] &&
+                       strcmp(argv[1], DESR_USB12_ART_RESULT) == 0;
+#endif
   init_scr();
   /* Disable the default PS2SDK block cursor. */
   scr_setCursor(0);
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
-  scr_printf("PSX DVR ISO Manager - reading DVR games\n");
+  BOOT_LOG("PSX DVR ISO Manager - reading DVR games\n");
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+  if (usb12_quiet_return) {
+    scr_clear();
+    scr_printf("PLEASE WAIT...\n");
+  }
+#endif
   rc = init_drivers();
   if (rc < 0) {
     scr_printf("\nDriver initialization error %d\n", rc);
