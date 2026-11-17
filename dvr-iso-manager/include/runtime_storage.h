@@ -28,7 +28,11 @@
 #define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"
 #else
 #ifdef DESR_USB12_TAIL_PAYLOAD
+#ifdef DESR_USB12_UI_SIMPLE
+#define DESR_APP_VARIANT "1.2 USB UI TEST"
+#else
 #define DESR_APP_VARIANT "1.2 USB CPU ENTROPY TEST R4"
+#endif
 #elif defined(DESR_USB12_CPU_ENTROPY)
 #define DESR_APP_VARIANT "1.2 USB CPU ENTROPY TEST"
 #elif defined(DESR_USB12_ONE_ELF)
