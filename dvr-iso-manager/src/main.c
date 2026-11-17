@@ -490,7 +490,11 @@ static void launch_usb12_covers(void) {
     for (;;) sleep(1);
   }
   prev_buttons = 0xffff;
+#ifdef DESR_USB12_TAIL_PAYLOAD
+  snprintf(status, sizeof(status), "HTTPS loader: %s (%d)", desr_usb12_loader_error(rc), rc);
+#else
   snprintf(status, sizeof(status), "HTTPS loader returned %d", rc);
+#endif
 }
 
 static int show_usb12_result(int argc, char **argv, int scan_result) {

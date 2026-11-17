@@ -1,4 +1,4 @@
-name: Build USB Manager 1.2 CPU entropy R3
+name: Build USB Manager 1.2 CPU entropy R4
 on:
   push:
     branches: [test/v1.2-usb-cpu-thin]
@@ -149,12 +149,14 @@ jobs:
           mips64r5900el-ps2-elf-strip --strip-debug "$manager"
           python3 dvr-iso-manager/tools/pack_usb12_tail.py pack "$manager" "$DESR_USB12_PAYLOAD"
           strings "$manager" > /tmp/usb12-strings
-          grep -Fx '1.2 USB CPU ENTROPY TEST R3' /tmp/usb12-strings
+          grep -Fx '1.2 USB CPU ENTROPY TEST R4' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
           grep -Fx 'ENTROPY: CPU COUNTER (EXPERIMENTAL)' /tmp/usb12-strings
           grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings
+          grep -Fx 'GET MANAGER FILE SIZE' /tmp/usb12-strings
+          grep -Fx 'HTTPS PAYLOAD FOOTER' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
           if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
       - name: Package the single ELF for an existing USB 1.0 installation
@@ -170,11 +172,11 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
           sha256sum DESR_DVR/*.ELF > SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3.zip \
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4.zip \
             DESR_DVR README.md licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3
-          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R3.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4
+          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4.zip
           if-no-files-found: error
           retention-days: 30

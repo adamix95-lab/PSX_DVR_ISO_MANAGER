@@ -79,9 +79,30 @@ typedef struct {
 
 _Static_assert(sizeof(worker_footer) == 16, "Worker footer size");
 
+enum {
+  WORKER_OPEN = -736,
+  WORKER_MEMORY = -737,
+  WORKER_SIZE = -738,
+  WORKER_READ = -739,
+  WORKER_FOOTER = -740,
+  WORKER_CLOSE = -741
+};
+
+const char *desr_usb12_loader_error(int result) {
+  switch (result) {
+    case WORKER_OPEN: return "OPEN MANAGER ELF";
+    case WORKER_MEMORY: return "ALLOCATE EE MEMORY";
+    case WORKER_SIZE: return "GET MANAGER FILE SIZE";
+    case WORKER_READ: return "READ MANAGER ELF";
+    case WORKER_FOOTER: return "HTTPS PAYLOAD FOOTER";
+    case WORKER_CLOSE: return "CLOSE MANAGER ELF";
+    default: return "PREPARE HTTPS ELF";
+  }
+}
+
 static int read_exact(int fd, unsigned char *dest, size_t size) {
   while (size > 0) {
-    int chunk = size > 16384U ? 16384 : (int)size;
+    int chunk = size > 4096U ? 4096 : (int)size;
     int count = fileXioRead(fd, dest, chunk);
     if (count <= 0 || count > chunk) return 0;
     dest += count;
@@ -91,32 +112,40 @@ static int read_exact(int fd, unsigned char *dest, size_t size) {
 }
 
 static int launch_from_tail(int argc, char *args[]) {
+  iox_stat_t info __attribute__((aligned(64)));
   worker_footer footer;
-  unsigned char *image = NULL;
-  int fd, file_size, offset, loaded = 0, rc = -736;
+  unsigned char *image;
+  size_t footer_offset;
+  int fd, rc, closed;
 
   scr_printf("Reading HTTPS worker from Manager ELF...\n");
+  if (fileXioGetStat(DESR_USB12_MANAGER_ELF, &info) < 0 ||
+      info.hisize != 0 || info.size <= sizeof(footer) || info.size > 16U * 1024U * 1024U)
+    return WORKER_SIZE;
+
   fd = fileXioOpen(DESR_USB12_MANAGER_ELF, FIO_O_RDONLY, 0);
-  if (fd < 0) return rc;
-  file_size = fileXioLseek(fd, 0, SEEK_END);
-  if (file_size > (int)sizeof(footer)) {
-    offset = file_size - (int)sizeof(footer);
-    if (fileXioLseek(fd, offset, SEEK_SET) == offset &&
-        read_exact(fd, (unsigned char *)&footer, sizeof(footer)) &&
-        memcmp(footer.magic, "N6GCPUR3", sizeof(footer.magic)) == 0 &&
-        footer.size == (footer.complement ^ UINT32_MAX) &&
-        footer.size > 0 && footer.size <= 8U * 1024U * 1024U &&
-        footer.size < (unsigned)offset) {
-      offset -= (int)footer.size;
-      if (fileXioLseek(fd, offset, SEEK_SET) == offset) {
-        image = memalign(64, footer.size);
-        if (image) loaded = read_exact(fd, image, footer.size);
-        else rc = -737;
-      }
+  if (fd < 0) return WORKER_OPEN;
+  image = memalign(64, info.size);
+  if (!image) {
+    fileXioClose(fd);
+    return WORKER_MEMORY;
+  }
+  rc = read_exact(fd, image, info.size) ? 0 : WORKER_READ;
+  closed = fileXioClose(fd);
+  if (!rc && closed < 0) rc = WORKER_CLOSE;
+  if (!rc) {
+    footer_offset = (size_t)info.size - sizeof(footer);
+    memcpy(&footer, image + footer_offset, sizeof(footer));
+    if (memcmp(footer.magic, "N6GCPUR3", sizeof(footer.magic)) != 0 ||
+        footer.size != (footer.complement ^ UINT32_MAX) ||
+        footer.size < sizeof(elf_loader_elf32_ehdr_t) ||
+        footer.size > 8U * 1024U * 1024U || footer.size >= footer_offset) {
+      rc = WORKER_FOOTER;
+    } else {
+      memmove(image, image + footer_offset - footer.size, footer.size);
+      rc = launch_image(image, footer.size, argc, args);
     }
   }
-  if (fileXioClose(fd) == 0 && loaded)
-    rc = launch_image(image, footer.size, argc, args);
   free(image);
   return rc;
 }

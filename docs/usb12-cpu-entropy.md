@@ -9,10 +9,12 @@ R1 zapisał na DESR-7000 45 okładek w dwóch próbach (1 + 44), potem
 utknął na zielonym ekranie powrotu do Managera. R2 został zatrzymany
 na `TCP CONNECTED, TLS START`. R3 używa binarnie identycznego pobieracza
 jak R1. Dopina go za częścią ELF-a ładowaną przez konsolę przy starcie.
-Trójkąt czyta pobieracz z tego samego pliku. Przy powrocie loader
-wczytuje tylko segment menu. Powrót z R3 wymaga próby sprzętowej.
-R3 dziedziczy reakcję R1 na `RET=-508`: seria kończy się i można ją
-ponowić z menu. Nowa seria pomija zapisane pliki.
+Na konsoli R3 zwrócił `-736` podczas przygotowywania pobieracza.
+R4 odczytuje ten sam plik kolejno w blokach 4 KiB i odróżnia błędy
+otwarcia, rozmiaru, odczytu oraz stopki ELF-a. Przy powrocie loader
+wczytuje tylko segment menu. Uruchomienie i powrót z R4 wymagają
+próby sprzętowej. R4 dziedziczy reakcję R1 na `RET=-508`: serię można
+ponowić z menu, a nowa seria pomija zapisane pliki.
 
 ## Uruchomienie na DESR-7000
 
@@ -21,7 +23,7 @@ ponowić z menu. Nowa seria pomija zapisane pliki.
 2. Zostaw `N4E.CA` w katalogu głównym USB i konfigurację testu BATCH50
    w `hdd0:PP.DVRISO12/V12_NET.CNF`. Konsola potrzebuje dostępu do internetu.
 3. Uruchom `mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF` z napisem
-   `1.2 USB CPU ENTROPY TEST R3`.
+   `1.2 USB CPU ENTROPY TEST R4`.
    Trójkąt na liście skanuje okładki. Na pytaniu **Trójkąt** wybiera HTTPS
    bezpośrednio z konsoli, **X** dotychczasowy serwer na PC, **Kółko** wraca
    do listy.

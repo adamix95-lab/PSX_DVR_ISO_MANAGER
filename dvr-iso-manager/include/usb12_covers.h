@@ -11,6 +11,9 @@
 #define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_V12_SINGLE.ELF"
 #endif
 int desr_run_embedded_https(char *language);
+#ifdef DESR_USB12_TAIL_PAYLOAD
+const char *desr_usb12_loader_error(int result);
+#endif
 #else
 #define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_V12.ELF"
 #define DESR_USB12_HTTPS_ELF DESR_APP_ROOT "COVER_HTTPS_V12.ELF"
