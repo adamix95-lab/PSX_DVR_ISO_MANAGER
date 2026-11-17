@@ -298,7 +298,7 @@ jobs:
               assert len(m)==84
           with zipfile.ZipFile(b) as z:
               assert 'PP.DVRISO-FILES/DVR_ISO_MANAGER_HDD.ELF' in z.namelist()
-              assert 'XMB_HEADERS/PP.DVRISO/icon.sys' in z.namelist()
+              assert '__Headers/PP.DVRISO/icon.sys' in z.namelist()
           print('PASS: two HDD 1.2 installer test artifacts. RELEASE NOT CREATED.')
           PY
       - uses: actions/upload-artifact@v4
