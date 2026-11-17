@@ -1224,10 +1224,14 @@ static void return_to_manager(int saved, int result, int english, char *details)
 
   snprintf(saved_arg,sizeof(saved_arg),"%d",saved);
   snprintf(result_arg,sizeof(result_arg),"%d",result);
+  int loader_rc;
   scr_printf("Returning to Manager 1.2 in 8 seconds...\n");
   sleep(8);
-  scr_printf("Manager loader returned %d. Reopen Manager 1.2.\n",
-             LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args));
+  /* Do NOT place LoadELFFromFile inside a diagnostic printf: UI builds
+   * intentionally suppress printf, but returning to Manager is essential.
+   * Preserve the exact R4 loader argument contract and timing. */
+  loader_rc=LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args);
+  scr_printf("Manager loader returned %d. Reopen Manager 1.2.\n",loader_rc);
 }
 
 int main(int argc, char **argv) {
