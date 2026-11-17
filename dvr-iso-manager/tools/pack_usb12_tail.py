@@ -39,9 +39,9 @@ def append_worker(manager_path, worker_path, *, ui_preview=False):
         if worker_sha == R1_WORKER_SHA:
             raise SystemExit("UI preview unexpectedly contains the OLD hardware R4 worker")
         for marker in (
-            b"TRWA POBIERANIE BRAKUJACYCH OKLADEK",
-            b"POBIERANIE ZAKONCZONE",
-            b"POMINIETO",
+            b"DOWNLOADING MISSING COVERS",
+            b"DOWNLOAD COMPLETE",
+            b"SKIPPED",
         ):
             if marker not in worker:
                 raise SystemExit(f"UI worker missing {marker!r}")
