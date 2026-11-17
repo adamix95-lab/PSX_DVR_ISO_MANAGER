@@ -173,6 +173,31 @@ static int diag_bound=0; /* 1 LOW, 2 HIGH */
 #ifdef DESR_USB12_HTTPS
 static int diag_roughtime_policy=DESR_USB12_ROUGHTIME_NOT_CHECKED;
 #endif
+#ifdef DESR_USB12_CPU_ENTROPY
+static uint8_t roughtime_retry_key[N6G_CPU_RETRY_KEY_BYTES];
+static int diag_roughtime_verify, diag_last_rejected_reply;
+static unsigned diag_roughtime_retries;
+
+static const char *roughtime_reason(int code) {
+  static const char *const names[] = {
+    [0] = "NONE",
+    [-V12_RT_MALFORMED] = "FRAME OR TAGS",
+    [-V12_RT_VERSION] = "VERSION",
+    [-V12_RT_NONCE_FIELD] = "NONCE FIELD",
+    [-V12_RT_NONCE_MISMATCH] = "NONCE MISMATCH",
+    [-V12_RT_DELEGATION_FIELDS] = "DELEGATION FIELDS",
+    [-V12_RT_DELEGATION_SIGNATURE] = "DELEGATION SIGNATURE",
+    [-V12_RT_RESPONSE_FIELDS] = "RESPONSE FIELDS",
+    [-V12_RT_RESPONSE_SIGNATURE] = "RESPONSE SIGNATURE",
+    [-V12_RT_TIME_INTERVAL] = "SIGNED TIME INTERVAL",
+    [-V12_RT_MERKLE_PATH] = "MERKLE PATH",
+    [-V12_RT_MERKLE_ROOT] = "MERKLE ROOT",
+    [-V12_RT_SHA512] = "SHA-512"
+  };
+  unsigned index=0U-(unsigned)code;
+  return index<sizeof(names)/sizeof(names[0])?names[index]:"UNKNOWN";
+}
+#endif
 static int diag_ssl_connect_ret=0,diag_ssl_error=0;
 static int diag_tcp_connected=0,diag_dns_rc=0;
 static int diag_io_rx=0,diag_io_tx=0,diag_io_fail=0;
@@ -539,7 +564,11 @@ static int live_signed_probe(const uint8_t nonce[32],
   struct addrinfo hints,*resolved=NULL,*cur;
   unsigned tags=0;
   int rc,fd=-1,received,found=0,verdict=-506;
-  scr_printf("STAGE 6: UDP/%s (USB random nonce)\n",PORT);
+#ifdef DESR_USB12_CPU_ENTROPY
+  diag_roughtime_policy=DESR_USB12_ROUGHTIME_NOT_CHECKED;
+  diag_roughtime_verify=0;
+#endif
+  scr_printf("STAGE 6: Roughtime UDP/%s\n",PORT);
   if(v12_rt_make_request(request_packet,sizeof(request_packet),nonce)!=0)
     return -506;
   memset(&hints,0,sizeof(hints));
@@ -580,12 +609,19 @@ static int live_signed_probe(const uint8_t nonce[32],
     if(v12_rt_check_reply_frame(response_packet,
            (size_t)received,&tags)<0) {
       verdict=-507;
+#ifdef DESR_USB12_CPU_ENTROPY
+      diag_roughtime_verify=V12_RT_MALFORMED;
+#endif
       break;
     }
     scr_printf("FRAME tags=%u\n",tags);
     scr_printf("STAGE 7: Ed25519 / SHA512\n");
-    rc=v12_n3e_txryan_strict(response_packet,(size_t)received,
-                              nonce,signed_time);
+    rc=v12_n3e_txryan_strict(response_packet,(size_t)received,nonce,signed_time,
+#ifdef DESR_USB12_CPU_ENTROPY
+                            &diag_roughtime_verify);
+#else
+                            NULL);
+#endif
 #ifdef DESR_USB12_HTTPS
     diag_roughtime_policy=rc;
 #endif
@@ -1011,6 +1047,20 @@ static int fetch_batch_cover(const n6g_source_entropy *entropy,int source,
   *normalized=NULL;
   *normalized_size=0;
   rc=live_signed_probe(entropy->nonce,&signed_time);
+#ifdef DESR_USB12_CPU_ENTROPY
+  if(rc==-507 || (rc==-508 && diag_roughtime_policy==-2)) {
+    uint8_t retry_nonce[32];
+    diag_last_rejected_reply=diag_roughtime_verify;
+    scr_printf("ROUGHTIME REJECTED: %s. RETRY 1/1\n",
+               roughtime_reason(diag_last_rejected_reply));
+    n6g_derive_retry_nonce(retry_nonce,roughtime_retry_key,entropy->nonce);
+    if(memcmp(retry_nonce,entropy->nonce,sizeof(retry_nonce))!=0) {
+      diag_roughtime_retries++;
+      rc=live_signed_probe(retry_nonce,&signed_time);
+    }
+    v12_n4a_wipe(retry_nonce,sizeof(retry_nonce));
+  }
+#endif
   if(rc==0)rc=verify_cover_tls(&signed_time,entropy->low,entropy->high);
   if(rc==0)rc=normalize_download(normalized,normalized_size,-565);
   return rc;
@@ -1076,7 +1126,7 @@ static int fill_cpu_entropy(int argc, char **argv, n6g_batch_entropy entropy) {
     usleep(1000+(i%16)*125);
     samples[i+1]=n6g_read_cpu_count();
   }
-  rc=n6g_expand_cpu_entropy(entropy,(uint32_t)launch_ticks,samples);
+  rc=n6g_expand_cpu_entropy(entropy,roughtime_retry_key,(uint32_t)launch_ticks,samples);
   v12_n4a_wipe(samples,sizeof(samples));
   return rc==0?0:-735;
 }
@@ -1084,15 +1134,31 @@ static int fill_cpu_entropy(int argc, char **argv, n6g_batch_entropy entropy) {
 
 static void return_to_manager(int saved, int result, int english, char *details) {
   char saved_arg[12], result_arg[12];
+#ifdef DESR_USB12_CPU_ENTROPY
+  char rt_arg[100];
+  char *args[]={DESR_USB12_ART_RESULT,saved_arg,result_arg,english?"1":"0",
+                details,n6_current_id[0]?n6_current_id:"-",rt_arg};
+  snprintf(rt_arg,sizeof(rt_arg),"ROUGHTIME RETRIES=%u LAST REJECT=%s\nROUGHTIME FINAL REJECT=%s\n",
+           diag_roughtime_retries,roughtime_reason(diag_last_rejected_reply),
+           roughtime_reason(diag_roughtime_verify));
+  scr_printf("%s",rt_arg);
+#else
   char *args[]={DESR_USB12_ART_RESULT,saved_arg,result_arg,english?"1":"0",
                 details,n6_current_id[0]?n6_current_id:"-"};
+#endif
 
   snprintf(saved_arg,sizeof(saved_arg),"%d",saved);
   snprintf(result_arg,sizeof(result_arg),"%d",result);
   scr_printf("Returning to Manager 1.2 in 8 seconds...\n");
   sleep(8);
+#ifdef DESR_USB12_WORKER_LOADER
+  scr_printf("Reading Manager ELF from USB...\n");
   scr_printf("Manager loader returned %d. Reopen Manager 1.2.\n",
-             LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args));
+             desr_usb12_return_to_manager(sizeof(args)/sizeof(args[0]),args));
+#else
+  scr_printf("Manager loader returned %d. Reopen Manager 1.2.\n",
+             LoadELFFromFile(DESR_USB12_MANAGER_ELF,sizeof(args)/sizeof(args[0]),args));
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -1156,6 +1222,9 @@ int main(void) {
     v12_n4a_wipe(entropy,sizeof(*entropy));
     free(entropy);
   }
+#ifdef DESR_USB12_CPU_ENTROPY
+  v12_n4a_wipe(roughtime_retry_key,sizeof(roughtime_retry_key));
+#endif
   if(mounted){
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;

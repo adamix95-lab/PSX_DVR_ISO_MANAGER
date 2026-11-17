@@ -28,6 +28,21 @@ typedef struct {
   uint32_t radius_seconds;
 } v12_rt_signed_time;
 
+enum v12_rt_verify_error {
+  V12_RT_MALFORMED = -1,
+  V12_RT_VERSION = -2,
+  V12_RT_NONCE_FIELD = -3,
+  V12_RT_NONCE_MISMATCH = -4,
+  V12_RT_DELEGATION_FIELDS = -5,
+  V12_RT_DELEGATION_SIGNATURE = -6,
+  V12_RT_RESPONSE_FIELDS = -7,
+  V12_RT_RESPONSE_SIGNATURE = -8,
+  V12_RT_TIME_INTERVAL = -9,
+  V12_RT_MERKLE_PATH = -10,
+  V12_RT_MERKLE_ROOT = -11,
+  V12_RT_SHA512 = -12
+};
+
 /* Returns 0 iff frame, delegated key, Ed25519 signatures, signed interval,
  * freshness *binding* to caller-supplied nonce and Merkle proof all pass.
  * Output remains unchanged on any error. No auth source is selected here.

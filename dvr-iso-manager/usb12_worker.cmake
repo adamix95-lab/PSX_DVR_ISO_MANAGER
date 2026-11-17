@@ -57,19 +57,22 @@ option(DESR_USB12_EMBEDDED_WORKER "Return to the single-file Manager" OFF)
 if(DESR_USB12_EMBEDDED_WORKER)
   target_compile_definitions(${target} PRIVATE DESR_USB12_ONE_ELF=1)
 endif()
+set(return_loader elf-loader)
 if(DESR_USB12_USE_CPU_ENTROPY)
   if(NOT DESR_USB12_EMBEDDED_WORKER)
     message(FATAL_ERROR "CPU counter experiment needs the embedded worker")
   endif()
-  target_compile_definitions(${target} PRIVATE DESR_USB12_CPU_ENTROPY=1)
-  target_sources(${target} PRIVATE src/net/n6g_cpu_entropy.c)
+  set(return_loader "$ENV{PS2SDK}/ee/lib/libelf-loader2.a")
+  target_compile_definitions(${target} PRIVATE DESR_USB12_CPU_ENTROPY=1 DESR_USB12_WORKER_LOADER=1)
+  target_include_directories(${target} PRIVATE "$ENV{DESR_USB12_ELF_LOADER2_HEADER_DIR}")
+  target_sources(${target} PRIVATE src/net/n6g_cpu_entropy.c src/usb12_launch_embedded.c)
 endif()
 target_include_directories(${target} PRIVATE include
   "${wolfssl}/include" "${monocypher}" "${monocypher}/optional")
 target_link_libraries(${target} PRIVATE fileXio cdvd patches ps2ip netman
   "${wolfssl}/lib/libwolfssl.a"
   "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a"
-  libdebug.a m elf-loader)
+  libdebug.a m "${return_loader}")
 target_compile_options(${target} PRIVATE -Os -Wall -Wextra -fstack-usage)
 target_link_options(${target} PRIVATE
   "-Wl,-Map=${build}/COVER_HTTPS_V12.map"

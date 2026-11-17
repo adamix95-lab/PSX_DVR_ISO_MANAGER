@@ -6,9 +6,9 @@
 
 /* N3E stand-alone only. Does NOT set a TLS clock or retain state.
  * On success returns strict signed timestamp and signed RADI in seconds.
- * No forensic NONC-absent fallback is allowed.
+ * No forensic NONC-absent fallback is allowed. detail may be NULL.
  */
 int v12_n3e_txryan_strict(const uint8_t *packet,size_t length,
                            const uint8_t nonce[32],
-                           v12_rt_signed_time *verified);
+                           v12_rt_signed_time *verified,int *detail);
 #endif

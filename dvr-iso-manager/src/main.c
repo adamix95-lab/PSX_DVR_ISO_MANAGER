@@ -502,7 +502,8 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   long saved, result;
   char *end;
 
-  if ((argc != 5 && argc != 7) || strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
+  if ((argc != 5 && argc != 7 && argc != 8) ||
+      strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
   saved = strtol(argv[2], &end, 10);
   if (end == argv[2] || *end || saved < 0 || saved > N6G_BATCH_LIMIT) return 0;
   errno = 0;
@@ -528,7 +529,7 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
 #endif
   scr_printf("%s. RET=%ld\n\n", result == 0 ? "BATCH COMPLETE" : "BATCH RETURNED WITH AN ERROR",
              result);
-  if (argc == 7 &&
+  if (argc >= 7 &&
       sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
              &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
              &http, &tls, &roughtime) == 9) {
@@ -540,6 +541,9 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
       scr_printf("ROUGHTIME CRYPTO/TIME POLICY CODE=%d\n", roughtime);
   } else
     scr_printf("SAVED=%ld\n", saved);
+#ifdef DESR_USB12_CPU_ENTROPY
+  if (argc == 8) scr_printf("%.99s", argv[7]);
+#endif
   if (refresh_failed)
     scr_printf("\nIndex update failed. TRIANGLE from the game list to retry.\n");
   scr_printf("\nX / O: RETURN TO GAME LIST");

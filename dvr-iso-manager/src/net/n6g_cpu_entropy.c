@@ -5,9 +5,11 @@
  * https://github.com/danielnuld/nuld/blob/2951dc9d22541aa6a2d6c2fcf7705187e97eae92/net.c
  * The keyed expansion supplies distinct inputs. It cannot add entropy.
  */
-int n6g_expand_cpu_entropy(n6g_batch_entropy entropy, uint32_t launch_ticks,
+int n6g_expand_cpu_entropy(n6g_batch_entropy entropy,
+                          uint8_t retry_key[N6G_CPU_RETRY_KEY_BYTES], uint32_t launch_ticks,
                           const uint32_t samples[N6G_CPU_SAMPLE_COUNT]) {
     static const uint8_t domain[] = "PSX DVR CPU entropy test v1";
+    static const uint8_t retry_label[] = "PSX DVR Roughtime retry key";
     crypto_blake2b_ctx hash;
     uint8_t key[64];
     uint32_t movement = 0;
@@ -22,6 +24,8 @@ int n6g_expand_cpu_entropy(n6g_batch_entropy entropy, uint32_t launch_ticks,
     crypto_blake2b_update(&hash, (const uint8_t *)samples,
                           N6G_CPU_SAMPLE_COUNT * sizeof(samples[0]));
     crypto_blake2b_final(&hash, key);
+    crypto_blake2b_keyed(retry_key, N6G_CPU_RETRY_KEY_BYTES, key, sizeof(key),
+                         retry_label, sizeof(retry_label) - 1);
 
     for (size_t game = 0; game < N6G_BATCH_LIMIT; ++game) {
         for (size_t source = 0; source < 2; ++source) {
@@ -40,4 +44,9 @@ int n6g_expand_cpu_entropy(n6g_batch_entropy entropy, uint32_t launch_ticks,
     crypto_wipe(key, sizeof(key));
     crypto_wipe(&hash, sizeof(hash));
     return 0;
+}
+
+void n6g_derive_retry_nonce(uint8_t nonce[32], const uint8_t key[N6G_CPU_RETRY_KEY_BYTES],
+                           const uint8_t first_nonce[32]) {
+    crypto_blake2b_keyed(nonce, 32, key, N6G_CPU_RETRY_KEY_BYTES, first_nonce, 32);
 }

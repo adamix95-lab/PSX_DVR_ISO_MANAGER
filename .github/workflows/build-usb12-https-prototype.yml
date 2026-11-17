@@ -54,7 +54,7 @@ jobs:
             "$manager/tests/net/test_n6g_batch_entropy.c" -o "$work/check"
           python3 "$manager/tools/generate_n6g_batch_entropy.py" "$work/N6G50.ENT"
           "$work/check" "$work/N6G50.ENT"
-      - name: Host-test CPU counter expansion and frozen input rejection
+      - name: Host-test CPU counter expansion and strict Roughtime rejection
         run: |
           set -eu
           manager=dvr-iso-manager
@@ -63,6 +63,25 @@ jobs:
             "$manager/tests/net/test_n6g_cpu_entropy.c" monocypher-upstream/src/monocypher.c \
             -o /tmp/n6g-cpu-entropy
           /tmp/n6g-cpu-entropy
+          python3 - "$manager/tests/fixtures/roughtime_ietf_draft08_001.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          data = json.loads(Path(sys.argv[1]).read_text())
+          request = bytes.fromhex(data["request"][0])
+          assert request[28:32] == b"NONC"
+          values = dict(root=bytes.fromhex(data["root_key"]), nonce=request[40:72],
+                        reply=bytes.fromhex(data["replies"][0]))
+          Path("/tmp/v12_rt_test_vector.h").write_text("".join(
+              "static const uint8_t rt_fixture_" + name + "[] = {"
+              + ",".join(map(str, value)) + "};\n" for name, value in values.items()))
+          PY
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$manager/include" -I/tmp \
+            -Imonocypher-upstream/src -Imonocypher-upstream/src/optional \
+            "$manager/src/net/v12_roughtime_verify.c" "$manager/src/net/v12_roughtime_monocypher.c" \
+            "$manager/tests/net/test_v12_roughtime_verify.c" monocypher-upstream/src/monocypher.c \
+            monocypher-upstream/src/optional/monocypher-ed25519.c -o /tmp/v12-rt-check
+          /tmp/v12-rt-check
       - name: Rebuild pinned NETFIX PS2SDK for the HTTPS worker
         run: sh hdd-netfix/build_sdk.sh sdk-source
       - name: Build wolfSSL with the same options and diagnostics as BATCH50 R3
@@ -103,6 +122,7 @@ jobs:
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
           export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
           export V12_N6G_FAT_IRX="$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
+          export DESR_USB12_ELF_LOADER2_HEADER_DIR="$GITHUB_WORKSPACE/sdk-source/ee/elf-loader2/src/include"
           cmake -S dvr-iso-manager -B build-worker -DDESR_BUILD_USB12_WORKER=ON \
             -DDESR_USB12_EMBEDDED_WORKER=ON -DDESR_USB12_USE_CPU_ENTROPY=ON
           cmake --build build-worker -j2 --target COVER_HTTPS_V12.ELF
@@ -125,14 +145,16 @@ jobs:
             -DDESR_USB12_USE_CPU_ENTROPY=ON
           cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_CPU.ELF
           manager=build-manager/DVR_ISO_MANAGER_V12_CPU.ELF
+          mips64r5900el-ps2-elf-strip --strip-debug "$manager"
           python3 dvr-iso-manager/tools/audit_usb12_payload.py \
             build-worker/COVER_HTTPS_V12.ELF "$DESR_USB12_PAYLOAD" "$manager"
           strings "$manager" > /tmp/usb12-strings
-          grep -Fx '1.2 USB CPU ENTROPY TEST' /tmp/usb12-strings
+          grep -Fx '1.2 USB CPU ENTROPY TEST R2' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
           grep -Fx 'ENTROPY: CPU COUNTER (EXPERIMENTAL)' /tmp/usb12-strings
+          grep -Fx 'Reading Manager ELF from USB...' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
           if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
       - name: Package the single ELF for an existing USB 1.0 installation

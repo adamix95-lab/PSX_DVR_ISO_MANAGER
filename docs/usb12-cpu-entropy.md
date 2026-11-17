@@ -5,6 +5,11 @@ Przygotowuje dane dla wolfSSL i Roughtime na konsoli, bez pliku
 `N6G50.ENT`. Zachowuje dotychczasową weryfikację podpisanej odpowiedzi
 Roughtime, łańcucha certyfikatów, nazwy hosta oraz PNG.
 
+Pierwsza wersja pobrała na DESR-7000 komplet 45 okładek w dwóch próbach
+(1 + 44). Po zakończeniu drugiej serii konsola zatrzymała się na zielonym
+ekranie przy wczytywaniu Managera. R2 odczytuje ELF z USB do RAM przed
+przełączeniem sterowników. Powrót tym sposobem czeka na próbę sprzętową.
+
 ## Uruchomienie na DESR-7000
 
 1. Na pendrive z działającą wersją USB 1.0 skopiuj
@@ -19,6 +24,13 @@ Roughtime, łańcucha certyfikatów, nazwy hosta oraz PNG.
    `ENTROPY: CPU COUNTER (EXPERIMENTAL)`, `SAVED` i `RET`. X lub Kółko
    wraca do listy. `RET=-735` oznacza brak poprawnych próbek licznika
    lub argumentu przekazywanego z menu.
+
+Gdy Roughtime odrzuci ramkę lub podpisaną odpowiedź, R2 ponawia żądanie
+raz z osobnym nonce. HTTPS rusza dopiero po przyjęciu poprawnej odpowiedzi.
+Podsumowanie pokazuje `ROUGHTIME RETRIES`, `LAST REJECT` i `FINAL REJECT`.
+Implementacja TXRyan opisuje celowe wadliwe odpowiedzi testowe jako
+możliwy powód sporadycznych odrzuceń.
+[Dokumentacja TXRyan](https://github.com/tannerryan/roughtime)
 
 ## Źródło pomysłu
 

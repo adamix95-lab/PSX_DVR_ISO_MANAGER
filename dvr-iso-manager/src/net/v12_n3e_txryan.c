@@ -15,13 +15,17 @@ static const uint8_t pinned_root[32]={
 };
 int v12_n3e_txryan_strict(const uint8_t *packet,size_t length,
                            const uint8_t nonce[32],
-                           v12_rt_signed_time *verified) {
+                           v12_rt_signed_time *verified,int *detail) {
   v12_rt_crypto cb=v12_rt_monocypher_backend();
   v12_rt_signed_time local={0,0},discard={0,0};
   uint8_t wrong_key[32],wrong_nonce[32];
   char mid[20],lo[20],hi[20];
+  int rc;
+  if(detail)*detail=0;
   if(!packet || !nonce || !verified) return -1;
-  if(v12_rt_verify_draft08(packet,length,pinned_root,nonce,&cb,&local)!=0)
+  rc=v12_rt_verify_draft08(packet,length,pinned_root,nonce,&cb,&local);
+  if(detail)*detail=rc;
+  if(rc!=0)
     return -2; /* STRICT draft08 only; no absent-NONC forensic fallback. */
   memcpy(wrong_key,pinned_root,sizeof(wrong_key));
   wrong_key[0]^=1U;

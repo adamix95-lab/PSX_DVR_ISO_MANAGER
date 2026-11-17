@@ -92,19 +92,21 @@ static int verify_internal(const uint8_t *reply,size_t reply_size,
      !cb->sha512 || !cb->verify_ed25519 ||
      reply_size<32 || reply_size>V12_RT_REPLY_MAX_BYTES ||
      memcmp(reply,"ROUGHTIM",8) || (reply_size&3U) ||
-     u32(reply+8)!=reply_size-12U) return -1;
+     u32(reply+8)!=reply_size-12U) return V12_RT_MALFORMED;
   s.p=reply+12;s.n=reply_size-12U;
-  if(parse(s,&top)<0) return -1;
+  if(parse(s,&top)<0) return V12_RT_MALFORMED;
   if(fixed(&top,"VER\0",4,&ver)<0 ||
-     u32(ver.p)!=UINT32_C(0x80000008)) return -1;
+     u32(ver.p)!=UINT32_C(0x80000008)) return V12_RT_VERSION;
 
   /* Production path requires a correctly echoed NONC. The forensic path
    * requires the field to be entirely ABSENT, never malformed. It still
    * verifies request nonce against the authenticated Merkle ROOT. */
   if(require_absent_nonce_echo) {
-    if(get(&top,"NONC",&nc)==0) return -1;
-  } else if(fixed(&top,"NONC",32,&nc)<0 || memcmp(nc.p,nonce,32))
-    return -1;
+    if(get(&top,"NONC",&nc)==0) return V12_RT_NONCE_FIELD;
+  } else {
+    if(fixed(&top,"NONC",32,&nc)<0) return V12_RT_NONCE_FIELD;
+    if(memcmp(nc.p,nonce,32)) return V12_RT_NONCE_MISMATCH;
+  }
 
   if(get(&top,"CERT",&certbytes)<0 || parse(certbytes,&cert)<0 ||
      get(&cert,"DELE",&dele)<0 ||
@@ -112,32 +114,32 @@ static int verify_internal(const uint8_t *reply,size_t reply_size,
      parse(dele,&delegation)<0 ||
      fixed(&delegation,"PUBK",32,&onlinekey)<0 ||
      fixed(&delegation,"MINT",8,&mint)<0 ||
-     fixed(&delegation,"MAXT",8,&maxt)<0) return -1;
+     fixed(&delegation,"MAXT",8,&maxt)<0) return V12_RT_DELEGATION_FIELDS;
 
   /* Signed delegation must authenticate the online key before using it. */
   if(signed_verify(cb,rootkey,sig_dele,cert_ctx,sizeof(cert_ctx),dele)!=0)
-    return -1;
+    return V12_RT_DELEGATION_SIGNATURE;
   start=u64(mint.p);stop=u64(maxt.p);
-  if(stop<start) return -1;
+  if(stop<start) return V12_RT_TIME_INTERVAL;
   if(get(&top,"SREP",&srep)<0 ||
      fixed(&top,"SIG\0",64,&sig_rep)<0 ||
      parse(srep,&signedrep)<0 ||
      fixed(&signedrep,"MIDP",8,&midp)<0 ||
      fixed(&signedrep,"RADI",4,&radi)<0 ||
-     fixed(&signedrep,"ROOT",32,&merkleroot)<0) return -1;
+     fixed(&signedrep,"ROOT",32,&merkleroot)<0) return V12_RT_RESPONSE_FIELDS;
   if(signed_verify(cb,onlinekey.p,sig_rep,rep_ctx,sizeof(rep_ctx),srep)!=0)
-    return -1;
+    return V12_RT_RESPONSE_SIGNATURE;
   midpoint=u64(midp.p);uncertainty=u32(radi.p);
-  if(midpoint<start || midpoint>stop || uncertainty>86400U) return -1;
+  if(midpoint<start || midpoint>stop || uncertainty>86400U) return V12_RT_TIME_INTERVAL;
   if(fixed(&top,"INDX",4,&index)<0 || get(&top,"PATH",&path)<0 ||
-     (path.n%32U) || path.n>32U*24U) return -1;
+     (path.n%32U) || path.n>32U*24U) return V12_RT_MERKLE_PATH;
   path_index=u32(index.p);
 
   /* Roughtime Merkle leaf: SHA512(0x00 || nonce), first 32 bytes. */
   buf[0]=0;
   memcpy(buf+1,nonce,32);
   digest_rc=make_digest(cb,buf,33,current);
-  if(digest_rc<0) return -1;
+  if(digest_rc<0) return V12_RT_SHA512;
   for(offset=0;offset<path.n;offset+=32) {
     buf[0]=1;
     if(path_index&1U) {
@@ -147,11 +149,11 @@ static int verify_internal(const uint8_t *reply,size_t reply_size,
       memcpy(buf+1,current,32);
       memcpy(buf+33,path.p+offset,32);
     }
-    if(make_digest(cb,buf,65,next)<0) return -1;
+    if(make_digest(cb,buf,65,next)<0) return V12_RT_SHA512;
     memcpy(current,next,32);
     path_index>>=1;
   }
-  if(path_index || memcmp(current,merkleroot.p,32)) return -1;
+  if(path_index || memcmp(current,merkleroot.p,32)) return V12_RT_MERKLE_ROOT;
   parsed.midpoint_utc=midpoint;
   parsed.radius_seconds=uncertainty;
   *output=parsed;
