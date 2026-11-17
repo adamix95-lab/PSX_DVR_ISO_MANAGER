@@ -158,10 +158,12 @@ IRX(ps2hdd);
 IRX(ps2fs);
 IRX(netman);
 IRX(smap);
+#ifndef DESR_HDD12_HTTPS
 IRX(bdm);
 IRX(bdmfs_fatfs);
 IRX(usbd_mini);
 IRX(usbmass_bd_mini);
+#endif
 IRX(dvrdrv);
 IRX(dvrfile);
 
@@ -531,6 +533,7 @@ static int read_cfg(v12_net_config *cfg) {
 }
 
 
+#ifndef DESR_HDD12_HTTPS
 static int load_usb_modules(void) {
   int rc;
   rc=load_irx("bdm",bdm_irx,size_bdm_irx,NULL,0);
@@ -543,6 +546,7 @@ static int load_usb_modules(void) {
   if(rc<0)return -510;
   return 0;
 }
+#endif /* HDD12 worker never starts USB mass storage */
 
 /* Private entropy comes from the host CSPRNG and is read exactly once. */
 #ifndef DESR_USB12_CPU_ENTROPY

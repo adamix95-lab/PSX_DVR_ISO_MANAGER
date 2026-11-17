@@ -1,0 +1,222 @@
+name: Build PDIM 1.2 HDD HTTPS R1 (PP.DVRISO12 only, unreleased)
+on:
+  push:
+    branches: [pdim_v1.2_hdd]
+    paths:
+      - 'dvr-iso-manager/**'
+      - 'hdd12-https/**'
+      - 'hdd-netfix/**'
+      - 'release-tools/v1_2/**'
+      - '.github/workflows/build-pdim-hdd12-https.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: HDD 1.0 NETFIX + native HTTPS R4, PFS1 ART writer + tests
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - uses: actions/checkout@v4
+        with:
+          repository: wolfSSL/wolfssl
+          ref: decea12e223869c8f8f3ab5a53dc90b69f436eb2
+          path: wolfssl-n5a
+      - uses: actions/checkout@v4
+        with:
+          repository: LoupVaillant/Monocypher
+          ref: 907e90ddd4c78f02e0d49e90384e4197f7dcdf26
+          path: monocypher-upstream
+      - name: Fetch pinned public USB R4 CA bundle and license metadata
+        run: |
+          set -eu
+          mkdir -p prerequisites
+          curl -fsSL --retry 3 https://curl.se/ca/cacert-2026-11-05.pem -o prerequisites/N4E.CA
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/danielnuld/nuld/2951dc9d22541aa6a2d6c2fcf7705187e97eae92/LICENSE -o prerequisites/NULD-GPL-3.0.txt
+          echo '427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285  prerequisites/N4E.CA' | sha256sum -c -
+          grep -q 'GNU GENERAL PUBLIC LICENSE' prerequisites/NULD-GPL-3.0.txt
+
+      - name: Host tests - HDD12 scanner, non-overwriting PFS ART writer, PNG, entropy, progress UI
+        run: |
+          set -eu
+          m=dvr-iso-manager
+          mock=$m/tests/net/usb-art-mock
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$m/include" -I"$mock" \
+            -DDESR_HDD_TEST=1 -DDESR_HDD12_TARGET=1 -DDESR_HDD12_HTTPS=1 \
+            -DDESR_USB12_HTTPS=1 -DN6G_BATCH_50=1 -DN6D_READONLY=1 \
+            "$m/src/net/n6_usb_art.c" "$m/src/iso_utils.c" "$m/src/cover_index.c" \
+            "$mock/test_batch_scan.c" -o /tmp/hdd12-scan
+          /tmp/hdd12-scan
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$m/include" -I"$mock" \
+            -DDESR_HDD_TEST=1 -DDESR_HDD12_TARGET=1 -DDESR_HDD12_HTTPS=1 \
+            -DDESR_USB12_HTTPS=1 -DN6G_BATCH_50=1 -DN6G_HDD_SAFE=1 \
+            "$m/src/net/n6_usb_art.c" "$m/src/net/probe_png.c" \
+            "$m/src/iso_utils.c" "$m/src/cover_index.c" \
+            "$mock/test_hdd_write.c" -o /tmp/hdd12-pfs-write
+          /tmp/hdd12-pfs-write
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$m/include" \
+            "$m/src/net/probe_png.c" "$m/src/net/n6_normalize_png.c" \
+            "$m/tests/net/test_n6_normalize_png.c" -lpng -lz -o /tmp/hdd12-png
+          /tmp/hdd12-png
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$m/include" \
+            "$m/src/net/usb12_progress_ui.c" "$m/tests/net/test_usb12_progress_ui.c" \
+            -o /tmp/hdd12-progress
+          /tmp/hdd12-progress
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$m/include" -Imonocypher-upstream/src \
+            "$m/src/net/n6g_cpu_entropy.c" "$m/src/net/n6g_batch_entropy.c" \
+            "$m/tests/net/test_n6g_cpu_entropy.c" monocypher-upstream/src/monocypher.c \
+            -o /tmp/hdd12-entropy
+          /tmp/hdd12-entropy
+          python3 - <<'PY'
+          from pathlib import Path
+          main = Path('dvr-iso-manager/src/main.c').read_text()
+          storage = Path('dvr-iso-manager/include/runtime_storage.h').read_text()
+          worker = Path('dvr-iso-manager/src/v12_n6f_https_usb_art_one.c').read_text()
+          art = Path('dvr-iso-manager/src/net/n6_usb_art.c').read_text()
+          headers = Path('dvr-iso-manager/include/usb12_covers.h').read_text()
+          assert 'DESR_HDD12_HTTPS' in storage and '1.2 HDD' in storage
+          assert 'PP.DVRISO12' in storage
+          assert 'hdd_enable_writes() : 0' in main  # refresh HDD index after return
+          assert 'updating HDD index' in main and '1.2 USB\\n\\n' not in main
+          assert 'pdim12' not in main  # no installer code linked to runtime
+          assert 'fileXioMount("pfs1:",DESR_APP_PARTITION,FIO_MT_RDWR)' in worker
+          assert 'N6G_HDD_SAFE' in art and 'fileXioSync("pfs1:",FXIO_WAIT)' in art
+          assert 'DVR_ISO_MANAGER_HDD.ELF' in headers
+          assert 'ART_DIR' in art and 'ART_DIR "/%s_COV.png"' in art
+          assert 'n6g_roughtime_retry(entropy->nonce,retry_signed_probe,&signed_time)' in worker
+          print('PASS: HDD 1.0 runtime preserved, isolated PFS1 ART, USB R4 HTTPS and return contract')
+          PY
+
+      - name: Build pinned HDD NETFIX PS2SDK
+        run: sh hdd-netfix/build_sdk.sh sdk-source
+      - name: Build R4 wolfSSL exactly as tested in USB
+        run: |
+          set -eu
+          for patch in n5d_instrument_wolfssl n5e_instrument_senddata n5f_instrument_handshake n5g_instrument_tls13; do
+            python3 "dvr-iso-manager/tools/$patch.py" wolfssl-n5a
+          done
+          export CFLAGS='-DWC_RNG_SEED_CB=1 -DHAVE_SNI=1 -DWOLFSSL_GETRANDOM -DNO_WRITEV -DXINET_PTON\(...\)=0 -DFP_MAX_BITS=8192'
+          cmake -S wolfssl-n5a -B build-wolfssl-n5a \
+            -DWOLFSSL_SP_MATH_ALL=no -DWOLFSSL_FAST_MATH=yes -DWOLFSSL_ASM=no \
+            -DCMAKE_TOOLCHAIN_FILE="$PS2DEV/share/ps2dev.cmake" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/n5a-wolfssl" \
+            -DCMAKE_PREFIX_PATH="$PS2SDK/ports" \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFSSL_CRYPT_TESTS=OFF -DWOLFSSL_EXAMPLES=OFF \
+            -DWOLFSSL_CURL=ON -DWARNING_C_FLAGS=-w
+          cmake --build build-wolfssl-n5a -j2
+          cmake --install build-wolfssl-n5a
+          grep -q '^#define USE_FAST_MATH' n5a-wolfssl/include/wolfssl/options.h
+          grep -q '^#define TFM_NO_ASM' n5a-wolfssl/include/wolfssl/options.h
+          if grep -q '^#define WOLFSSL_SP_MATH_ALL' n5a-wolfssl/include/wolfssl/options.h; then exit 1; fi
+      - name: Cross-build native HTTPS worker that scans and writes ONLY HDD12 ART
+        run: |
+          set -eu
+          export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
+          export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
+          cmake -S dvr-iso-manager -B build-worker \
+            -DDESR_HDD12_HTTPS=ON -DDESR_BUILD_USB12_WORKER=ON \
+            -DDESR_USB12_EMBEDDED_WORKER=ON -DDESR_USB12_USE_CPU_ENTROPY=ON \
+            -DDESR_USB12_SIMPLE_UI=ON
+          cmake --build build-worker --target COVER_HTTPS_V12.ELF -j2
+          mkdir -p dist
+          mips64r5900el-ps2-elf-strip --strip-debug \
+            -o dist/hdd12-https-payload.elf build-worker/COVER_HTTPS_V12.ELF
+          strings dist/hdd12-https-payload.elf > /tmp/hdd12-worker-strings
+          grep -Fx 'pfs1:/DVR_ISO_MANAGER_HDD.ELF' /tmp/hdd12-worker-strings
+          grep -Fx 'pfs1:/N4E.CA' /tmp/hdd12-worker-strings
+          grep -Fx 'pfs1:/V12_NET.CNF' /tmp/hdd12-worker-strings
+          grep -F 'pfs1:/ART/' /tmp/hdd12-worker-strings
+          grep -F 'PP.DVRISO12' /tmp/hdd12-worker-strings
+          if grep -F 'mass0:/DESR_DVR/' /tmp/hdd12-worker-strings; then exit 1; fi
+          if grep -F 'mass0:/ART/' /tmp/hdd12-worker-strings; then exit 1; fi
+          if grep -F 'hdd0:PP.DVRISO/' /tmp/hdd12-worker-strings; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/hdd12-https-payload.elf').read_bytes()
+          assert p[:4]==b'\x7fELF' and 200000<len(p)<10000000
+          print('PASS: signed HTTPS worker, PP.DVRISO12 storage, PFS1 ART only')
+          PY
+      - name: Cross-build HDD 1.0 NETFIX Manager with embedded HTTPS worker
+        run: |
+          set -eu
+          export DESR_USB12_ELF_LOADER2_HEADER_DIR="$GITHUB_WORKSPACE/sdk-source/ee/elf-loader2/src/include"
+          export DESR_USB12_ELF_LOADER2_LIBRARY="$PS2SDK/ee/lib/libelf-loader2.a"
+          export DESR_USB12_PAYLOAD="$GITHUB_WORKSPACE/dist/hdd12-https-payload.elf"
+          cmake -S dvr-iso-manager -B build-manager \
+            -DDESR_HDD12_HTTPS=ON -DDESR_BUILD_HDD_NETFIX=ON \
+            -DDESR_BUILD_USB12_ONE_ELF=ON -DDESR_USB12_USE_CPU_ENTROPY=ON \
+            -DDESR_USB12_USE_TAIL_PAYLOAD=ON -DDESR_USB12_SIMPLE_UI=ON
+          cmake --build build-manager --target DVR_ISO_MANAGER_HDD12_HTTPS.ELF -j2
+          mips64r5900el-ps2-elf-strip --strip-debug build-manager/DVR_ISO_MANAGER_HDD12_HTTPS.ELF
+          python3 dvr-iso-manager/tools/pack_usb12_tail.py pack-ui \
+            build-manager/DVR_ISO_MANAGER_HDD12_HTTPS.ELF dist/hdd12-https-payload.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, struct
+          p=Path('build-manager/DVR_ISO_MANAGER_HDD12_HTTPS.ELF').read_bytes()
+          worker=Path('dist/hdd12-https-payload.elf').read_bytes()
+          footer=struct.pack('<8sII',b'N6GCPUR3',len(worker),len(worker)^0xffffffff)
+          assert p[:4]==b'\x7fELF'
+          assert p[-16:]==footer
+          assert p[-16-len(worker):-16]==worker
+          for phrase in (b'1.2 HDD',b'hdd0:PP.DVRISO12',b'pfs1:/DVR_ISO_MANAGER_HDD.ELF',
+                         b'TRIANGLE: SERVER (HTTPS, UP TO 50)'):
+            assert phrase in p,phrase
+          assert b'hdd0:PP.DVRISO/' not in p
+          print('HDD12 Manager SHA256',hashlib.sha256(p).hexdigest())
+          print('HTTPS payload SHA256',hashlib.sha256(worker).hexdigest())
+          PY
+      - name: Assemble manual HDD12 HTTPS update and license bundle (NOT installer)
+        run: |
+          set -eu
+          mkdir -p package/COPY_TO_PP.DVRISO12 package/licenses
+          cp build-manager/DVR_ISO_MANAGER_HDD12_HTTPS.ELF package/COPY_TO_PP.DVRISO12/DVR_ISO_MANAGER_HDD.ELF
+          cp prerequisites/N4E.CA package/COPY_TO_PP.DVRISO12/N4E.CA
+          cp release-tools/v1_2/V12_NET.CNF.example package/V12_NET.CNF.example
+          cp hdd12-https/README_PL.md package/README_PL.md
+          cp hdd12-https/README.md package/README.md
+          cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
+          cp wolfssl-n5a/COPYING package/licenses/WOLFSSL-COPYING
+          cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
+          cp monocypher-upstream/LICENCE.md package/licenses/MONOCYPHER-LICENCE.md
+          cp prerequisites/NULD-GPL-3.0.txt package/licenses/NULD-GPL-3.0.txt
+          printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
+          cd package
+          find . -type f ! -name SHA256SUMS | LC_ALL=C sort | while IFS= read -r path; do sha256sum "${path#./}"; done > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          python3 -m zipfile -c ../PDIM-HDD12-HTTPS-R1-TEST.zip \
+            COPY_TO_PP.DVRISO12 V12_NET.CNF.example README.md README_PL.md \
+            licenses SOURCE_COMMIT SHA256SUMS
+          cd ..
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import hashlib
+          p=Path('PDIM-HDD12-HTTPS-R1-TEST.zip')
+          with ZipFile(p) as z:
+            names=set(z.namelist())
+            assert 'COPY_TO_PP.DVRISO12/DVR_ISO_MANAGER_HDD.ELF' in names
+            assert 'COPY_TO_PP.DVRISO12/N4E.CA' in names
+            assert 'V12_NET.CNF.example' in names
+            assert not any('/BOOT.' in n or '/EXECUTE.' in n or '/neutrino' in n for n in names)
+            assert not any(n.startswith('COPY_TO_PP.DVRISO/') for n in names)
+          print('PASS HDD12 HTTPS R1 test bundle',p.stat().st_size,'bytes',
+                hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDIM-HDD12-HTTPS-R1-TEST-UNRELEASED
+          path: PDIM-HDD12-HTTPS-R1-TEST.zip
+          retention-days: 30
+          if-no-files-found: error
