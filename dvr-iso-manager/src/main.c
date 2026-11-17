@@ -578,7 +578,9 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
-  scr_setXY(2,2);
+  /* scr_printf resets x to column 0 on newline. Keep the summary title
+   * flush-left with DOWNLOAD COMPLETE, DOWNLOADED, SKIPPED and X/O. */
+  scr_setXY(0,2);
   scr_printf("PSX DVR ISO MANAGER %s\n\n", DESR_APP_VARIANT);
   scr_printf("%s\n\n",failed?"DOWNLOAD INTERRUPTED":"DOWNLOAD COMPLETE");
   if(have_details) {
