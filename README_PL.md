@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-## 1.2 USB — eksperymentalne HTTPS, R4 sprawdzone na konsoli
+## 1.2 USB — kompletna paczka, HTTPS przetestowane na konsoli (jeszcze bez Release)
 
 R4 pobrał **45/45** brakujących okładek w jednej serii na Sony PSX
 DESR-7000, pokazał podsumowanie i wrócił do Managera. Następnie z listy
@@ -14,7 +14,7 @@ HTTPS, a **Kółko** wraca do listy. Pobieracz jest w tym samym ELF-ie
 i zapisuje sprawdzone PNG w `DESR_DVR/ART/`. Ten wariant korzysta z
 eksperymentalnej entropii z licznika CPU, dzięki czemu działa bez `N6G50.ENT`.
 
-Uruchom `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Paczka eksperymentalna
+W kompletnej paczce 1.2 USB uruchamiaj **`DESR_DVR/DVR_ISO_MANAGER.ELF`** (bez dopisków). Ta nowa nazwa wymaga jeszcze testu powrotu na konsoli. Paczka
 zawiera oryginalne pliki USB 1.0, publiczny plik `DESR_DVR/N4E.CA`, wzór `DESR_DVR/V12_NET.CNF.example` konfiguracji sieci
 i ART Server dla Windows. **Lokalizacja CA w `DESR_DVR` przeszła już test sprzętowy 45/45; nowa lokalizacja pliku sieciowego na USB wymaga osobnego testu.** HTTPS w USB 1.2 korzysta z `DESR_DVR/V12_NET.CNF`, **bez zależności od konfiguracji HDD**. Dla przyszłej wersji HDD 1.2 pliki `N4E.CA` i `V12_NET.CNF` będą w partycji `PP.DVRISO` (po zamontowaniu `pfs1:/N4E.CA`). [Instalacja i wynik sprzętowy](docs/usb12-cpu-entropy.md)
 

@@ -4,7 +4,7 @@
 
 ## Version 1.2 USB — HTTPS cover downloading on Sony PSX (development)
 
-> **Development / pre-release — 17 November 2026.** The USB-only network configuration relocation is a further **not-yet-hardware-verified change**. Earlier 45/45 and 32/32 results used the prior HDD-hosted network file. The relocation of `N4E.CA` into `DESR_DVR/` is a subsequent **untested-on-hardware** packaging change.  The latest tested work lives on the experimental [`test/v1.2-usb-ui-en-rt-retry` branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/test/v1.2-usb-ui-en-rt-retry). It has passed hardware tests, but **1.2 is not a public stable release yet**. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
+> **Complete USB package prepared, not yet published as a GitHub Release.** HTTPS and the standalone `DESR_DVR/V12_NET.CNF` plus `DESR_DVR/N4E.CA` layout were confirmed on a real DESR-7000, as was the `ENGLISH` option. The **unsuffixed primary `DVR_ISO_MANAGER.ELF`** is a subsequent packaging change that still requires a final hardware launch/return test. The current work lives on [`pdim_usb_v1.2`](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/pdim_usb_v1.2), not in a public Release. The stable **1.0 HDD/USB** release and XMB installer are unchanged. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
 
 **Goal:** allow the Sony PSX DESR-7000 to download missing PlayStation 2 game covers **by itself, directly over HTTPS**, without starting the Windows ART Server. The previous PC-based LAN HTTP downloader remains available as an alternative.
 
@@ -42,7 +42,7 @@ PSX DVR ISO Manager 1.2 USB
         X / O = return to game list
 ```
 
-The distributable contains **one Manager file**: `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Its HTTPS worker is appended to the Manager ELF and loaded separately into EE memory. The worker then returns to the Manager via `LoadELFFromFile()`, passing the download counts and status as arguments. It is not simply a TLS function running inside the ordinary game-selection UI.
+The prepared v1.2 USB complete package contains **one primary Manager file**: `DESR_DVR/DVR_ISO_MANAGER.ELF` (the old 1.0 main executable is replaced). Its HTTPS worker is appended to the Manager ELF and loaded separately into EE memory. The worker then returns to the Manager via `LoadELFFromFile()`, passing the download counts and status as arguments. It is not simply a TLS function running inside the ordinary game-selection UI.
 
 For the experimental USB build:
 - Game ISOs are read from Sony's `dvr_pfs0:/ISO` **without modification**.
@@ -125,7 +125,7 @@ Sources and test history: [R4 test details](docs/usb12-cpu-entropy.md), [older t
 
 ### Using the experimental build
 
-Back up a known-good R4 or stable 1.0 ELF and your existing ART files. On a FAT32 USB drive, replace only `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **new, not-yet-hardware-verified CA layout**. Copy your **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/` into `DESR_DVR/` on USB **once** (or fill in `DESR_DVR/V12_NET.CNF.example`, save it as `V12_NET.CNF`). Keep the originals and ART and the 1.0 HDD/XMB installation unchanged. The downloader will no longer mount PP.DVRISO12 for network configuration. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
+Back up your working main ELF, settings and artwork first. In the v1.2 USB complete package the primary executable is `DESR_DVR/DVR_ISO_MANAGER.ELF` without a suffix. For clean installation or careful upgrades use the [complete package instructions](docs/usb12-package.md). Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **new, not-yet-hardware-verified CA layout**. Copy your **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/` into `DESR_DVR/` on USB **once** (or fill in `DESR_DVR/V12_NET.CNF.example`, save it as `V12_NET.CNF`). Keep the originals and ART and the 1.0 HDD/XMB installation unchanged. The downloader will no longer mount PP.DVRISO12 for network configuration. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
 
 The experimental CPU entropy build does **not** require `N6G50.ENT`. Do not assume that an unfinished or interrupted series has been saved completely: after restarting, rescan and check the remaining missing covers. Never perform live write/partition experiments on the Sony system partitions without a recoverable sector-level HDD backup.
 
