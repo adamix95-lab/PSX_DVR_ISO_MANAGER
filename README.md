@@ -2,22 +2,154 @@
 
 [Polski / Polish](README_PL.md)
 
-## 1.2 USB — experimental HTTPS, hardware-tested R4
+## Version 1.2 USB — HTTPS cover downloading on Sony PSX (development)
 
-R4 downloaded all **45/45** missing covers in one run on a Sony PSX
-DESR-7000, displayed the result and returned to the Manager. Killzone
-launched from the game list afterward. The BATCH50 limit of 50 was checked
-with a 60-game simulated library.
+> **Development / pre-release — 17 November 2026.** The latest tested work lives on the experimental [`test/v1.2-usb-ui-en-rt-retry` branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/test/v1.2-usb-ui-en-rt-retry). It has passed hardware tests, but **1.2 is not a public stable release yet**. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
 
-Press **Triangle** to scan for missing artwork. On the prompt, **X** uses
-the PC ART Server, **Triangle** downloads directly via HTTPS, and
-**Circle** returns to the list. The HTTPS worker is in the same ELF and
-saves verified PNGs to `DESR_DVR/ART/`. This variant uses experimental
-CPU-counter entropy for Roughtime and TLS, so it runs without `N6G50.ENT`.
+**Goal:** allow the Sony PSX DESR-7000 to download missing PlayStation 2 game covers **by itself, directly over HTTPS**, without starting the Windows ART Server. The previous PC-based LAN HTTP downloader remains available as an alternative.
 
-Use `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. The experimental ZIP includes
-the unmodified USB 1.0 files, the public CA bundle, a network config
-template and the Windows ART Server. [Installation and hardware test](docs/usb12-cpu-entropy.md)
+### Origin of the idea
+
+PSX DVR ISO Manager already read ISO games from the DVR partition, extracted their PS2 Game IDs, displayed cover artwork, and launched titles through OSDMenu/Neutrino. Until 1.2, missing covers generally had to be placed on USB manually or requested through a separate Windows PC ART Server. That was functional, but unnecessarily dependent on another machine.
+
+The next objective was to keep **the entire artwork workflow on the console**: detect a missing cover, retrieve it from a public database, validate it, save it, refresh the index, and return to the game list. [NULD (formerly ORBIT), developed by Daniel (`danielnuld`)](https://github.com/danielnuld/nuld) also demonstrated PS2-side cover downloads over HTTPS. Its solution to sourcing CPU-counter jitter for wolfSSL was **directly borrowed** for our own DESR implementation (explained in detail below). We should not portray that technique as a new invention of this project.
+
+### How 1.2 works
+
+```text
+PSX DVR ISO Manager 1.2 USB
+  |
+  +-- Triangle: scan ISO files and identify missing artwork
+  |     X        = old Windows PC / LAN HTTP download
+  |     Triangle = console-native HTTPS download
+  |     O        = cancel
+  |
+  +-- PLEASE WAIT... -> launch embedded HTTPS worker ELF
+  |     |
+  |     +-- Signed time: time.txryan.com:2002 (UDP Roughtime)
+  |     |     pinned Ed25519 public key, checked request nonce
+  |     |     strict verification; up to 3 attempts for invalid replies
+  |     |
+  |     +-- HTTPS: raw.githubusercontent.com:443 (wolfSSL)
+  |     |     CA verification + SNI/hostname + certificate validity
+  |     |     primary artwork: OPL Manager GameArt archive (Luden02)
+  |     |     fallback: CosmicScale PSBBN Art Database
+  |     |
+  |     +-- Validate PNG -> normalize to 140 x 200 RGB
+  |     +-- Write USB ART/*.PART -> readback -> final PNG rename
+  |
+  +-- Reload Manager ELF -> DOWNLOAD COMPLETE / INTERRUPTED
+        X / O = return to game list
+```
+
+The distributable contains **one Manager file**: `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Its HTTPS worker is appended to the Manager ELF and loaded separately into EE memory. The worker then returns to the Manager via `LoadELFFromFile()`, passing the download counts and status as arguments. It is not simply a TLS function running inside the ordinary game-selection UI.
+
+For the experimental USB build:
+- Game ISOs are read from Sony's `dvr_pfs0:/ISO` **without modification**.
+- Network configuration is read from an existing `hdd0:PP.DVRISO12/V12_NET.CNF` application partition; the CA bundle is `mass0:/N4E.CA`.
+- Newly verified artwork goes into `mass0:/DESR_DVR/ART/`.
+- Each run processes at most **50** missing covers (`BATCH50`); previously saved artwork is detected and not downloaded again.
+
+### Obstacles and what we fixed
+
+| Challenge | Diagnosis and engineering response |
+| --- | --- |
+| **No trustworthy RTC time** | The DESR's clock can be wrong when its backup battery is depleted. NTP connectivity alone does not authenticate time. We implemented a **signed Roughtime** verification step before checking TLS certificate validity. |
+| **wolfSSL needs entropy** | PS2 lacks the conventional `/dev/urandom` service. Early approaches needed an entropy file generated on PC (`N6G50.ENT`). We **borrowed NULD's COP0 Count jitter method** and adapted it to generate per-request nonce/seed material on the DESR. It is experimental, not proven cryptographically strong. |
+| **TLS handshake stalls and failures** | Incremental N3/N4/N5/N6 tests isolated DNS, UDP, TCP, TLS initialization, read/write callbacks, clock bounds and memory use. Earlier `-649` TLS and `-523` network-link errors were not bypassed; the working HTTPS path uses pinned wolfSSL configuration and bounded operations. |
+| **Roughtime can reject a reply mid-batch** | A prototype returned `RET=-508` after a failed signed-response verification, interrupting an otherwise useful batch. The English-UI test retries missing or rejected Roughtime replies with distinct nonces, at most **three** attempts, and still fails if none verifies. |
+| **Long download batches and EE memory pressure** | We built BATCH50 (maximum 50 covers per run), bounded response buffers, an **8 MiB TLS arena**, explicit per-session wolfSSL cleanup and narrow TLS allocation checks. |
+| **Bad/partial files and possible data corruption** | PNG is checked and normalized in RAM before writing. `.PART` creation, USB readback verification and final rename protect completed covers. ISO contents and already existing artwork are preserved. |
+| **Too much debugging output** | The initial diagnostic build's driver/network/TLS messages were replaced with an English progress UI (`PLEASE WAIT...`, per-cover result and a final Manager summary). Errors are still signaled; debug removal is not treated as a reliability fix. |
+| **Intermittent green screen on return** | One 45-cover UI test completed the writes but hung during the ELF-to-Manager return. Inspection of the pinned PS2SDK loader found a diagnostic **green background set before `SifLoadElf()`**. This helps locate the stage but does **not** prove the underlying cause is fixed. Later hardware tests returned successfully. |
+
+Development deliberately proceeded in small stages: network access and signed-time checks first, two-bound TLS, HTTPS GET into RAM, decoding and normalization, verified USB writes, then multi-cover batches and a usable interface. A successful TLS handshake was never assumed to imply that subsequent filesystem writes or application returns would work.
+
+### Why use Tanner Ryan's Roughtime server?
+
+**Problem:** HTTPS certificate validation requires a reasonable and trustworthy notion of time, which an aging Sony PSX does not necessarily possess. Merely contacting an NTP server does not authenticate the returned time.
+
+We selected **[Tanner Ryan's Roughtime implementation and public service](https://github.com/tannerryan/roughtime)** at `time.txryan.com:2002`. The Manager sends a request with a nonce, then verifies a signed time interval against a **hardcoded/pinned Ed25519 public root key**. The strict verifier is limited to the supported draft-08 response and checks the signature, nonce and time interval. Invalid signatures and incorrect nonces cannot be silently accepted; this time is used only for certificate checks, not to change the hardware RTC.
+
+The server documentation says that it intentionally **"greases" approximately 1% of replies by default**: some responses are deliberately malformed to exercise client validation. Our original worker could correctly **reject** such a response but then stopped the whole series. This is a plausible explanation for previously observed `-508` interruptions, **not proof** that every such interruption came from greasing.
+
+The latest experimental branch uses a bounded retry policy:
+1. Submit the original per-source nonce and verify the reply strictly.
+2. For a missing, malformed or cryptographically invalid reply, derive another distinct nonce and request again.
+3. Stop after **three total attempts**; never accept a failed signature, reuse the rejected response, disable peer validation or ignore an exhausted error.
+
+Relevant code: [strict TXRyan verifier](dvr-iso-manager/src/net/v12_n3e_txryan.c), [wire parsing](dvr-iso-manager/src/net/v12_roughtime_wire.c), [retry policy](dvr-iso-manager/src/net/n6g_roughtime_retry.c).
+
+**Security boundary:** Roughtime authenticates a signed statement of time from the pinned server; it is not a cure for weak local entropy or a complete production-grade trusted-clock policy. Current certificate-time bounds include a diagnostic margin. These caveats remain important before any final security claims.
+
+### CPU entropy for TLS — directly borrowed from NULD
+
+**We directly borrowed the CPU-entropy approach from Daniel's [NULD / former ORBIT](https://github.com/danielnuld/nuld).** Daniel's implementation showed how to work around missing PS2 `/dev/urandom` by using jitter from the MIPS CPU's **COP0 Count** register (`mfc0`). The [NULD `net.c` implementation we consulted](https://github.com/danielnuld/nuld/blob/2951dc9d22541aa6a2d6c2fcf7705187e97eae92/net.c) wraps `open/read` and supplies the wolfSSL random input using repeated Count samples and variable timing. This idea was the decisive starting point for enabling an **on-console, no-PC entropy workflow** in PDIM 1.2.
+
+We **adapted and reimplemented** the technique for the Sony DESR's worker rather than reproducing NULD's `/dev/urandom` wrapper verbatim:
+
+- Read an initial launch Count and **96 COP0 Count samples**, rejecting a frozen sample sequence.
+- Run the collected input through Monocypher **BLAKE2b** to derive separate inputs for up to 50 games and two artwork sources: one **32-byte Roughtime nonce** and **two 64-byte TLS seed inputs** for the low and high certificate-time-bound sessions.
+- Derive distinct, domain-separated nonces for Roughtime retries without repeating the prior request.
+- Wipe temporary seed material after use. The worker no longer needs the host-generated `N6G50.ENT` file.
+
+See [`n6g_cpu_entropy.c`](dvr-iso-manager/src/net/n6g_cpu_entropy.c) and [`n6g_cpu_entropy.h`](dvr-iso-manager/include/n6g_cpu_entropy.h).
+
+**Important distinction:** this solved the *practical integration issue* of feeding wolfSSL without a PC-generated file. It does **not** establish the quality of the entropy. CPU-counter samples can be predictable, and BLAKE2b cannot create missing randomness. The implementation is **experimental**, appropriate here only for retrieving *public cover images*; it must not be advertised as a certified RNG or reused for passwords, financial information or other sensitive TLS traffic without a trustworthy entropy source.
+
+NULD's repository is [GPL-3.0 licensed](https://github.com/danielnuld/nuld/blob/main/LICENSE). The technical method and its source must be acknowledged. Before a public binary release, we should additionally **review whether any adapted/copied material triggers GPL license obligations**; credit alone is not a license compliance review.
+
+### HTTPS trust, cover integrity and software architecture
+
+The worker uses **wolfSSL/wolfCrypt** for TLS and the public **Mozilla CA bundle** (`N4E.CA`, obtained via curl's CA extraction). It checks certificate chains, hostname/SNI and certificate validity against both bounds of the signed Roughtime interval. It does **not** disable certificate verification to force a connection. The two HTTPS sessions use independent seed inputs and an 8 MiB EE allocation arena; wolfSSL contexts, sessions and sockets are released along their normal cleanup paths. Their cleanup is implemented, but a pair of successful long batches cannot establish the complete absence of leaks.
+
+Only fixed, commit-pinned paths are requested from `raw.githubusercontent.com`. The primary [Luden02 archive of OPL Manager GameArt](https://github.com/Luden02/psx-ps2-opl-art-database) is queried first; [CosmicScale's PSBBN artwork database](https://github.com/CosmicScale/psbbn-art-database) is the fallback. The downloader validates the 11-character PS2 Game ID, rejects unsupported HTTP responses and redirects, and keeps the response in bounded RAM until PNG validation has passed. The image is normalized to **140 × 200 RGB**.
+
+USB writing uses exclusive temporary `.PART` files, readback checking and renaming to the final `*_COV.png` name only after success. A failed or unavailable image cannot silently overwrite an existing cover, and no DLC, ISO or Sony DVR filesystem content is changed.
+
+### Hardware results — Sony PSX DESR-7000 (17 November 2026)
+
+| Test | Result | Return to Manager |
+| --- | --- | --- |
+| Baseline HTTPS **R4** | **45/45** missing covers in one run; Killzone later launched | **PASS** |
+| First simplified Polish-UI test | Successful 45-cover run; another **45/45** download | An **intermittent green-screen hang** occurred on one return |
+| Polish-UI regression with fewer covers | **20** covers downloaded | **PASS** |
+| Latest **English UI + TXRyan retry** | **45/45**, followed by **32/32** in a separate test | **PASS both times**, no green screen |
+| Legacy Windows ART Server / LAN HTTP | **15/15** covers | **PASS** |
+| Host-side BATCH50 test | Limit of **50** verified against 60 simulated candidate games | Not a console run |
+
+The latest experimental build therefore completed **77/77 HTTPS cover downloads across two hardware sessions** and kept the earlier **15/15 LAN HTTP** workflow working. This is strong practical evidence for that build, but **not proof** that the sporadic green screen has been permanently eliminated or that the entropy source is cryptographically secure.
+
+Sources and test history: [R4 test details](docs/usb12-cpu-entropy.md), [older two-ELF prototype](docs/usb12-https-prototype.md), [English UI/retry test instructions](docs/usb12-ui-en-retry-test.md), [CI build and artifacts](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/44082362681). The current experimental Manager ELF was built with SHA-256 `26c4989e77de9b9f3feff6086807497f5f511c0c5bb634efc019e7b228010275` (this is a **test build hash**, not a promise about the eventual 1.2 release artifact).
+
+### Using the experimental build
+
+Back up a known-good R4 or stable 1.0 ELF and your existing ART files. On a FAT32 USB drive, replace only `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Keep working `N4E.CA`, `hdd0:PP.DVRISO12/V12_NET.CNF`, ART and the 1.0 HDD/XMB installation unchanged. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
+
+The experimental CPU entropy build does **not** require `N6G50.ENT`. Do not assume that an unfinished or interrupted series has been saved completely: after restarting, rescan and check the remaining missing covers. Never perform live write/partition experiments on the Sony system partitions without a recoverable sector-level HDD backup.
+
+### Credits, upstream work and licensing for 1.2
+
+The following projects **made this work possible**. Their contributions are not original PDIM inventions:
+
+| Project / contributor | Actual role in our implementation | Upstream / license |
+| --- | --- | --- |
+| **Daniel / NULD (formerly ORBIT)** | **Direct source of the CPU COP0 Count jitter entropy technique** used to get wolfSSL running without a host-generated entropy file. Adapted into DESR-specific sampling/seed derivation. | [NULD](https://github.com/danielnuld/nuld) · [`net.c`](https://github.com/danielnuld/nuld/blob/2951dc9d22541aa6a2d6c2fcf7705187e97eae92/net.c) · GPL-3.0 |
+| **Tanner Ryan / TXRyan** | Operates the public **Roughtime service** used for signed time; server's deliberate malformed replies motivated strict bounded retry handling. The client verifier is part of this project, not a claim to authorship of Tanner's server. | [tannerryan/roughtime](https://github.com/tannerryan/roughtime) · BSD-2-Clause |
+| **wolfSSL Inc.** | **wolfSSL/wolfCrypt**, the core TLS and certificate-validation implementation. | [wolfSSL](https://github.com/wolfSSL/wolfssl) · GPLv3-or-later **or commercial license**, per upstream licensing terms |
+| **Loup Vaillant and Monocypher contributors** | Monocypher **BLAKE2b and Ed25519** primitives used in entropy expansion and signed-response verification. | [Monocypher](https://github.com/LoupVaillant/Monocypher) · BSD-2-Clause / CC0 (refer to individual source notices) |
+| **PS2DEV / PS2SDK contributors** | PS2 EE/IOP libraries, drivers, network stack, toolchain support and ELF-loading foundation. | [ps2sdk](https://github.com/ps2dev/ps2sdk) · AFL-2.0 and relevant component notices |
+| **Mozilla / curl CA extraction** | Public **CA root certificate bundle** used for TLS validation, not custom certificates created by PDIM. | [curl CA extract](https://curl.se/docs/caextract.html) · [Mozilla MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/) |
+| **OPL Manager and Luden02** | Primary **GameArt collection** and public archival dump used as a cover lookup source. Ownership of individual images remains with their respective rights holders. | [OPL Manager](https://oplmanager.com/) · [Luden02 dump](https://github.com/Luden02/psx-ps2-opl-art-database) |
+| **CosmicScale** | Public **PSBBN Art Database** used as the second source when an OPL Manager archive cover is unavailable. | [CosmicScale/psbbn-art-database](https://github.com/CosmicScale/psbbn-art-database) |
+| **ps2max32, pcm720 and Neutrino contributors** | **Neutrino game launching and DVR module support**, on which PDIM's earlier game-starting functionality builds. | [Neutrino](https://github.com/ps2max32/neutrino) · [pcm720 DVR support PR #228](https://github.com/ps2max32/neutrino/pull/228) · AFL-3.0 |
+| **wLaunchELF-R3Z and its contributors** | Practical launcher and DVR-capable filesystem tooling used in DESR hardware tests. | See corresponding upstream distribution and licensing notices |
+
+**Additional thanks:** **Berion** for technical assistance; all upstream PS2/PSX developers and contributors; and the hardware testers who reported actual DESR-7000 behavior, including failed stages as well as successful downloads.
+
+**Pre-release licensing checklist:** retain all applicable third-party notices in the release ZIP; review the GPL-3.0 provenance of any NULD-derived source and the GPL/commercial licensing of the linked wolfSSL binary; keep Monocypher, PS2SDK, Neutrino and CA-bundle notices as required; and verify artwork redistribution rights separately from the executable's open-source licenses. **Attribution is necessary, but is not by itself a substitute for license compliance.** Do not declare public 1.2 release-ready until those items and outstanding hardware-return reliability are reviewed.
+
+---
 
 ## v1.0.0 — HDD + USB
 
@@ -638,7 +770,12 @@ This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN an
 
 ## Credits
 
-- [Neutrino](https://github.com/ps2max32/neutrino) and [pcm720's DVR support PR #228](https://github.com/ps2max32/neutrino/pull/228)
-- Berion — technical assistance
-- [CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database) — fallback artwork source
-- OPL Manager cover archive — primary artwork source
+- **[Daniel / NULD (formerly ORBIT)](https://github.com/danielnuld/nuld)** — direct source of the COP0 Count CPU-entropy technique adapted for the HTTPS 1.2 worker (see the detailed [1.2 credits and licensing section](#credits-upstream-work-and-licensing-for-12)).
+- **[Tanner Ryan / TXRyan Roughtime](https://github.com/tannerryan/roughtime)** — public signed-time service.
+- **[wolfSSL](https://github.com/wolfSSL/wolfssl), [Monocypher](https://github.com/LoupVaillant/Monocypher), [PS2SDK](https://github.com/ps2dev/ps2sdk)** — TLS, cryptography, EE/IOP infrastructure.
+- **[Neutrino](https://github.com/ps2max32/neutrino)** and **[pcm720's DVR support PR #228](https://github.com/ps2max32/neutrino/pull/228)** — PS2 game loader and DVR integration.
+- **Berion** — technical assistance.
+- **[CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database)** — fallback artwork; **[OPL Manager](https://oplmanager.com/) / [Luden02 archive](https://github.com/Luden02/psx-ps2-opl-art-database)** — primary artwork.
+- **[Mozilla/curl CA bundle](https://curl.se/docs/caextract.html)** and the PS2 homebrew/toolchain community.
+
+See the [technical 1.2 credits](#credits-upstream-work-and-licensing-for-12) for precisely what was borrowed, attribution and pre-release license obligations.
