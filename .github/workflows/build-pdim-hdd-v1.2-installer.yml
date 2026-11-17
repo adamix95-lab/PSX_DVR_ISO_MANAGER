@@ -47,7 +47,7 @@ jobs:
           echo '427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285  prerequisites/N4E.CA' | sha256sum -c -
           grep -q 'GNU GENERAL PUBLIC LICENSE' prerequisites/NULD-GPL-3.0.txt
 
-      - name: Host tests - HDD12 scanner, non-overwriting PFS ART writer, PNG, entropy, progress UI
+      - name: Host tests - production PP.DVRISO scanner, PFS ART writer, PNG, entropy, progress UI
         run: |
           set -eu
           m=dvr-iso-manager
@@ -120,7 +120,7 @@ jobs:
           grep -q '^#define USE_FAST_MATH' n5a-wolfssl/include/wolfssl/options.h
           grep -q '^#define TFM_NO_ASM' n5a-wolfssl/include/wolfssl/options.h
           if grep -q '^#define WOLFSSL_SP_MATH_ALL' n5a-wolfssl/include/wolfssl/options.h; then exit 1; fi
-      - name: Cross-build native HTTPS worker that scans and writes ONLY HDD12 ART
+      - name: Cross-build native HTTPS worker for PP.DVRISO ART only
         run: |
           set -eu
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
@@ -261,17 +261,20 @@ jobs:
           set -eu
           mkdir -p input/releases
           release="https://github.com/$GITHUB_REPOSITORY/releases/download/1.0"
-          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip" -o input/releases/hdd1.zip
-          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip" -o input/releases/xmb1.zip
+          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip" -o input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip
+          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip" -o input/releases/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip
           curl -fsSL --retry 3 "$release/SHA256SUMS.txt" -o input/releases/SHA256SUMS.txt
+          grep -q 'PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip' input/releases/SHA256SUMS.txt
+          grep -q 'PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip' input/releases/SHA256SUMS.txt
+          (cd input/releases && sha256sum -c SHA256SUMS.txt --ignore-missing)
           # Known hardware-tested HDD1.0 archive: fixed SHA-256 pin.
-          echo '4ad658817f25b6254b66f0f65f3bd34ca72af70e89d71756eed706d432b7e00f  input/releases/hdd1.zip' | sha256sum -c -
+          echo '4ad658817f25b6254b66f0f65f3bd34ca72af70e89d71756eed706d432b7e00f  input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip' | sha256sum -c -
       - name: Stage automatic and manual test-only packages
         run: |
           set -eu
           python3 pdim-hdd-v1.2-installer/tools/stage_package.py \
-            --hdd input/releases/hdd1.zip \
-            --xmb input/releases/xmb1.zip \
+            --hdd input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip \
+            --xmb input/releases/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip \
             --manager input/runtime/DVR_ISO_MANAGER_HDD.ELF \
             --installer input/installer/PDIM_HDD_V12_INSTALLER.ELF \
             --ca input/runtime/N4E.CA \
