@@ -233,9 +233,14 @@ static void n6g_ui_redraw(void) {
   scr_printf("PSX DVR ISO MANAGER 1.2 USB\n");
   scr_printf("-----------------------------------------\n\n");
   if(n6g_ui_finished) {
-    scr_printf("POBIERANIE ZAKONCZONE\n\n");
+    scr_printf(n6g_ui_progress.errors ?
+               "POBIERANIE PRZERWANE\n\n" :
+               "POBIERANIE ZAKONCZONE\n\n");
     if(n6g_ui_progress.total==0) {
-      scr_printf("BRAK BRAKUJACYCH OKLADEK\n");
+      if(n6g_ui_progress.errors)
+        scr_printf("BLAD PRZYGOTOWANIA POBIERANIA\n");
+      else
+        scr_printf("BRAK BRAKUJACYCH OKLADEK\n");
     }else {
       scr_printf("POBRANO: %d/%d\n",n6g_ui_progress.saved,
                  n6g_ui_progress.total);
@@ -300,8 +305,9 @@ static void n6g_ui_summary(int targets,int saved,int skipped,int rc) {
    */
   n6g_ui_progress.saved=saved;
   n6g_ui_progress.skipped=skipped;
-  if(rc<0 && !(rc==-404 && skipped==targets && targets>0))
-    ++n6g_ui_progress.errors;
+  if(rc<0 && !(rc==-404 && skipped==targets && targets>0) &&
+     n6g_ui_progress.errors==0)
+    n6g_ui_progress.errors=1;
   n6g_ui_finished=1;
   n6g_ui_redraw();
 }
