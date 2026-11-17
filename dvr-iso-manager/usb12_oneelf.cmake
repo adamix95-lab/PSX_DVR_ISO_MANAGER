@@ -26,8 +26,13 @@ if(DESR_HDD12_HTTPS)
   add_executable(${single} EXCLUDE_FROM_ALL ${SOURCES}
     ${HDD_PFS_SOURCES} src/usb12_launch_embedded.c ${payload_asm})
   target_compile_definitions(${single} PRIVATE DESR_USB12_HTTPS=1
-    DESR_USB12_ONE_ELF=1 DESR_HDD12_HTTPS=1 DESR_HDD12_TARGET=1
+    DESR_USB12_ONE_ELF=1 DESR_HDD12_HTTPS=1
     DESR_HDD_TEST=1 DESR_HDD_NETFIX=1)
+  if(DESR_HDD_V12_PRODUCTION)
+    target_compile_definitions(${single} PRIVATE DESR_HDD_V12_PRODUCTION=1)
+  else()
+    target_compile_definitions(${single} PRIVATE DESR_HDD12_TARGET=1)
+  endif()
 else()
   add_executable(${single} EXCLUDE_FROM_ALL ${SOURCES} src/usb12_launch_embedded.c ${payload_asm})
   target_compile_definitions(${single} PRIVATE DESR_USB12_HTTPS=1 DESR_USB12_ONE_ELF=1)
