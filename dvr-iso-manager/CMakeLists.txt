@@ -86,3 +86,8 @@ option(DESR_BUILD_USB12_WORKER "Build the standalone USB 1.2 HTTPS cover ELF" OF
 if(DESR_BUILD_USB12_WORKER)
   include(usb12_worker.cmake)
 endif()
+
+option(DESR_BUILD_USB12_ONE_ELF "Build USB 1.2 with its HTTPS worker embedded" OFF)
+if(DESR_BUILD_USB12_ONE_ELF)
+  include(usb12_oneelf.cmake)
+endif()

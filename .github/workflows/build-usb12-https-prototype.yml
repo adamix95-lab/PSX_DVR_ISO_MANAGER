@@ -1,7 +1,7 @@
-name: Build USB Manager 1.2 prototype
+name: Build USB Manager 1.2 single ELF
 on:
   push:
-    branches: [test/v1.2-usb-https-covers]
+    branches: [test/v1.2-usb-single-elf]
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,20 +15,11 @@ jobs:
           persist-credentials: false
       - name: Install build and host test dependencies
         run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
-      - name: Build USB 1.0 and the opt-in USB 1.2 Manager against the stock SDK
+      - name: Preserve the stock SDK for the USB Manager
         run: |
           set -eu
-          cmake -S dvr-iso-manager -B build-manager
-          cmake --build build-manager -j2 --target DVR_ISO_MANAGER.ELF DVR_ISO_MANAGER_V12.ELF
-          strings build-manager/DVR_ISO_MANAGER.ELF > /tmp/usb10-strings
-          strings build-manager/DVR_ISO_MANAGER_V12.ELF > /tmp/usb12-strings
-          grep -Fx 'DOWNLOAD MISSING COVERS FROM LOCAL HTTP?' /tmp/usb10-strings
-          if grep -F 'COVER_HTTPS_V12.ELF' /tmp/usb10-strings; then exit 1; fi
-          grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
-          grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
-          grep -Fx 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings
-          grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
-          grep -Fx 'X / O: RETURN TO GAME LIST' /tmp/usb12-strings
+          mkdir -p "$RUNNER_TEMP/stock-ps2sdk"
+          cp -a "$PS2SDK"/. "$RUNNER_TEMP/stock-ps2sdk"/
       - uses: actions/checkout@v4
         with:
           repository: ps2dev/ps2sdk
@@ -93,27 +84,47 @@ jobs:
           /tmp/n6g-arena-test
       - name: Build N6G FAT driver with exclusive file creation
         run: sh dvr-iso-manager/tools/build_n6g_fat.sh sdk-source "$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
-      - name: Cross-build the USB 1.2 HTTPS worker
+      - name: Cross-build the embedded HTTPS worker with NETFIX
         run: |
           set -eu
           export V12_N4B_WOLFSSL_DIR="$GITHUB_WORKSPACE/n5a-wolfssl"
           export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
           export V12_N6G_FAT_IRX="$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
-          cmake -S dvr-iso-manager -B build-worker -DDESR_BUILD_USB12_WORKER=ON
+          cmake -S dvr-iso-manager -B build-worker -DDESR_BUILD_USB12_WORKER=ON \
+            -DDESR_USB12_EMBEDDED_WORKER=ON
           cmake --build build-worker -j2 --target COVER_HTTPS_V12.ELF
           strings build-worker/COVER_HTTPS_V12.ELF > /tmp/worker-strings
-          grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12.ELF' /tmp/worker-strings
+          grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_SINGLE.ELF' /tmp/worker-strings
           grep -F 'mass0:/DESR_DVR/ART' /tmp/worker-strings
           grep -Fx 'TLS INIT ORDER: %s' /tmp/worker-strings
           grep -Fx 'SSL FIRST' /tmp/worker-strings
           if grep -F 'N6G.CAFIRST' /tmp/worker-strings; then exit 1; fi
-      - name: Package prototype additions for an existing USB 1.0 installation
+      - name: Cross-build single-file Manager with the stock drivers and embedded worker
+        run: |
+          set -eu
+          export DESR_USB12_ELF_LOADER2_HEADER_DIR="$GITHUB_WORKSPACE/sdk-source/ee/elf-loader2/src/include"
+          export DESR_USB12_ELF_LOADER2_LIBRARY="$PS2SDK/ee/lib/libelf-loader2.a"
+          export DESR_USB12_PAYLOAD="$GITHUB_WORKSPACE/build-worker/usb12-payload.elf"
+          mips64r5900el-ps2-elf-strip --strip-debug -o "$DESR_USB12_PAYLOAD" build-worker/COVER_HTTPS_V12.ELF
+          export PS2SDK="$RUNNER_TEMP/stock-ps2sdk"
+          cmake -S dvr-iso-manager -B build-manager -DDESR_BUILD_USB12_ONE_ELF=ON
+          cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_SINGLE.ELF
+          manager=build-manager/DVR_ISO_MANAGER_V12_SINGLE.ELF
+          python3 dvr-iso-manager/tools/audit_usb12_payload.py \
+            build-worker/COVER_HTTPS_V12.ELF "$DESR_USB12_PAYLOAD" "$manager"
+          strings "$manager" > /tmp/usb12-strings
+          grep -Fx '1.2 USB SINGLE ELF' /tmp/usb12-strings
+          grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
+          grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
+          grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
+          if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
+      - name: Package the single ELF for an existing USB 1.0 installation
         run: |
           set -eu
           mkdir -p package/DESR_DVR package/tools package/licenses
-          cp build-manager/DVR_ISO_MANAGER_V12.ELF build-worker/COVER_HTTPS_V12.ELF package/DESR_DVR/
+          cp build-manager/DVR_ISO_MANAGER_V12_SINGLE.ELF package/DESR_DVR/
           cp dvr-iso-manager/tools/generate_n6g_batch_entropy.py package/tools/
-          cp docs/usb12-https-prototype.md package/README.md
+          cp docs/usb12-single-elf.md package/README.md
           cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
           cp wolfssl-n5a/COPYING package/licenses/WOLFSSL-COPYING
           cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
@@ -121,11 +132,11 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
           sha256sum DESR_DVR/*.ELF > SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-PROTOTYPE.zip \
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF.zip \
             DESR_DVR README.md tools licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-PROTOTYPE
-          path: PSX-DVR-ISO-Manager-1.2-USB-PROTOTYPE.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF
+          path: PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF.zip
           if-no-files-found: error
           retention-days: 30

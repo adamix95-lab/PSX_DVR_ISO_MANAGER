@@ -53,6 +53,10 @@ target_compile_definitions(${target} PRIVATE
   DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1
   WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
   NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
+option(DESR_USB12_EMBEDDED_WORKER "Return to the single-file Manager" OFF)
+if(DESR_USB12_EMBEDDED_WORKER)
+  target_compile_definitions(${target} PRIVATE DESR_USB12_ONE_ELF=1)
+endif()
 target_include_directories(${target} PRIVATE include
   "${wolfssl}/include" "${monocypher}" "${monocypher}/optional")
 target_link_libraries(${target} PRIVATE fileXio cdvd patches ps2ip netman

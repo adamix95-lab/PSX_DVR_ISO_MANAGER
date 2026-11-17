@@ -452,7 +452,11 @@ static int check_usb_file(const char *path) {
 #ifdef DESR_USB12_HTTPS
 static void launch_usb12_covers(void) {
   const char *required[] = {
+#ifdef DESR_USB12_ONE_ELF
+    DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+#else
     DESR_USB12_HTTPS_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+#endif
   };
   char *args[] = { force_english ? "1" : "0" };
   int rc;
@@ -467,7 +471,11 @@ static void launch_usb12_covers(void) {
 
   padPortClose(0, 0);
   padEnd();
+#ifdef DESR_USB12_ONE_ELF
+  rc = desr_run_embedded_https(args[0]);
+#else
   rc = LoadELFFromFile(DESR_USB12_HTTPS_ELF, 1, args);
+#endif
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_clear();
     scr_printf("HTTPS loader returned %d. Reopen Manager 1.2.\n", rc);
