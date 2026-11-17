@@ -48,9 +48,10 @@ add_executable(${target} EXCLUDE_FROM_ALL
   "${build}/dvrdrv_irx.c"
   "${build}/dvrfile_irx.c"
   src/net/n6g_tls_arena.c
-  src/net/n6g_batch_entropy.c)
+  src/net/n6g_batch_entropy.c
+  src/net/usb12_progress_ui.c)
 target_compile_definitions(${target} PRIVATE
-  DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1
+  DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1 N6G_UI_SIMPLE=1
   WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
   NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
 option(DESR_USB12_EMBEDDED_WORKER "Return to the single-file Manager" OFF)
