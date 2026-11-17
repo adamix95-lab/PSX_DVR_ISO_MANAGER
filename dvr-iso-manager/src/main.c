@@ -437,6 +437,10 @@ static void draw_scan_art_question(int missing) {
 #else
   scr_printf("Only new PNG files are written to USB ART.");
 #endif
+#ifdef DESR_USB12_CPU_ENTROPY
+  scr_setXY(2, 26);
+  scr_printf("HTTPS uses experimental CPU counter entropy.");
+#endif
   scr_setfontcolor(0xFFFFFF);
 }
 
@@ -453,7 +457,11 @@ static int check_usb_file(const char *path) {
 static void launch_usb12_covers(void) {
   const char *required[] = {
 #ifdef DESR_USB12_ONE_ELF
+#ifdef DESR_USB12_CPU_ENTROPY
+    DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE
+#else
     DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+#endif
 #else
     DESR_USB12_HTTPS_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
 #endif
@@ -515,6 +523,9 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   scr_clear();
   scr_setXY(2, 2);
   scr_printf("PSX DVR ISO MANAGER 1.2 - HTTPS RESULT\n\n");
+#ifdef DESR_USB12_CPU_ENTROPY
+  scr_printf("ENTROPY: CPU COUNTER (EXPERIMENTAL)\n");
+#endif
   scr_printf("%s. RET=%ld\n\n", result == 0 ? "BATCH COMPLETE" : "BATCH RETURNED WITH AN ERROR",
              result);
   if (argc == 7 &&

@@ -63,6 +63,9 @@
 #include "cover_index.h"
 #include "probe_png.h"
 #include "n6_normalize_png.h"
+#ifdef DESR_USB12_CPU_ENTROPY
+#include "n6g_cpu_entropy.h"
+#endif
 #ifdef DESR_USB12_HTTPS
 #include <elf-loader.h>
 #include "usb12_covers.h"
@@ -383,6 +386,7 @@ static int load_usb_modules(void) {
 }
 
 /* Private entropy comes from the host CSPRNG and is read exactly once. */
+#ifndef DESR_USB12_CPU_ENTROPY
 static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   int rc,fd=-1,n,got=0,extra,closed;
   uint8_t tail=0;
@@ -424,6 +428,7 @@ static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   }
   return 0;
 }
+#endif
 #ifndef N6G_BATCH_50
 static int read_entropy_usb(uint8_t nonce[32],
                             uint8_t seeds[N6_BATCH_MAX][4][64]) {
@@ -455,13 +460,22 @@ static int read_ca_bundle(void) {
   int fd=-1,n,closed,extra;
   uint8_t tail;
   size_t total=0;
-  scr_printf("STAGE 4B: USB public N4E.CA (PEM)\n");
-#ifdef DESR_USB12_HTTPS
-  fd=fileXioOpen(DESR_USB12_CA_FILE,FIO_O_RDONLY,0);
+#ifdef DESR_USB12_CPU_ENTROPY
+  const int attempts=16;
 #else
-  fd=fileXioOpen("mass0:/N4E.CA",FIO_O_RDONLY,0);
+  const int attempts=1; /* Reading .ENT already waited for USB. */
 #endif
-  if(fd<0) fd=fileXioOpen("mass:/N4E.CA",FIO_O_RDONLY,0);
+  scr_printf("STAGE 4B: USB public N4E.CA (PEM)\n");
+  for(int i=0;i<attempts;i++) {
+#ifdef DESR_USB12_HTTPS
+    fd=fileXioOpen(DESR_USB12_CA_FILE,FIO_O_RDONLY,0);
+#else
+    fd=fileXioOpen("mass0:/N4E.CA",FIO_O_RDONLY,0);
+#endif
+    if(fd<0)fd=fileXioOpen("mass:/N4E.CA",FIO_O_RDONLY,0);
+    if(fd>=0)break;
+    if(i+1<attempts)usleep(500000);
+  }
   if(fd<0) return -517;
   while(total<CA_CAP) {
     size_t count=CA_CAP-total;
@@ -1045,6 +1059,29 @@ static int save_batch(n6g_batch_entropy entropy,int targets,
 }
 
 #ifdef DESR_USB12_HTTPS
+#ifdef DESR_USB12_CPU_ENTROPY
+static int fill_cpu_entropy(int argc, char **argv, n6g_batch_entropy entropy) {
+  uint32_t samples[N6G_CPU_SAMPLE_COUNT];
+  char *end;
+  unsigned long launch_ticks;
+  int rc;
+
+  if(argc!=3 || strlen(argv[2])!=8)return -735;
+  launch_ticks=strtoul(argv[2],&end,16);
+  if(*end)return -735;
+
+  scr_printf("ENTROPY SOURCE: CPU COUNTER (EXPERIMENTAL)\n");
+  for(unsigned i=0;i<N6G_CPU_SAMPLE_COUNT;i+=2) {
+    samples[i]=n6g_read_cpu_count();
+    usleep(1000+(i%16)*125);
+    samples[i+1]=n6g_read_cpu_count();
+  }
+  rc=n6g_expand_cpu_entropy(entropy,(uint32_t)launch_ticks,samples);
+  v12_n4a_wipe(samples,sizeof(samples));
+  return rc==0?0:-735;
+}
+#endif
+
 static void return_to_manager(int saved, int result, int english, char *details) {
   char saved_arg[12], result_arg[12];
   char *args[]={DESR_USB12_ART_RESULT,saved_arg,result_arg,english?"1":"0",
@@ -1060,7 +1097,7 @@ static void return_to_manager(int saved, int result, int english, char *details)
 
 int main(int argc, char **argv) {
   int io_ready;
-  int english=argc==2 && strcmp(argv[1],"1")==0;
+  int english=argc>=2 && strcmp(argv[1],"1")==0;
 #else
 int main(void) {
 #endif
@@ -1084,11 +1121,18 @@ int main(void) {
 #ifdef DESR_USB12_HTTPS
   /* Keep USB available for the return ELF if config or allocation failed. */
   if(io_ready && rc!=0)load_usb_modules();
+#endif
+#ifdef DESR_USB12_CPU_ENTROPY
+  if(rc==0)rc=load_usb_modules();
+  if(rc==0)rc=fill_cpu_entropy(argc,argv,*entropy);
+#else
+#ifdef DESR_USB12_HTTPS
   if(rc==0)rc=read_entropy_file(DESR_USB12_ENTROPY_FILE,
 #else
   if(rc==0)rc=read_entropy_file("mass0:/N6G50.ENT",
 #endif
                                (uint8_t *)entropy,(int)sizeof(*entropy));
+#endif
   if(rc==0 && !n6g_batch_entropy_valid(*entropy))rc=-516;
   if(rc==0)rc=read_ca_bundle();
   if(rc==0) {

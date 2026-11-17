@@ -82,6 +82,7 @@ if(DESR_BUILD_HDD_NETFIX)
   target_link_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/HDD_NETFIX.map")
 endif()
 
+option(DESR_USB12_USE_CPU_ENTROPY "Experimental CPU counter entropy for the one-file Manager" OFF)
 option(DESR_BUILD_USB12_WORKER "Build the standalone USB 1.2 HTTPS cover ELF" OFF)
 if(DESR_BUILD_USB12_WORKER)
   include(usb12_worker.cmake)

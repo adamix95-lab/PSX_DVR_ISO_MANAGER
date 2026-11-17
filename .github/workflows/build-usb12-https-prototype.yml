@@ -1,7 +1,7 @@
-name: Build USB Manager 1.2 single ELF
+name: Build USB Manager 1.2 CPU entropy experiment
 on:
   push:
-    branches: [test/v1.2-usb-single-elf]
+    branches: [test/v1.2-usb-cpu-entropy]
   workflow_dispatch:
 permissions:
   contents: read
@@ -54,6 +54,15 @@ jobs:
             "$manager/tests/net/test_n6g_batch_entropy.c" -o "$work/check"
           python3 "$manager/tools/generate_n6g_batch_entropy.py" "$work/N6G50.ENT"
           "$work/check" "$work/N6G50.ENT"
+      - name: Host-test CPU counter expansion and frozen input rejection
+        run: |
+          set -eu
+          manager=dvr-iso-manager
+          cc -std=c11 -O2 -Wall -Wextra -Werror -I"$manager/include" -Imonocypher-upstream/src \
+            "$manager/src/net/n6g_cpu_entropy.c" "$manager/src/net/n6g_batch_entropy.c" \
+            "$manager/tests/net/test_n6g_cpu_entropy.c" monocypher-upstream/src/monocypher.c \
+            -o /tmp/n6g-cpu-entropy
+          /tmp/n6g-cpu-entropy
       - name: Rebuild pinned NETFIX PS2SDK for the HTTPS worker
         run: sh hdd-netfix/build_sdk.sh sdk-source
       - name: Build wolfSSL with the same options and diagnostics as BATCH50 R3
@@ -95,10 +104,11 @@ jobs:
           export V12_MONOCYPHER_SRC="$GITHUB_WORKSPACE/monocypher-upstream"
           export V12_N6G_FAT_IRX="$GITHUB_WORKSPACE/n6g-bdmfs_fatfs.irx"
           cmake -S dvr-iso-manager -B build-worker -DDESR_BUILD_USB12_WORKER=ON \
-            -DDESR_USB12_EMBEDDED_WORKER=ON
+            -DDESR_USB12_EMBEDDED_WORKER=ON -DDESR_USB12_USE_CPU_ENTROPY=ON
           cmake --build build-worker -j2 --target COVER_HTTPS_V12.ELF
           strings build-worker/COVER_HTTPS_V12.ELF > /tmp/worker-strings
-          grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_SINGLE.ELF' /tmp/worker-strings
+          grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF' /tmp/worker-strings
+          grep -Fx 'ENTROPY SOURCE: CPU COUNTER (EXPERIMENTAL)' /tmp/worker-strings
           grep -F 'mass0:/DESR_DVR/ART' /tmp/worker-strings
           grep -Fx 'TLS INIT ORDER: %s' /tmp/worker-strings
           grep -Fx 'SSL FIRST' /tmp/worker-strings
@@ -111,24 +121,26 @@ jobs:
           export DESR_USB12_PAYLOAD="$GITHUB_WORKSPACE/build-worker/usb12-payload.elf"
           mips64r5900el-ps2-elf-strip --strip-debug -o "$DESR_USB12_PAYLOAD" build-worker/COVER_HTTPS_V12.ELF
           export PS2SDK="$RUNNER_TEMP/stock-ps2sdk"
-          cmake -S dvr-iso-manager -B build-manager -DDESR_BUILD_USB12_ONE_ELF=ON
-          cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_SINGLE.ELF
-          manager=build-manager/DVR_ISO_MANAGER_V12_SINGLE.ELF
+          cmake -S dvr-iso-manager -B build-manager -DDESR_BUILD_USB12_ONE_ELF=ON \
+            -DDESR_USB12_USE_CPU_ENTROPY=ON
+          cmake --build build-manager -j2 --target DVR_ISO_MANAGER_V12_CPU.ELF
+          manager=build-manager/DVR_ISO_MANAGER_V12_CPU.ELF
           python3 dvr-iso-manager/tools/audit_usb12_payload.py \
             build-worker/COVER_HTTPS_V12.ELF "$DESR_USB12_PAYLOAD" "$manager"
           strings "$manager" > /tmp/usb12-strings
-          grep -Fx '1.2 USB SINGLE ELF' /tmp/usb12-strings
+          grep -Fx '1.2 USB CPU ENTROPY TEST' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 - HTTPS RESULT' /tmp/usb12-strings
+          grep -Fx 'ENTROPY: CPU COUNTER (EXPERIMENTAL)' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
+          if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
       - name: Package the single ELF for an existing USB 1.0 installation
         run: |
           set -eu
-          mkdir -p package/DESR_DVR package/tools package/licenses
-          cp build-manager/DVR_ISO_MANAGER_V12_SINGLE.ELF package/DESR_DVR/
-          cp dvr-iso-manager/tools/generate_n6g_batch_entropy.py package/tools/
-          cp docs/usb12-single-elf.md package/README.md
+          mkdir -p package/DESR_DVR package/licenses
+          cp build-manager/DVR_ISO_MANAGER_V12_CPU.ELF package/DESR_DVR/
+          cp docs/usb12-cpu-entropy.md package/README.md
           cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
           cp wolfssl-n5a/COPYING package/licenses/WOLFSSL-COPYING
           cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
@@ -136,11 +148,11 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
           sha256sum DESR_DVR/*.ELF > SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF.zip \
-            DESR_DVR README.md tools licenses SOURCE_COMMIT SHA256SUMS
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip \
+            DESR_DVR README.md licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF
-          path: PSX-DVR-ISO-Manager-1.2-USB-SINGLE-ELF.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY
+          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY.zip
           if-no-files-found: error
           retention-days: 30

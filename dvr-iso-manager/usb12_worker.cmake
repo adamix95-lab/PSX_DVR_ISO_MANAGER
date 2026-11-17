@@ -57,6 +57,13 @@ option(DESR_USB12_EMBEDDED_WORKER "Return to the single-file Manager" OFF)
 if(DESR_USB12_EMBEDDED_WORKER)
   target_compile_definitions(${target} PRIVATE DESR_USB12_ONE_ELF=1)
 endif()
+if(DESR_USB12_USE_CPU_ENTROPY)
+  if(NOT DESR_USB12_EMBEDDED_WORKER)
+    message(FATAL_ERROR "CPU counter experiment needs the embedded worker")
+  endif()
+  target_compile_definitions(${target} PRIVATE DESR_USB12_CPU_ENTROPY=1)
+  target_sources(${target} PRIVATE src/net/n6g_cpu_entropy.c)
+endif()
 target_include_directories(${target} PRIVATE include
   "${wolfssl}/include" "${monocypher}" "${monocypher}/optional")
 target_link_libraries(${target} PRIVATE fileXio cdvd patches ps2ip netman

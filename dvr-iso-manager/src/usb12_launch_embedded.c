@@ -6,6 +6,11 @@
 #include <sifrpc.h>
 #include <stdint.h>
 
+#ifdef DESR_USB12_CPU_ENTROPY
+#include "n6g_cpu_entropy.h"
+#include <stdio.h>
+#endif
+
 extern const unsigned char desr_usb12_payload_start[];
 extern const unsigned char desr_usb12_payload_end[];
 
@@ -40,13 +45,20 @@ int desr_run_embedded_https(char *language) {
   const unsigned char *image = desr_usb12_payload_start;
   size_t size = (uintptr_t)desr_usb12_payload_end - (uintptr_t)image;
   elf_loader_execinfo_t exec = {0};
+#ifdef DESR_USB12_CPU_ENTROPY
+  char ticks_arg[9];
+  char *args[] = { language, ticks_arg };
+  snprintf(ticks_arg, sizeof(ticks_arg), "%08x", (unsigned)n6g_read_cpu_count());
+#else
   char *args[] = { language };
+#endif
   int rc = validate_payload(image, size);
 
   if (rc != 0) return rc;
   rc = elf_loader_exec_elf_prepare_loadinfo(&exec, image, size);
   if (rc != 0) return rc;
-  rc = elf_loader_exec_elf_prepare_arginfo(&exec, DESR_USB12_MANAGER_ELF, NULL, 1, args);
+  rc = elf_loader_exec_elf_prepare_arginfo(&exec, DESR_USB12_MANAGER_ELF, NULL,
+                                         sizeof(args) / sizeof(args[0]), args);
   if (rc != 0) return rc;
 
   while (!SifIopReset(NULL, 0)) { }

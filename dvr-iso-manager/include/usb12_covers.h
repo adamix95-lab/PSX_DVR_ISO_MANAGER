@@ -5,7 +5,11 @@
 #include "n6_usb_art.h"
 
 #ifdef DESR_USB12_ONE_ELF
+#ifdef DESR_USB12_CPU_ENTROPY
+#define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_V12_CPU.ELF"
+#else
 #define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_V12_SINGLE.ELF"
+#endif
 int desr_run_embedded_https(char *language);
 #else
 #define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_V12.ELF"
