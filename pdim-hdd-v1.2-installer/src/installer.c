@@ -257,14 +257,40 @@ static int verify_one(const manifest_entry *m) {
     if(file_crc(path,&got,&crc)<0 || got!=m->size || crc!=m->crc)return -24;
     return 0;
 }
+/* Choose a never-used recovery filename on the PFS root. A second test
+ * build can upgrade an earlier 1.2 candidate without destroying the
+ * original 1.0 backup. A failed directory enumeration always blocks writes.
+ */
+static int manager_backup_slot(const char *relative,char *bak,size_t cap) {
+    for(int slot=1;slot<=9;slot++) {
+        char suffix[24];
+        if(slot==1)strcpy(suffix,".PDIMBAK");
+        else snprintf(suffix,sizeof(suffix),".PDIMBAK%d",slot);
+        if(path_for(bak,cap,PDIM12_MOUNT "/",relative,suffix)<0)return -22;
+        const char *base=strrchr(bak,'/');
+        if(!base||!base[1])return -22;
+        base++;
+        int dir=fileXioDopen(PDIM12_MOUNT "/");
+        if(dir<0)return -22;
+        iox_dirent_t ent;
+        int n,found=0;
+        while((n=fileXioDread(dir,&ent))>0) {
+            ent.name[sizeof(ent.name)-1]=0;
+            if(!strcmp(ent.name,base)) {found=1;break;}
+        }
+        int closed=fileXioDclose(dir);
+        if(n<0||closed<0)return -22;
+        if(!found)return 0;
+    }
+    return -22;
+}
 static int copy_one(const manifest_entry *m,int *already) {
     char src[256],dst[256],tmp[256],bak[256];
     uint32_t size,crc;
     int old_manager=0;
     if(path_for(src,sizeof(src),source_prefix,m->relative,NULL)<0||
        path_for(dst,sizeof(dst),PDIM12_MOUNT "/",m->relative,NULL)<0||
-       path_for(tmp,sizeof(tmp),PDIM12_MOUNT "/",m->relative,".PDIMNEW")<0||
-       path_for(bak,sizeof(bak),PDIM12_MOUNT "/",m->relative,".PDIMBAK")<0)
+       path_for(tmp,sizeof(tmp),PDIM12_MOUNT "/",m->relative,".PDIMNEW")<0)
         return -21;
     if(file_crc(src,&size,&crc)<0 || size!=m->size || crc!=m->crc)return -21;
     if(file_crc(dst,&size,&crc)==0) {
@@ -285,14 +311,8 @@ static int copy_one(const manifest_entry *m,int *already) {
     /* An orphan temporary file is a failed prior install: never overwrite. */
     int old=fileXioOpen(tmp,FIO_O_RDONLY,0);
     if(old>=0) {fileXioClose(old);return -23;}
-    if(old_manager) {
-        /* Never overwrite a previous backup, even if a new upgrade is
-         * requested after a partially completed installation. */
-        iox_stat_t st;
-        if(fileXioGetStat(bak,&st)>=0)return -22;
-        old=fileXioOpen(bak,FIO_O_RDONLY,0);
-        if(old>=0){fileXioClose(old);return -22;}
-    }
+    if(old_manager && manager_backup_slot(m->relative,bak,sizeof(bak))<0)
+        return -22;
     if(make_parents(m->relative)<0)return -25;
     int in=fileXioOpen(src,FIO_O_RDONLY,0);
     if(in<0)return -21;
