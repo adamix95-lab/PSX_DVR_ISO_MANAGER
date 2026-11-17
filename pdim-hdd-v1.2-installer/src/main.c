@@ -183,9 +183,7 @@ static void red_warning(int final_stage) {
     scr_setXY(3,10);
     scr_printf("A FULL, RESTORABLE SECTOR BACKUP");
     scr_setXY(3,11);
-    scr_printf("OF THE HDD IS STRONGLY");
-    scr_setXY(3,12);
-    scr_printf("RECOMMENDED.");
+    scr_printf("OF THE HDD IS STRONGLY RECOMMENDED.");
     if(final_stage) {
         scr_setXY(3,16);
         scr_printf("FINAL CONFIRMATION:");
