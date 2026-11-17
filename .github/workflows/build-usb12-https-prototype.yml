@@ -18,8 +18,12 @@ jobs:
       - name: Preserve the stock SDK for the USB Manager
         run: |
           set -eu
-          mkdir -p "$RUNNER_TEMP/stock-ps2sdk"
-          cp -a "$PS2SDK"/. "$RUNNER_TEMP/stock-ps2sdk"/
+          stock_sdk="$RUNNER_TEMP/stock-ps2sdk"
+          mkdir -p "$stock_sdk"
+          cp -aL "$PS2SDK"/. "$stock_sdk"/
+          test -f "$stock_sdk/ps2dev.cmake"
+          test -x "$stock_sdk/bin/bin2c"
+          test -f "$stock_sdk/ports/lib/libpng.a"
       - uses: actions/checkout@v4
         with:
           repository: ps2dev/ps2sdk
