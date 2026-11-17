@@ -58,9 +58,15 @@ add_executable(${target} EXCLUDE_FROM_ALL
   src/net/usb12_progress_ui.c
   src/net/n6g_roughtime_retry.c)
 target_compile_definitions(${target} PRIVATE
-  DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1
+  DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1
   WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
   NO_WRITEV=1 USE_FAST_MATH=1 TFM_NO_ASM=1 FP_MAX_BITS=8192)
+if(DESR_HDD12_HTTPS)
+  target_compile_definitions(${target} PRIVATE
+    DESR_HDD12_HTTPS=1 DESR_HDD12_TARGET=1 DESR_HDD_TEST=1 N6G_HDD_SAFE=1)
+else()
+  target_compile_definitions(${target} PRIVATE N6G_USB_SAFE=1)
+endif()
 if(DESR_USB12_SIMPLE_UI)
   target_compile_definitions(${target} PRIVATE N6G_UI_SIMPLE=1)
 endif()
