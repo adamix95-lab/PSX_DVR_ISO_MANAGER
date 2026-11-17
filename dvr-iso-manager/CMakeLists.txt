@@ -75,3 +75,14 @@ if(DESR_BUILD_HDD_NETFIX)
   target_compile_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE -Os -Wall -Wextra)
   target_link_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/HDD_NETFIX.map")
 endif()
+
+# Temporary HDD12 target: same 1.0 HDD game/ART/CNF engine, but all
+# application-owned writes and OSDMenu argument point to PP.DVRISO12.
+# This is not the 1.2 HTTPS HDD port.
+if(DESR_BUILD_HDD_NETFIX)
+  add_executable(DVR_ISO_MANAGER_HDD12_TEST.ELF EXCLUDE_FROM_ALL ${SOURCES} ${HDD_PFS_SOURCES})
+  target_compile_definitions(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE DESR_HDD_TEST=1 DESR_HDD_NETFIX=1 DESR_HDD12_TARGET=1)
+  target_include_directories(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
+  target_link_libraries(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+  target_compile_options(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE -Os -Wall -Wextra)
+endif()
