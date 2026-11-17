@@ -139,7 +139,7 @@ def build(args:argparse.Namespace)->None:
     out["res/jkt_002.png"]=header["jkt_002.png"]
     for path,payload in out.items():
         assert_sane_payload(path,payload)
-    if set(out) < CRITICAL:
+    if not CRITICAL.issubset(out):
         raise ValueError("Incomplete HDD12 test files: "+str(sorted(CRITICAL-set(out))))
     if len(out)>160:
         raise ValueError("Too many files for console installer manifest")

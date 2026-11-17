@@ -5,7 +5,10 @@ int pdim12_partition_name_allowed(const char *name) {
     return name && strcmp(name, PDIM12_PARTITION) == 0;
 }
 int pdim12_address_safe(uint32_t start, uint32_t sectors) {
-    return sectors == PDIM12_SECTORS && start != 0 &&
+    /* Reuse an already existing 128 MiB..2 GiB PFS without changing its
+     * size. The creator still allocates exactly 256 MiB if absent. */
+    return sectors >= 0x00040000u && sectors <= 0x00400000u &&
+      (sectors & (sectors-1u))==0 && start != 0 &&
       ((uint64_t)start + (uint64_t)sectors) <= PDIM12_LBA28_LIMIT;
 }
 int pdim12_is_mutable_user_data(const char *path) {

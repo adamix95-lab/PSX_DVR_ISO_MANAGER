@@ -54,17 +54,6 @@ const char *pdim12_error(int rc) {
     default:return "UNEXPECTED ERROR; NO AUTOMATIC ROLLBACK";
     }
 }
-static int read_full(int fd, void *buffer, uint32_t size) {
-    uint8_t *b=(uint8_t*)buffer;
-    while (size) {
-        int want = size > IO_CHUNK ? IO_CHUNK : (int)size;
-        int got=fileXioRead(fd, b, want);
-        if (got<=0 || got>want) return -1;
-        size-=(uint32_t)got;
-        b+=got;
-    }
-    return 0;
-}
 static int scan_target(pdim12_state *state) {
     iox_dirent_t item __attribute__((aligned(64)));
     int dd=fileXioDopen("hdd0:");
@@ -274,7 +263,9 @@ static int copy_one(const manifest_entry *m,int *already) {
         if(rc)break;
         copied+=(uint32_t)n;
     }
-    if(fileXioClose(out)<0 || fileXioClose(in)<0)rc=-23;
+    int out_closed=fileXioClose(out);
+    int in_closed=fileXioClose(in);
+    if(out_closed<0 || in_closed<0)rc=-23;
     if(rc)return rc;
     if(copied!=m->size || pdim12_crc32_end(hash)!=m->crc)return -23;
     if(fileXioSync(PDIM12_MOUNT,FXIO_WAIT)<0)return -26;

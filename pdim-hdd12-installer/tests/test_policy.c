@@ -18,6 +18,10 @@ int main(void) {
   assert(!pdim12_address_safe(0,PDIM12_SECTORS));
   assert(!pdim12_address_safe(0x0FFF0000U,PDIM12_SECTORS));
   assert(pdim12_address_safe(0x0FE00000U,PDIM12_SECTORS));
+  assert(pdim12_address_safe(0x08000000U,0x00040000u));
+  assert(pdim12_address_safe(0x08000000U,0x00100000u));
+  assert(!pdim12_address_safe(0x08000000U,0x00020000u));
+  assert(!pdim12_address_safe(0x08000000U,0x00070000u));
   const char *data="123456789";
   assert(pdim12_crc32_end(pdim12_crc32_update(0xffffffffu,data,strlen(data)))==0xCBF43926u);
   puts("PASS: strictly limited HDD12 destination, no traversal, no mutable user files, LBA28 and CRC32");
