@@ -1,4 +1,4 @@
-name: Build and verify experimental USB Manager 1.2 R4
+name: Build PSX DVR ISO Manager 1.2 USB UI TEST (R4-derived)
 on:
   push:
     branches: [test/v1.2-usb-https-covers]
@@ -98,6 +98,40 @@ jobs:
             "$manager/src/iso_utils.c" "$manager/src/cover_index.c" \
             "$mock/test_write.c" -o /tmp/n6g-usb-write
           /tmp/n6g-usb-write
+      - name: Host-test minimal Polish HTTPS progress and R4 result protocol
+        run: |
+          set -eu
+          cc -std=c11 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
+            dvr-iso-manager/src/net/usb12_progress_ui.c \
+            dvr-iso-manager/tests/net/test_usb12_progress_ui.c \
+            -o /tmp/usb12-progress-ui
+          /tmp/usb12-progress-ui
+          python3 - <<'PY'
+          from pathlib import Path
+          worker=Path('dvr-iso-manager/src/v12_n6f_https_usb_art_one.c').read_text()
+          manager=Path('dvr-iso-manager/src/main.c').read_text()
+          cmake=Path('dvr-iso-manager/usb12_worker.cmake').read_text()
+          packer=Path('dvr-iso-manager/tools/pack_usb12_tail.py').read_text()
+          assert 'N6G_UI_SIMPLE=1' in cmake
+          assert 'src/net/usb12_progress_ui.c' in cmake
+          assert 'n6g_ui_processing(*attempted)' in worker
+          assert 'n6g_ui_done(*attempted,USB12_UI_SKIPPED)' in worker
+          assert 'n6g_ui_done(*attempted,USB12_UI_OK)' in worker
+          assert 'n6g_ui_done(*attempted,USB12_UI_ERROR)' in worker
+          assert 'n6g_ui_summary(targets,saved,unavailable,rc)' in worker
+          assert '#define scr_printf(...) ((void)0)' in worker
+          assert '#define scr_clear() ((void)0)' in worker
+          assert 'POBIERANIE ZAKONCZONE' in worker
+          assert 'TRWA POBIERANIE BRAKUJACYCH OKLADEK' in worker
+          assert 'scr_printf("POBRANO: %ld/%d' in manager
+          assert 'scr_printf("POMINIETO: %d' in manager
+          assert 'const unsigned dismiss = PAD_CROSS | PAD_CIRCLE' in manager
+          assert 'if (pressed & ~held) break;' in manager
+          assert 'LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args)' in worker
+          assert 'pack-ui' in packer
+          assert 'R1_WORKER_SHA' in packer
+          print('PASS UI: counters, zero observer screen I/O, X/O, R4 preservation')
+          PY
       - name: Rebuild pinned NETFIX PS2SDK for the HTTPS worker
         run: sh hdd-netfix/build_sdk.sh sdk-source
       - name: Build wolfSSL with the same options and diagnostics as BATCH50 R3
