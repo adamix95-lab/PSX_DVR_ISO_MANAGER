@@ -70,7 +70,7 @@ jobs:
           data = json.loads(Path(sys.argv[1]).read_text())
           request = bytes.fromhex(data["request"][0])
           assert request[28:32] == b"NONC"
-          values = dict(root=bytes.fromhex(data["root_key"]), nonce=request[40:72],
+          values = dict(root_seed=bytes.fromhex(data["root_key"]), nonce=request[40:72],
                         reply=bytes.fromhex(data["replies"][0]))
           Path("/tmp/v12_rt_test_vector.h").write_text("".join(
               "static const uint8_t rt_fixture_" + name + "[] = {"
