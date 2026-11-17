@@ -18,7 +18,7 @@ The optional XMB ZIP includes `__Headers/PP.DVRISO/` with `system.cnf`, `icon.sy
 
 ## Safe manual installation
 
-1. **Back up the APP partition's APA header and important data; verify you can restore it.** Injecting a header modifies disk metadata.
+1. Injecting a header modifies disk metadata.
 2. Extract the ZIP to FAT32 USB with `__Headers/PP.DVRISO/` directly under the USB root.
 3. Via wLE, copy only `EXECUTE.ELF` and `EXECUTE.CNF` from `PFS_COPY_TO_PP.DVRISO/` to the root of the existing `PP.DVRISO` partition. Do not replace working `BOOT.ELF`, `BOOT.CNF`, Neutrino, `config/`, `modules/` or `ART/`.
 4. In wLaunchELF_R3Z, select **only PP.DVRISO → R1 → Inject Header → This partition only** from USB. Never format the HDD, create/expand partitions, or inject all partitions.
