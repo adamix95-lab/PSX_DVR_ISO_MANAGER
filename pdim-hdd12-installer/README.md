@@ -18,3 +18,24 @@ L1+R1+X before any write. No automatic deletion, resize, or reformat
 of existing partitions is implemented. XMB setup is a separate optional
 action and uses the already-tested 1.0 KELF and PDIM artwork assets.
 Read \`README_PL.md\` for complete details.
+
+## Hardware R1 -> R2: IOP module loading and screen cursor
+
+The first DESR-7000 run of the installer **stopped before any HDD write**:
+`LOAD fileXio id=-200 rv=0`. In PS2SDK this indicates an IOP module
+dependency error. The initial implementation tried to reuse modules
+from wLaunchELF-R3Z using only their names; that can mistake Sony's
+original file manager for the PS2SDK `iomanX` export library required
+by `fileXio`.
+
+**R2** uses the same clean IOP-reset/module-loading approach as the
+tested PDIM HDD 1.0: iomanX, fileXio, a single trusted `dev9_ns` module,
+ATA, HDD/PFS, USB and pad. Any failure still stops before writes.
+R2 also calls `scr_setCursor(0)` after `init_scr()` to remove the
+PS2SDK's white block cursor, as in the working PDIM interface.
+
+**Hardware status:** R2 has not yet been verified on the DESR-7000.
+First run it and report whether the startup passes `fileXio` and
+reaches `PP.DVRISO12` preflight. **Do not use X/Triangle to modify
+the disk before a verified full sector-level HDD backup.**
+

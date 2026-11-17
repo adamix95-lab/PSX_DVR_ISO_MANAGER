@@ -8,7 +8,6 @@
 #include <loadfile.h>
 #include <sbv_patches.h>
 #include <sifrpc.h>
-#include <smem.h>
 #include <delaythread.h>
 #include <kernel.h>
 #include <errno.h>
@@ -25,7 +24,7 @@
  extern unsigned int size_##name##_irx
 MODULE(iomanX);
 MODULE(fileXio);
-MODULE(ps2dev9);
+MODULE(dev9_ns);
 MODULE(ps2atad);
 MODULE(ps2hdd_psx1);
 MODULE(ps2fs);
@@ -48,64 +47,76 @@ static const char pfs_args[]="-m\0" "4\0" "-o\0" "10\0" "-n\0" "40";
 typedef char hdd_args_size[(sizeof(hdd_args)==11)?1:-1];
 typedef char pfs_args_size[(sizeof(pfs_args)==17)?1:-1];
 
-typedef struct module_prefix {
-    uint32_t next,name;
-    uint16_t version,flags,id,unused;
-} module_prefix;
-static int module_find(const char *name) {
-    uint32_t address=0x800;
-    for(int i=0;i<256 && address;i++) {
-        module_prefix info;char label[64];
-        uint32_t physical=address&0x1fffffffu;
-        if(!physical || physical+sizeof(info)>0x200000 || (physical&3))
-            return -1;
-        if(smem_read((void*)(uintptr_t)physical,&info,sizeof(info))!=(int)sizeof(info))
-            return -1;
-        physical=info.name&0x1fffffffu;
-        if(physical && physical+sizeof(label)<=0x200000 &&
-           smem_read((void*)(uintptr_t)physical,label,sizeof(label))==(int)sizeof(label) &&
-           memchr(label,'\0',sizeof(label)) && !strcmp(label,name))
-            return info.id;
-        address=info.next;
+/* HDD 1.0 NETFIX's proven strategy: reset IOP before installing our
+ * driver set. Reusing the launcher's IO/File_Manager module by name can
+ * misidentify the stock IOMAN as the newer iomanX export library.
+ * fileXio then fails with IOP dependency error -200. Never allow any
+ * disk write unless this initialization completes successfully.
+ */
+static int reset_iop_bounded(void) {
+    int started=0,synced=0;
+    scr_printf("STAGE IOP RESET: CLEAN MODULE SET - NO HDD WRITE\n");
+    for(int i=0;i<200;i++) {
+        if(SifIopReset("",0)) {started=1;break;}
+        DelayThread(50000);
     }
-    return -1;
-}
-static int load(const char *name,const char *iop_name,void *data,
-                unsigned int size,const char *args,unsigned args_size) {
-    if(module_find(iop_name)>=0) {
-        scr_printf("USING LOADED %-12s\n",name);
-        return 0;
+    if(!started) {
+        scr_printf("IOP RESET REQUEST TIMEOUT\n");
+        return -101;
     }
-    int rv=0,id=SifExecModuleBuffer(data,size,args_size,(void*)args,&rv);
-    scr_printf("LOAD %-12s id=%d rv=%d\n",name,id,rv);
-    return id<0?id:(rv<0?rv:0);
-}
-#define LOAD(n,mod_name) do { \
-  if(load(#n,mod_name,n##_irx,size_##n##_irx,0,0)<0) return -100; \
-} while(0)
-static int setup_modules(void){
-    SifInitRpc(0);
+    for(int i=0;i<400;i++) {
+        if(SifIopSync()) {synced=1;break;}
+        DelayThread(50000);
+    }
+    if(!synced) {
+        scr_printf("IOP SYNC TIMEOUT\n");
+        return -102;
+    }
+    sceSifInitRpc(0);
     sbv_patch_enable_lmb();
     sbv_patch_disable_prefix_check();
     sbv_patch_fileio();
-    LOAD(iomanX,"IO/File_Manager");
-    LOAD(fileXio,"IOX/File_Manager_Rpc");
-    LOAD(ps2dev9,"ps2dev9");
-    LOAD(ps2atad,"ps2atad");
-    if(load("ps2hdd","ps2hdd",ps2hdd_psx1_irx,
-            size_ps2hdd_psx1_irx,hdd_args,sizeof(hdd_args))<0)return -100;
-    if(load("ps2fs","ps2fs",ps2fs_irx,size_ps2fs_irx,
-            pfs_args,sizeof(pfs_args))<0)return -100;
-    int rc=fileXioInit();
-    if(rc<0)return -100;
-    LOAD(bdm,"bdm");
-    LOAD(bdmfs_fatfs,"bdmfs_fatfs");
-    LOAD(usbd,"usbd");
-    LOAD(usbmass_bd,"usbmass_bd");
-    LOAD(sio2man,"sio2man");
-    LOAD(padman,"padman");
     return 0;
 }
+static int load(const char *name,void *data,
+                unsigned int size,const char *args,unsigned args_size) {
+    int rv=0;
+    int id=SifExecModuleBuffer(data,size,args_size,(void*)args,&rv);
+    scr_printf("LOAD %-12s id=%d rv=%d\n",name,id,rv);
+    /* Pass the real IOP error (e.g. dependency -200), no generic -100. */
+    return id<0?id:(rv<0?rv:0);
+}
+#define LOAD(n) do { \
+  int rc_load=load(#n,n##_irx,size_##n##_irx,NULL,0); \
+  if(rc_load<0) return rc_load; \
+} while(0)
+static int setup_modules(void) {
+    int rc=reset_iop_bounded();
+    if(rc<0)return rc;
+    /* Exactly like the working PDIM HDD 1.0 startup: install iomanX
+     * exports before fileXio, then a single proven DEV9 provider. */
+    LOAD(iomanX);
+    LOAD(fileXio);
+    LOAD(dev9_ns);
+    LOAD(ps2atad);
+    rc=load("ps2hdd",ps2hdd_psx1_irx,
+            size_ps2hdd_psx1_irx,hdd_args,sizeof(hdd_args));
+    if(rc<0)return rc;
+    rc=load("ps2fs",ps2fs_irx,size_ps2fs_irx,
+            pfs_args,sizeof(pfs_args));
+    if(rc<0)return rc;
+    rc=fileXioInit();
+    scr_printf("fileXioInit=%d\n",rc);
+    if(rc<0)return rc;
+    LOAD(bdm);
+    LOAD(bdmfs_fatfs);
+    LOAD(usbd);
+    LOAD(usbmass_bd);
+    LOAD(sio2man);
+    LOAD(padman);
+    return 0;
+}
+#undef LOAD
 /* On the DESR, PADMAN RPC can hang during startup from wLE-R3Z.
  * Keep it in a bounded EE worker. On timeout, NEVER enable HDD writes.
  */
@@ -249,6 +260,9 @@ static void show_menu(const pdim12_state *st,int probe_rc) {
 }
 int main(void) {
     init_scr();
+    /* PDIM HDD 1.0 fix: disable the default PS2SDK block cursor.
+     * Otherwise a white rectangle appears beside/after console text. */
+    scr_setCursor(0);
     screen();
     scr_printf("LOADING MODULES - NO HDD WRITES\n");
     int rc=setup_modules();

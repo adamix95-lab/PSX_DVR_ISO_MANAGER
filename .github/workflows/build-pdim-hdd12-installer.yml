@@ -32,6 +32,7 @@ jobs:
       - name: Build isolated test installer ELF
         run: |
           set -eu
+          echo '5cdd4539464a2fe92d95d93692239c2bc80b9a99f0d7644d18ae66b756c68201  dvr-iso-manager/modules/dev9_ns.irx' | sha256sum -c -
           make -C pdim-hdd12-installer VENDOR_IRX="$GITHUB_WORKSPACE/repairbox/irx" all
           mkdir -p dist
           cp pdim-hdd12-installer/build/PDIM_HDD12_INSTALLER.ELF dist/
@@ -44,7 +45,17 @@ jobs:
           assert b'AWARIA MOZE USZKODZIC INNE PARTYCJE' in p
           assert b'WYMAGANA JEST ODTWARZALNA KOPIA' in p
           assert b'FIO_O_CREAT' not in p # symbolic flags are compile-time
-          print('PASS installer: valid MIPS ELF, specific partition + prominent two-stage warnings')
+          assert b'STAGE IOP RESET: CLEAN MODULE SET' in p
+          src=Path("pdim-hdd12-installer/src/main.c").read_text()
+          assert 'scr_setCursor(0);' in src
+          assert 'SifIopReset("",0)' in src
+          assert 'SifIopSync()' in src
+          assert src.index('LOAD(iomanX);') < src.index('LOAD(fileXio);') < src.index('LOAD(dev9_ns);')
+          assert 'module_find(' not in src
+          assert 'MODULE(ps2dev9);' not in src
+          assert 'for(int i=0;i<200;i++)' in src # Bounded reset request
+          assert 'for(int i=0;i<400;i++)' in src # Bounded sync wait
+          print('PASS installer R2: valid MIPS ELF, IOP reset + NETFIX dev9_ns + no block cursor + warnings')
           PY
       - uses: actions/upload-artifact@v4
         with:

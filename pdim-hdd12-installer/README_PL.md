@@ -21,6 +21,27 @@ Te same komunikaty instalator pokazuje na całym ekranie z czerwonym tłem
 przed operacjami modyfikującymi dysk. Pierwsze potwierdzenie to X, a drugie
 wymaga **przytrzymania L1+R1 i naciśnięcia X**. O anuluje operację.
 
+## Poprawka R2: błąd fileXio -200 i białe kwadraty
+
+Pierwszy test R1 na DESR-7000 zatrzymał się **bez jakiegokolwiek zapisu
+na HDD**: `LOAD fileXio id=-200 rv=0`. Kod -200 oznacza problem
+z zależnościami modułów IOP. Poprzednio instalator próbował ponownie
+wykorzystać sterowniki załadowane przez wLE-R3Z, rozpoznając je
+wyłącznie po nazwach. Mogło to pomylić standardowy moduł Sony
+`IO/File_Manager` z wymaganym `iomanX`.
+
+R2 stosuje **sprawdzony w PDIM HDD 1.0 reset IOP i kolejność ładowania
+modułów**, w tym pojedynczy `dev9_ns` z HDD NETFIX. Błędy modułów
+wciąż zatrzymują instalator przed zapisem.
+
+Usunięto także **białe kwadraciki kursora** przez `scr_setCursor(0)`
+zaraz po `init_scr()` — jak w działającym PDIM.
+
+**R2 wymaga dopiero testu na fizycznym DESR-7000.** Najpierw uruchom
+ELF i sprawdź, czy przechodzi `LOAD fileXio` oraz dochodzi do
+sprawdzania `PP.DVRISO12`. **Nie naciskaj X ani Trójkąta, dopóki nie
+masz sprawdzonej kopii sektorowej całego HDD.**
+
 ## Co właściwie instaluje
 
 To **nie jest jeszcze port HTTPS na HDD 1.2**. Podczas prób używa plików
