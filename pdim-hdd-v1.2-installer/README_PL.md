@@ -26,7 +26,7 @@ Każdy plik zostaje odczytany ponownie i porównany z manifestem. Dopiero po PAS
 
 ## Aktualizacja z działającej wersji 1.0 HDD
 
-Instalator rozpoznaje istniejącą `PP.DVRISO`. Nie usuwa plików użytkownika ani katalogu `ART/` i nie podmienia `BOOT.CNF` ani `V12_NET.CNF`. Starego Managera zachowuje pod nazwą `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, nowy zapisuje przez plik tymczasowy `.PDIMNEW` i kontrolę CRC. Nie nadpisuje wcześniejszego backupu. W razie przerwania instalacji zatrzymaj działania i przeprowadź ręczną kontrolę; nie formatuj dysku.
+Instalator rozpoznaje istniejącą `PP.DVRISO`. Nie usuwa plików użytkownika ani katalogu `ART/` i nie podmienia `BOOT.CNF` ani `V12_NET.CNF`. Starego Managera zachowuje pod nazwą `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, nowy zapisuje przez plik tymczasowy `.PDIMNEW` i kontrolę CRC. Nie nadpisuje wcześniejszych backupów: kolejne aktualizacje mogą użyć nazw .PDIMBAK2 aż do .PDIMBAK9. W razie przerwania instalacji zatrzymaj działania i przeprowadź ręczną kontrolę; nie formatuj dysku.
 
 Wpis XMB z HDD 1.0 zostanie rozpoznany tylko przy zgodności ze znanym nagłówkiem. Instalator pozwoli wtedy zmienić wyłącznie tekst wersji na HDD 1.2. Nie ingeruje w obce nagłówki.
 
