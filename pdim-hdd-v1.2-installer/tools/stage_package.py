@@ -203,6 +203,8 @@ def build(args: argparse.Namespace) -> None:
     manual.update({
         "README.md": args.readme.read_bytes(),
         "README_PL.md": args.readme_pl.read_bytes(),
+        "INSTALL_MANUAL.md": args.manual_readme.read_bytes(),
+        "INSTALL_MANUAL_PL.md": args.manual_readme_pl.read_bytes(),
         "V12_NET.CNF.example": args.config.read_bytes(),
         "MANIFEST.TXT": manifest,
         "SOURCE_COMMIT": (args.commit + "\n").encode()
@@ -217,7 +219,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     for name in ("hdd", "xmb", "manager", "installer", "ca",
                  "config", "readme", "readme_pl", "auto_output",
-                 "manual_output"):
+                 "manual_output", "manual_readme", "manual_readme_pl"):
         p.add_argument("--" + name.replace("_", "-"), type=Path, required=True)
     p.add_argument("--commit", required=True)
     build(p.parse_args())
