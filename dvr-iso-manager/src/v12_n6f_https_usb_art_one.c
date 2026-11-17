@@ -88,7 +88,9 @@ static int batch_trace_new;
 static int batch_ca_first;
 #endif
 
-#ifdef N6G_PNG_WORKSPACE
+#ifdef DESR_HDD12_HTTPS
+#define USB_TEST_NAME "HDD12"
+#elif defined(N6G_PNG_WORKSPACE)
 #define USB_TEST_NAME "N6G"
 #else
 #define USB_TEST_NAME "N6F"
@@ -235,7 +237,11 @@ static void n6g_ui_redraw(void) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setCursor(0);
+#ifdef DESR_HDD12_HTTPS
+  scr_printf("PSX DVR ISO MANAGER 1.2 HDD\n");
+#else
   scr_printf("PSX DVR ISO MANAGER 1.2 USB\n");
+#endif
   scr_printf("-----------------------------------------\n\n");
   if(n6g_ui_finished) {
     scr_printf(n6g_ui_progress.errors ?
@@ -468,7 +474,22 @@ static int init_io(void) {
 static int read_cfg(v12_net_config *cfg) {
   char text[V12_NET_CONFIG_MAX+1U];
   int fd,total=0,n,closed;
-#ifdef DESR_USB12_HTTPS
+#ifdef DESR_HDD12_HTTPS
+  /* Separate clean IOP boot: mount the isolated PFS1 partition. The
+   * native HTTPS worker must not read configuration, covers or ART
+   * from mass0:, and must not mount the working PP.DVRISO partition.
+   * RW is required only for the post-TLS validated new-cover publish.
+   * Keep PFS1 mounted to LoadELFFromFile() this Manager after download.
+   */
+  scr_printf("STAGE 3: HDD12 PFS1 config (PP.DVRISO12)\n");
+  fd=fileXioDopen("pfs1:/");
+  if(fd>=0){fileXioDclose(fd);return -503;}
+  fd=fileXioMount("pfs1:",DESR_APP_PARTITION,FIO_MT_RDWR);
+  if(fd<0)return -503;
+  mounted=1;
+  fd=fileXioOpen(DESR_USB12_NET_CNF,FIO_O_RDONLY,0);
+  if(fd<0)return -503;
+#elif defined(DESR_USB12_HTTPS)
   /* USB modules are loaded before this call. Read ONLY from DESR_DVR;
    * no HDD mount and no implicit fallback to the old PP.DVRISO12 file.
    * A short retry allows FAT device registration on physical DESR. */
@@ -609,7 +630,11 @@ static int read_ca_bundle(void) {
 #else
   const int attempts=1; /* Reading .ENT already waited for USB. */
 #endif
+#ifdef DESR_HDD12_HTTPS
+  scr_printf("STAGE 4B: HDD12/N4E.CA (PEM)\n");
+#else
   scr_printf("STAGE 4B: USB DESR_DVR/N4E.CA (PEM)\n");
+#endif
   for(int i=0;i<attempts;i++) {
 #ifdef DESR_USB12_HTTPS
     /* One authoritative CA location for USB 1.2: DESR_DVR beside the ELF.
@@ -686,7 +711,7 @@ static int live_signed_probe(const uint8_t nonce[32],
   struct addrinfo hints,*resolved=NULL,*cur;
   unsigned tags=0;
   int rc,fd=-1,received,found=0,verdict=-506;
-  scr_printf("STAGE 6: UDP/%s (USB random nonce)\n",PORT);
+  scr_printf("STAGE 6: UDP/%s (fresh nonce)\n",PORT);
   if(v12_rt_make_request(request_packet,sizeof(request_packet),nonce)!=0)
     return -506;
   memset(&hints,0,sizeof(hints));
@@ -1227,7 +1252,7 @@ static int save_batch(n6g_batch_entropy entropy,int targets,
 #if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
     n6g_ui_done(*attempted,USB12_UI_OK);
 #endif
-    scr_printf("N6G50 SAVED %d: %s USB READBACK+RENAME PASS\n",
+    scr_printf("N6G50 SAVED %d: %s ART READBACK+RENAME PASS\n",
                *saved,n6_current_id);
   }
   if(first_cover_error!=0 && *saved==0)return first_cover_error;
@@ -1277,7 +1302,10 @@ static void return_to_manager(int saved, int result, int english, char *details)
 }
 
 int main(int argc, char **argv) {
-  int io_ready,usb_ready=0;
+  int io_ready;
+#ifndef DESR_HDD12_HTTPS
+  int usb_ready=0;
+#endif
   int english=argc>=2 && strcmp(argv[1],"1")==0;
 #else
 int main(void) {
@@ -1290,18 +1318,24 @@ int main(void) {
 #if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
   n6g_ui_prepare();
 #endif
+#ifdef DESR_HDD12_HTTPS
+  scr_printf("PSX DVR ISO MANAGER 1.2 HDD - MAX 50\n");
+  scr_printf("DVR ISO: READ ONLY; ART: PP.DVRISO12/ART\n");
+#else
   scr_printf("N6G50 R3 BATCH HTTPS USB ART - MAX 50\n");
   scr_printf("DVR ISO: READ ONLY, HTTPS CONFIG: USB/DESR_DVR\n");
+#endif
   sleep(1);
   rc=init_io();
 #ifdef DESR_USB12_HTTPS
   io_ready=rc==0;
-  /* The HTTP/USB worker needs mass0:/ before reading its own network
-   * configuration. Preserve the proven init_io() DVR IRX order. */
+#ifndef DESR_HDD12_HTTPS
+  /* USB R4 still initializes mass0: for its own config and artwork. */
   if(rc==0) {
     rc=load_usb_modules();
     usb_ready=(rc==0);
   }
+#endif
 #endif
   if(rc==0)rc=read_cfg(&cfg);
   if(rc==0) {
@@ -1309,8 +1343,10 @@ int main(void) {
     if(!entropy)rc=-734;
   }
 #ifdef DESR_USB12_HTTPS
+#ifndef DESR_HDD12_HTTPS
   /* Keep USB available for the return ELF even if early USB setup failed. */
   if(io_ready && rc!=0 && !usb_ready)load_usb_modules();
+#endif
 #endif
 #ifdef DESR_USB12_CPU_ENTROPY
   if(rc==0)rc=fill_cpu_entropy(argc,argv,*entropy);
@@ -1358,8 +1394,13 @@ int main(void) {
   n6g_ui_summary(targets,saved,unavailable,rc);
 #endif
   scr_clear();scr_setCursor(0);
+#ifdef DESR_HDD12_HTTPS
+  scr_printf("N6G50 HTTPS HDD ART - FINAL RESULT\n");
+  scr_printf("DVR ISO=%d ID=%d HDD MISSING AT START=%d\n",
+#else
   scr_printf("N6G50 HTTPS USB ART - FINAL RESULT\n");
   scr_printf("DVR ISO=%d ID=%d USB MISSING AT START=%d\n",
+#endif
              iso_count,ids_count,missing);
   scr_printf("BATCH=%d ATTEMPTED=%d SAVED=%d UNAVAILABLE=%d\n",
              targets,attempted,saved,unavailable);

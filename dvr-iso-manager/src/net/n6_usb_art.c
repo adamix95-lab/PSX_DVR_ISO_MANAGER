@@ -1,5 +1,7 @@
-/* N6: verified, bounded DVR ISO metadata read and isolated USB ART output.
- * NEVER writes to DVR, APA or PFS, and NEVER guesses Game IDs from titles.
+/* N6: verified bounded DVR ISO metadata, isolated ART output.
+ * The HDD12 build writes only to its private APP PFS1 partition.
+ * It NEVER writes to DVR games, global APA, or PP.DVRISO, and NEVER
+ * guesses Game IDs from titles.
  * Reuses the Manager 1.0 ISO9660/BOOT2 validators (cover_index.c).
  * No network code here. No existing art or PART is ever overwritten.
  */
@@ -18,9 +20,9 @@
 #define DVR_DIR "dvr_pfs0:/ISO"
 #ifdef DESR_USB12_HTTPS
 #include "usb12_covers.h"
-#define USB_DIR DESR_APP_ROOT "ART"
+#define ART_DIR DESR_APP_ROOT "ART"
 #else
-#define USB_DIR "mass0:/ART"
+#define ART_DIR "mass0:/ART"
 #endif
 #define SECTOR 2048U
 #define GAME_LIMIT DESR_GAME_CAP
@@ -106,11 +108,11 @@ static int exists(const char *path) {
 static int paths(const char *id,char dst[72],char jpg[72],char part[80]){
   int n;
   if(!desr_valid_game_id(id))return -1;
-  n=snprintf(dst,72,USB_DIR "/%s_COV.png",id);
+  n=snprintf(dst,72,ART_DIR "/%s_COV.png",id);
   if(n<0||n>=72)return -1;
-  n=snprintf(jpg,72,USB_DIR "/%s_COV.jpg",id);
+  n=snprintf(jpg,72,ART_DIR "/%s_COV.jpg",id);
   if(n<0||n>=72)return -1;
-  n=snprintf(part,80,USB_DIR "/%s_COV.png.PART",id);
+  n=snprintf(part,80,ART_DIR "/%s_COV.png.PART",id);
   if(n<0||n>=80)return -1;
   return 0;
 }
@@ -182,6 +184,29 @@ int n6_scan_dvr(char ids[N6_BATCH_MAX][12],
   return chosen;
 }
 #ifndef N6D_READONLY
+#ifdef N6G_HDD_SAFE
+/* PFS errno values are not FatFs FRESULTs. Inspect an already-mounted
+ * ART directory by entry name and fail closed on directory I/O errors.
+ * The writer also creates .PART with FIO_O_EXCL, never truncating files.
+ * This detects preexisting .png, .jpg or .PART without trusting
+ * ambiguous fileXioOpen() errors as evidence of a missing file.
+ */
+static int hdd_art_absent(const char *path) {
+  const char *base=strrchr(path,'/');
+  if(!base || !base[1])return 0;
+  base++;
+  int d=fileXioDopen(ART_DIR);
+  if(d<0)return 0;
+  iox_dirent_t ent;
+  int n,found=0;
+  while((n=fileXioDread(d,&ent))>0) {
+    ent.name[sizeof(ent.name)-1]=0;
+    if(strcmp(base,ent.name)==0){found=1;break;}
+  }
+  int end=fileXioDclose(d);
+  return !found && n==0 && end>=0;
+}
+#endif
 #ifdef N6G_USB_SAFE
 /* The embedded bdmfs_fatfs returns negated FatFs FRESULT values.
  * Fail closed on I/O errors, including when an existing path can't be read. */
@@ -191,8 +216,8 @@ static int usb_art_absent(const char *path) {
   return rc==-4 /* FR_NO_FILE */ || rc==-5 /* FR_NO_PATH */;
 }
 #endif
-/* Final USB-only publish. Incomplete/old PART is left untouched for
- * manual inspection. Always compare staged data with verified RAM bytes.
+/* Strict, non-overwriting publish. Existing PART is left untouched for
+ * manual inspection. Compare staged data against verified RAM bytes.
  * Existing .png/.jpg are never replaced, even on failed prior downloads.
  */
 int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
@@ -207,21 +232,27 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
 #endif
   if(!png||!n||n>N6_COVER_CAP||probe_png_check(png,n)!=0)return -550;
   if(paths(id,dst,jpg,part)<0)return -551;
+#ifndef N6G_HDD_SAFE
 #ifdef N6G_USB_SAFE
   if(!usb_art_absent(dst)||!usb_art_absent(jpg)||!usb_art_absent(part))return -552;
 #else
   if(exists(dst)||exists(jpg)||exists(part))return -552;
 #endif
-  dir=fileXioDopen(USB_DIR);
+#endif
+  dir=fileXioDopen(ART_DIR);
   if(dir>=0)fileXioDclose(dir);
   else {
-    ret=fileXioMkdir(USB_DIR,0777);
+    ret=fileXioMkdir(ART_DIR,0777);
     if(ret<0)return -553;
-    dir=fileXioDopen(USB_DIR);
+    dir=fileXioDopen(ART_DIR);
     if(dir<0)return -553;
     fileXioDclose(dir);
   }
-#ifdef N6G_USB_SAFE
+#ifdef N6G_HDD_SAFE
+  if(!hdd_art_absent(dst)||!hdd_art_absent(jpg)||!hdd_art_absent(part))
+    return -552;
+#endif
+#if defined(N6G_USB_SAFE) || defined(N6G_HDD_SAFE)
   fd=fileXioOpen(part,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_EXCL,0666);
 #else
   fd=fileXioOpen(part,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_TRUNC,0666);
@@ -235,6 +266,9 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
     w+=ret;
   }
   if(fileXioClose(fd)<0)return -556;
+#ifdef N6G_HDD_SAFE
+  if(fileXioSync("pfs1:",FXIO_WAIT)<0)return -571;
+#endif
   fd=fileXioOpen(part,FIO_O_RDONLY,0);
   if(fd<0)return -557;
   w=0;
@@ -249,12 +283,19 @@ int n6_write_usb_art(const char id[12],const uint8_t *png,size_t n) {
   }
   ret=fileXioRead(fd,verify_chunk,1);
   if(fileXioClose(fd)<0||ret!=0)return -559;
-#ifdef N6G_USB_SAFE
+#ifdef N6G_HDD_SAFE
+  if(!hdd_art_absent(dst)||!hdd_art_absent(jpg))return -552;
+#elif defined(N6G_USB_SAFE)
   if(!usb_art_absent(dst)||!usb_art_absent(jpg))return -552;
 #else
   if(exists(dst)||exists(jpg))return -552;
 #endif
   if(fileXioRename(part,dst)<0)return -560;
+#ifdef N6G_HDD_SAFE
+  if(fileXioSync("pfs1:",FXIO_WAIT)<0)return -571;
+  iox_stat_t final_stat;
+  if(fileXioGetStat(dst,&final_stat)<0 || final_stat.size!=n)return -572;
+#endif
   return 0;
 }
 

@@ -5,7 +5,11 @@
 #include "n6_usb_art.h"
 
 #ifdef DESR_USB12_ONE_ELF
-#ifdef DESR_USB12_CPU_ENTROPY
+#ifdef DESR_HDD12_HTTPS
+/* The HDD 1.2 test app is isolated on PP.DVRISO12, in PFS1. This is
+ * also the HTTPS worker's exact return path after its clean IOP reset. */
+#define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER_HDD.ELF"
+#elif defined(DESR_USB12_CPU_ENTROPY)
 /* The USB 1.2 production-format package replaces the 1.0 main ELF.
  * Both the embedded worker loader and return loader MUST use this path. */
 #define DESR_USB12_MANAGER_ELF DESR_APP_ROOT "DVR_ISO_MANAGER.ELF"

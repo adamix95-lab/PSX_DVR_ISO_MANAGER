@@ -86,3 +86,21 @@ if(DESR_BUILD_HDD_NETFIX)
   target_link_libraries(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
   target_compile_options(DVR_ISO_MANAGER_HDD12_TEST.ELF PRIVATE -Os -Wall -Wextra)
 endif()
+
+# HDD 1.2 HTTPS is built ONLY for the isolated, hardware-proven XMB test
+# partition PP.DVRISO12. It uses the existing HDD NETFIX runtime, with
+# the *same* wolfSSL/Roughtime/PNG worker from USB R4. The worker is
+# embedded in the Manager file as a tail payload (not a second XMB app).
+option(DESR_HDD12_HTTPS "Target PP.DVRISO12 for the native HTTPS ART worker" OFF)
+option(DESR_USB12_USE_CPU_ENTROPY "Use the USB R4 CPU-count entropy expansion" OFF)
+option(DESR_BUILD_USB12_WORKER "Build HTTPS cover worker (USB R4 or HDD12)" OFF)
+if(DESR_BUILD_USB12_WORKER)
+  include(usb12_worker.cmake)
+endif()
+option(DESR_BUILD_USB12_ONE_ELF "Build Manager with HTTPS worker embedded (USB or HDD12)" OFF)
+if(DESR_BUILD_USB12_ONE_ELF)
+  if(DESR_HDD12_HTTPS AND NOT DESR_BUILD_HDD_NETFIX)
+    message(FATAL_ERROR "HDD 1.2 requires -DDESR_BUILD_HDD_NETFIX=ON")
+  endif()
+  include(usb12_oneelf.cmake)
+endif()

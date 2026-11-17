@@ -11,3 +11,4 @@ int fileXioRename(const char *,const char *);
 int fileXioDopen(const char *);
 int fileXioDread(int,iox_dirent_t *);
 int fileXioDclose(int);
+int fileXioSync(const char *,int);

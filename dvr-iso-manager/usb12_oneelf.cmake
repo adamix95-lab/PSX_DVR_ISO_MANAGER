@@ -19,8 +19,19 @@ set(single DVR_ISO_MANAGER_V12_SINGLE.ELF)
 if(DESR_USB12_USE_CPU_ENTROPY)
   set(single DVR_ISO_MANAGER_V12_CPU.ELF)
 endif()
-add_executable(${single} EXCLUDE_FROM_ALL ${SOURCES} src/usb12_launch_embedded.c ${payload_asm})
-target_compile_definitions(${single} PRIVATE DESR_USB12_HTTPS=1 DESR_USB12_ONE_ELF=1)
+if(DESR_HDD12_HTTPS)
+  # This ELFs is copied to PFS1:/DVR_ISO_MANAGER_HDD.ELF.
+  # The loader uses exactly that path for its self-contained worker.
+  set(single DVR_ISO_MANAGER_HDD12_HTTPS.ELF)
+  add_executable(${single} EXCLUDE_FROM_ALL ${SOURCES}
+    ${HDD_PFS_SOURCES} src/usb12_launch_embedded.c ${payload_asm})
+  target_compile_definitions(${single} PRIVATE DESR_USB12_HTTPS=1
+    DESR_USB12_ONE_ELF=1 DESR_HDD12_HTTPS=1 DESR_HDD12_TARGET=1
+    DESR_HDD_TEST=1 DESR_HDD_NETFIX=1)
+else()
+  add_executable(${single} EXCLUDE_FROM_ALL ${SOURCES} src/usb12_launch_embedded.c ${payload_asm})
+  target_compile_definitions(${single} PRIVATE DESR_USB12_HTTPS=1 DESR_USB12_ONE_ELF=1)
+endif()
 if(DESR_USB12_SIMPLE_UI)
   target_compile_definitions(${single} PRIVATE DESR_USB12_UI_SIMPLE=1)
 endif()

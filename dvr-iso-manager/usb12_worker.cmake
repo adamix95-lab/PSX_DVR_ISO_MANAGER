@@ -3,15 +3,21 @@ set(monocypher "$ENV{V12_MONOCYPHER_SRC}/src")
 set(fat_irx "$ENV{V12_N6G_FAT_IRX}")
 if(NOT EXISTS "$ENV{PS2SDK}/HDD_NETFIX_BUILD.txt" OR
    NOT EXISTS "${wolfssl}/lib/libwolfssl.a" OR
-   NOT EXISTS "${monocypher}/optional/monocypher-ed25519.c" OR
-   NOT EXISTS "${fat_irx}")
-  message(FATAL_ERROR "USB 1.2 worker needs NETFIX PS2SDK, pinned wolfSSL/Monocypher and N6G FAT IRX")
+   NOT EXISTS "${monocypher}/optional/monocypher-ed25519.c")
+  message(FATAL_ERROR "HTTPS worker requires NETFIX PS2SDK, pinned wolfSSL and Monocypher")
 endif()
-
-set(fat_source "${CMAKE_CURRENT_BINARY_DIR}/n6g_bdmfs_fatfs_irx.c")
-add_custom_command(OUTPUT "${fat_source}"
-  COMMAND "$ENV{PS2SDK}/bin/bin2c" "${fat_irx}" "${fat_source}" bdmfs_fatfs_irx
-  DEPENDS "${fat_irx}" VERBATIM)
+if(DESR_HDD12_HTTPS)
+  # HDD12 writes to PFS1, not FAT: no USB IRX or USB FAT safety heuristic.
+  set(fat_source)
+else()
+  if(NOT EXISTS "${fat_irx}")
+    message(FATAL_ERROR "USB R4 worker needs the N6G FAT driver")
+  endif()
+  set(fat_source "${CMAKE_CURRENT_BINARY_DIR}/n6g_bdmfs_fatfs_irx.c")
+  add_custom_command(OUTPUT "${fat_source}"
+    COMMAND "$ENV{PS2SDK}/bin/bin2c" "${fat_irx}" "${fat_source}" bdmfs_fatfs_irx
+    DEPENDS "${fat_irx}" VERBATIM)
+endif()
 
 # Same source and IRX order as the DESR-7000-tested N6G BATCH50 R3.
 set(build "${CMAKE_CURRENT_BINARY_DIR}")
@@ -42,7 +48,7 @@ add_executable(${target} EXCLUDE_FROM_ALL
   "${build}/netman_irx.c"
   "${build}/smap_irx.c"
   "${build}/bdm_irx.c"
-  "${fat_source}"
+  ${fat_source}
   "${build}/usbd_mini_irx.c"
   "${build}/usbmass_bd_mini_irx.c"
   "${build}/dvrdrv_irx.c"

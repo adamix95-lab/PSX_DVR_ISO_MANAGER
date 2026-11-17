@@ -446,9 +446,13 @@ static void draw_scan_art_question(int missing) {
   scr_setfontcolor(0xA0A0A0);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_TEST
-  scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
+#ifdef DESR_HDD12_HTTPS
+  scr_printf("Missing PNGs are saved to PP.DVRISO12/ART.");
 #else
-  scr_printf("Only new PNG files are written to USB ART.");
+  scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
+#endif
+#else
+  scr_printf("Only new PNG files are written to ART.");
 #endif
 #ifdef DESR_USB12_CPU_ENTROPY
   scr_setXY(2, 26);
@@ -522,6 +526,11 @@ static void launch_usb12_covers(void) {
  * unchanged, and the detailed codes still travel in argv for diagnosis.
  * The regular screen no longer exposes TLS, HTTP, RET or Roughtime logs.
  */
+#ifdef DESR_HDD12_HTTPS
+/* Resume after HTTPS worker: fresh PFS1 is RO. Remount the isolated
+ * PP.DVRISO12 RW only if the requested HTTPS download saved new art. */
+static int hdd_enable_writes(void);
+#endif
 static int show_usb12_result(int argc, char **argv, int scan_result) {
   const unsigned dismiss = PAD_CROSS | PAD_CIRCLE;
   unsigned held = dismiss;
@@ -539,8 +548,14 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   result = strtol(argv[3], &end, 10);
   if (end == argv[3] || *end || errno == ERANGE) return 0;
   force_english = strcmp(argv[4], "1") == 0;
+#ifdef DESR_HDD12_HTTPS
+  int hdd_rw_rc = saved > 0 && scan_result >= 0 ? hdd_enable_writes() : 0;
+  refresh_failed = saved > 0 && (scan_result < 0 || hdd_rw_rc < 0 ||
+                                desr_covers_refresh(games, count, covers, &identified) < 0);
+#else
   refresh_failed = saved > 0 && (scan_result < 0 ||
                                 desr_covers_refresh(games, count, covers, &identified) < 0);
+#endif
   if (argc == 7 &&
       sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
              &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
@@ -564,7 +579,7 @@ static int show_usb12_result(int argc, char **argv, int scan_result) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setXY(2,2);
-  scr_printf("PSX DVR ISO MANAGER 1.2 USB\n\n");
+  scr_printf("PSX DVR ISO MANAGER %s\n\n", DESR_APP_VARIANT);
   scr_printf("%s\n\n",failed?"DOWNLOAD INTERRUPTED":"DOWNLOAD COMPLETE");
   if(have_details) {
     scr_printf("DOWNLOADED: %ld/%d\n",saved,batch);
@@ -825,7 +840,7 @@ static int launch_via_quickboot(void) {
 #ifdef DESR_HDD_TEST
   rc = hdd_enable_writes();
   if (rc < 0) {
-    snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+    snprintf(status, sizeof(status), "HDD ART partition RW mount failed: %d", rc);
     return -93;
   }
   rc = publish_hdd_cnf(cnf, len);
@@ -1001,12 +1016,12 @@ int main(int argc, char *argv[]) {
   /* Read-only preflight, before loading ISO list or artwork. */
   rc = hdd_mount_readonly();
   if (rc < 0) {
-    scr_printf("1.0 HDD: READ-ONLY PREFLIGHT FAILED %d\n", rc);
-    scr_printf("PP.DVRISO must exist; no auto-create or writes.\n");
+    scr_printf("%s: READ-ONLY PREFLIGHT FAILED %d\n", DESR_APP_VARIANT, rc);
+    scr_printf("Target partition %s must exist.\n", DESR_APP_PARTITION);
     sleep(60);
     return 3;
   }
-  scr_printf("1.0 HDD: BOTH FILESYSTEMS READABLE (RO)\n");
+  scr_printf("%s: BOTH FILESYSTEMS READABLE (RO)\n", DESR_APP_VARIANT);
 #endif
 #ifdef DESR_HDD_TEST
   hdd_at_boot_root=hdd_probe_dir(DESR_APP_ROOT);
@@ -1205,7 +1220,7 @@ int main(int argc, char *argv[]) {
 #ifdef DESR_HDD_TEST
         rc = hdd_enable_writes();
         if (rc < 0) {
-          snprintf(status, sizeof(status), "PP.DVRISO RW mount failed: %d", rc);
+          snprintf(status, sizeof(status), "HDD ART partition RW mount failed: %d", rc);
           status_visible = 1;
           draw();
           continue;
@@ -1216,7 +1231,7 @@ int main(int argc, char *argv[]) {
           desr_covers_load(games, count, covers);
           scr_clear();
           scr_setXY(2, 5);
-          scr_printf("Reading ISO Game IDs; updating USB index...");
+          scr_printf("Reading ISO Game IDs; updating HDD index...");
           matched = desr_covers_refresh(games, count, covers, &identified);
           art_prompt = 0;
           art_missing = 0;
@@ -1239,7 +1254,7 @@ int main(int argc, char *argv[]) {
             }
           } else {
             snprintf(status,sizeof(status),
-                     "Index update failed; previous USB index preserved.");
+                     "Index update failed; previous ART index preserved.");
           }
           status_visible = 1;
         }
