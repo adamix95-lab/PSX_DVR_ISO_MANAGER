@@ -198,7 +198,7 @@ def build(args: argparse.Namespace) -> None:
     }
     manual["PP.DVRISO-FILES/ART/"] = b""
     manual.update({
-        "XMB_HEADERS/PP.DVRISO/" + name: data for name, data in header.items()
+        "__Headers/PP.DVRISO/" + name: data for name, data in header.items()
     })
     manual.update({
         "README.md": args.readme.read_bytes(),
