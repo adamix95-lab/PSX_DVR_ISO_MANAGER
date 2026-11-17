@@ -281,6 +281,8 @@ jobs:
             --config pdim-hdd-v1.2-installer/V12_NET.CNF.example \
             --readme pdim-hdd-v1.2-installer/README.md \
             --readme-pl pdim-hdd-v1.2-installer/README_PL.md \
+            --manual-readme hdd-v1.2/INSTALL_MANUAL.md \
+            --manual-readme-pl hdd-v1.2/INSTALL_MANUAL_PL.md \
             --commit "$GITHUB_SHA" \
             --auto-output PDIM-1.2-HDD-AUTO-TEST-UNRELEASED.zip \
             --manual-output PDIM-1.2-HDD-MANUAL-TEST-UNRELEASED.zip
