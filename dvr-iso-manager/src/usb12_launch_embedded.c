@@ -118,7 +118,9 @@ static int launch_from_tail(int argc, char *args[]) {
   size_t footer_offset;
   int fd, rc, closed;
 
+#ifndef DESR_USB12_UI_SIMPLE
   scr_printf("Reading HTTPS worker from Manager ELF...\n");
+#endif
   if (fileXioGetStat(DESR_USB12_MANAGER_ELF, &info) < 0 ||
       info.hisize != 0 || info.size <= sizeof(footer) || info.size > 16U * 1024U * 1024U)
     return WORKER_SIZE;
