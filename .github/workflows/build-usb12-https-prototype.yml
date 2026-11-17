@@ -1,7 +1,7 @@
 name: Build PSX DVR ISO Manager 1.2 USB standalone-net RC TEST
 on:
   push:
-    branches: [test/v1.2-usb-https-covers, test/v1.2-usb-ui-en-rt-retry]
+    branches: [test/v1.2-usb-https-covers, test/v1.2-usb-ui-en-rt-retry, pdim_usb_v1.2]
   workflow_dispatch:
 permissions:
   contents: read
@@ -258,7 +258,7 @@ jobs:
           print('Embedded worker SHA256',hashlib.sha256(worker).hexdigest())
           PY
           strings "$manager" > /tmp/usb12-strings
-          grep -Fx '1.2 USB UI TEST' /tmp/usb12-strings
+          grep -Fx '1.2 USB' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 USB' /tmp/usb12-strings
