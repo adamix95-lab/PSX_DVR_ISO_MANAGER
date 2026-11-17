@@ -49,7 +49,8 @@ add_executable(${target} EXCLUDE_FROM_ALL
   "${build}/dvrfile_irx.c"
   src/net/n6g_tls_arena.c
   src/net/n6g_batch_entropy.c
-  src/net/usb12_progress_ui.c)
+  src/net/usb12_progress_ui.c
+  src/net/n6g_roughtime_retry.c)
 target_compile_definitions(${target} PRIVATE
   DESR_USB12_HTTPS=1 N6G_BATCH_50=1 N6G_TLS_ARENA=1 N6G_PNG_WORKSPACE=1 N6G_USB_SAFE=1
   WC_RNG_SEED_CB=1 HAVE_SNI=1 WOLFSSL_USER_IO=1 WOLFSSL_NO_SOCK=1
