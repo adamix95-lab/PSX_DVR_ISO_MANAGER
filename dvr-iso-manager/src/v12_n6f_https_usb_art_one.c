@@ -63,6 +63,9 @@
 #include "cover_index.h"
 #include "probe_png.h"
 #include "n6_normalize_png.h"
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+#include "usb12_progress_ui.h"
+#endif
 #ifdef DESR_USB12_CPU_ENTROPY
 #include "n6g_cpu_entropy.h"
 #endif
@@ -205,6 +208,114 @@ static volatile int n5h_hs_phase=-1,n5h_hs_result=-999;
 static volatile int n5h_hs_state=-999,n5h_hs_connect=-999,n5h_hs_error=-999;
 static u8 n5h_observer_stack[8192] __attribute__((aligned(16)));
 extern void *_gp;
+
+/* Consumer-only R4 UI: ONLY the main EE thread paints progress, and ONLY
+ * before or after a completed cover attempt. This deliberately avoids
+ * all GS/scr_printf activity in wolfSSL callbacks or the N5H observer.
+ * Diagnostics still exist in the unchanged R4 commit. R4 HTTPS networking,
+ * parser, TLS, entropy, normalization and USB writer stay untouched.
+ *
+ * ASCII transliteration is intentional: ps2sdk's debug font is not UTF-8.
+ */
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+static usb12_progress_ui n6g_ui_progress;
+static int n6g_ui_started;
+static int n6g_ui_active;
+static int n6g_ui_finished;
+
+static void n6g_ui_redraw(void) {
+  char line[40];
+  int first;
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setCursor(0);
+  scr_printf("PSX DVR ISO MANAGER 1.2 USB\n");
+  scr_printf("-----------------------------------------\n\n");
+  if(n6g_ui_finished) {
+    scr_printf("POBIERANIE ZAKONCZONE\n\n");
+    if(n6g_ui_progress.total==0) {
+      scr_printf("BRAK BRAKUJACYCH OKLADEK\n");
+    }else {
+      scr_printf("POBRANO: %d/%d\n",n6g_ui_progress.saved,
+                 n6g_ui_progress.total);
+      scr_printf("POMINIETO: %d\n",n6g_ui_progress.skipped);
+      if(n6g_ui_progress.errors)
+        scr_printf("BLAD PODCZAS POBIERANIA\n");
+    }
+    scr_printf("\nPOWROT DO MANAGERA...\n");
+    return;
+  }
+  if(!n6g_ui_started) {
+    scr_printf("PRZYGOTOWYWANIE POBIERANIA OKLADEK\n");
+    scr_printf("PROSZE CZEKAC...\n");
+    return;
+  }
+  scr_printf("TRWA POBIERANIE BRAKUJACYCH OKLADEK\n");
+  scr_printf("PROSZE CZEKAC...\n\n");
+  first=n6g_ui_progress.completed-USB12_UI_VISIBLE_ROWS+1;
+  if(first<1)first=1;
+  for(int i=first;i<=n6g_ui_progress.completed;i++) {
+    if(usb12_progress_line(&n6g_ui_progress,i,line,sizeof(line))==0)
+      scr_printf("%s\n",line);
+  }
+  if(n6g_ui_active>n6g_ui_progress.completed &&
+     n6g_ui_active<=n6g_ui_progress.total)
+    scr_printf("%d/%d POBIERANIE...\n",n6g_ui_active,
+               n6g_ui_progress.total);
+  scr_printf("\nPOBRANO: %d  POMINIETO: %d\n",
+             n6g_ui_progress.saved,n6g_ui_progress.skipped);
+}
+
+/* Called around complete cover operations, never inside TCP/TLS/HTTP I/O. */
+static void n6g_ui_prepare(void) {
+  n6g_ui_started=0;
+  n6g_ui_finished=0;
+  n6g_ui_active=0;
+  n6g_ui_redraw();
+}
+static void n6g_ui_begin(int targets) {
+  if(usb12_progress_begin(&n6g_ui_progress,targets)!=0)
+    usb12_progress_begin(&n6g_ui_progress,0);
+  n6g_ui_started=1;
+  n6g_ui_redraw();
+}
+static void n6g_ui_processing(int ordinal) {
+  n6g_ui_active=ordinal;
+  n6g_ui_redraw();
+}
+static void n6g_ui_done(int ordinal,enum usb12_ui_result result) {
+  if(usb12_progress_record(&n6g_ui_progress,ordinal,result)==0) {
+    n6g_ui_active=0;
+    n6g_ui_redraw();
+  }
+}
+static void n6g_ui_summary(int targets,int saved,int skipped,int rc) {
+  if(!n6g_ui_started) {
+    usb12_progress_begin(&n6g_ui_progress,targets>0?targets:0);
+    n6g_ui_started=1;
+  }
+  /* Keep summary faithful to the downloader even on early failures.
+   * All counts come from the trusted R4 batch loop, never screen parsing.
+   */
+  n6g_ui_progress.saved=saved;
+  n6g_ui_progress.skipped=skipped;
+  if(rc<0 && !(rc==-404 && skipped==targets && targets>0))
+    ++n6g_ui_progress.errors;
+  n6g_ui_finished=1;
+  n6g_ui_redraw();
+}
+
+/* Diagnostic output from the old R4 stays in the source, but is suppressed
+ * in the UI-only test. In particular the N5H observer must NOT clear the
+ * display on a secondary EE thread. It is still started/stopped normally.
+ * Revert the compile definition to restore R4 debug output verbatim.
+ */
+#define scr_printf(...) ((void)0)
+#define scr_clear() ((void)0)
+#define scr_setCursor(...) ((void)0)
+#endif
+
 
 /* Trace hook must be minimal to avoid printf/GS and TLS reentrancy. */
 void n5d_trace(unsigned int step) {
@@ -1030,6 +1141,9 @@ static int save_batch(n6g_batch_entropy entropy,int targets,
     memcpy(n6_current_id,n6_targets[game],sizeof(n6_current_id));
     *attempted=game+1;
     batch_trace_prep=game==0;
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+    n6g_ui_processing(*attempted);
+#endif
     scr_printf("N6G50 GAME %d/%d ID=%s SAVED=%d\n",
                *attempted,targets,n6_current_id,*saved);
     rc=fetch_batch_cover(&entropy[game][0],0,&normalized,&normalized_size);
@@ -1041,15 +1155,36 @@ static int save_batch(n6g_batch_entropy entropy,int targets,
     if(unavailable_cover(rc)) {
       if(first_cover_error==0)first_cover_error=rc;
       (*unavailable)++;
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+      n6g_ui_done(*attempted,USB12_UI_SKIPPED);
+#endif
       scr_printf("N6G50 COVER UNAVAILABLE: %s (%d)\n",n6_current_id,rc);
       continue;
     }
-    if(rc!=0)return rc;
+    if(rc!=0) {
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+      n6g_ui_done(*attempted,USB12_UI_ERROR);
+#endif
+      return rc;
+    }
     if(!normalized || !normalized_size ||
-       probe_png_check(normalized,normalized_size)!=0)return -720;
+       probe_png_check(normalized,normalized_size)!=0) {
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+      n6g_ui_done(*attempted,USB12_UI_ERROR);
+#endif
+      return -720;
+    }
     rc=n6_write_usb_art(n6_current_id,normalized,normalized_size);
-    if(rc!=0)return rc;
+    if(rc!=0) {
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+      n6g_ui_done(*attempted,USB12_UI_ERROR);
+#endif
+      return rc;
+    }
     (*saved)++;
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+    n6g_ui_done(*attempted,USB12_UI_OK);
+#endif
     scr_printf("N6G50 SAVED %d: %s USB READBACK+RENAME PASS\n",
                *saved,n6_current_id);
   }
@@ -1106,6 +1241,9 @@ int main(void) {
   v12_net_config cfg;
   n6g_batch_entropy *entropy=NULL;
   init_scr();scr_setCursor(0);
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+  n6g_ui_prepare();
+#endif
   scr_printf("N6G50 R3 BATCH HTTPS USB ART - MAX 50\n");
   scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
   sleep(1);
@@ -1151,6 +1289,9 @@ int main(void) {
     scr_printf("TLS INIT ORDER: %s\n",batch_ca_first?"CA FIRST":"SSL FIRST");
   }
   if(rc==0 && targets>0)rc=init_net(&cfg);
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+  if(rc==0) n6g_ui_begin(targets);
+#endif
   if(rc==0 && targets>0)rc=save_batch(*entropy,targets,&attempted,&saved,&unavailable);
   if(entropy) {
     v12_n4a_wipe(entropy,sizeof(*entropy));
@@ -1160,6 +1301,9 @@ int main(void) {
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;
   }
+#if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
+  n6g_ui_summary(targets,saved,unavailable,rc);
+#endif
   scr_clear();scr_setCursor(0);
   scr_printf("N6G50 HTTPS USB ART - FINAL RESULT\n");
   scr_printf("DVR ISO=%d ID=%d USB MISSING AT START=%d\n",
