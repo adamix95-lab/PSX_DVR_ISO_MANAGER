@@ -2,6 +2,23 @@
 
 [Polski / Polish](README_PL.md)
 
+## 1.2 USB — experimental HTTPS, hardware-tested R4
+
+R4 downloaded all **45/45** missing covers in one run on a Sony PSX
+DESR-7000, displayed the result and returned to the Manager. Killzone
+launched from the game list afterward. The BATCH50 limit of 50 was checked
+with a 60-game simulated library.
+
+Press **Triangle** to scan for missing artwork. On the prompt, **X** uses
+the PC ART Server, **Triangle** downloads directly via HTTPS, and
+**Circle** returns to the list. The HTTPS worker is in the same ELF and
+saves verified PNGs to `DESR_DVR/ART/`. This variant uses experimental
+CPU-counter entropy for Roughtime and TLS, so it runs without `N6G50.ENT`.
+
+Use `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. The experimental ZIP includes
+the unmodified USB 1.0 files, the public CA bundle, a network config
+template and the Windows ART Server. [Installation and hardware test](docs/usb12-cpu-entropy.md)
+
 ## v1.0.0 — HDD + USB
 
 **PSX DVR ISO Manager** lets you browse and launch PlayStation 2 ISO games from the DVR partition of a Sony PSX DESR console.

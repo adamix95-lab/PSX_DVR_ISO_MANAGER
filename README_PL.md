@@ -2,6 +2,22 @@
 
 [English](README.md)
 
+## 1.2 USB — eksperymentalne HTTPS, R4 sprawdzone na konsoli
+
+R4 pobrał **45/45** brakujących okładek w jednej serii na Sony PSX
+DESR-7000, pokazał podsumowanie i wrócił do Managera. Następnie z listy
+uruchomiono Killzone. Limit BATCH50 sprawdzono w symulacji z 60 grami.
+
+**Trójkąt** skanuje okładki na liście. Na ekranie pytania **X** uruchamia
+pobieranie przez ART Server na PC, **Trójkąt** pobiera bezpośrednio przez
+HTTPS, a **Kółko** wraca do listy. Pobieracz jest w tym samym ELF-ie
+i zapisuje sprawdzone PNG w `DESR_DVR/ART/`. Ten wariant korzysta z
+eksperymentalnej entropii z licznika CPU, dzięki czemu działa bez `N6G50.ENT`.
+
+Uruchom `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Paczka eksperymentalna
+zawiera oryginalne pliki USB 1.0, publiczny plik CA, wzór konfiguracji sieci
+i ART Server dla Windows. [Instalacja i wynik sprzętowy](docs/usb12-cpu-entropy.md)
+
 ## v1.0.0 — HDD + USB
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. 
 

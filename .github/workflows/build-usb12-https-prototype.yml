@@ -1,7 +1,7 @@
-name: Build USB Manager 1.2 CPU entropy R4
+name: Build and verify experimental USB Manager 1.2 R4
 on:
   push:
-    branches: [test/v1.2-usb-cpu-thin]
+    branches: [test/v1.2-usb-https-covers]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +16,24 @@ jobs:
           persist-credentials: false
       - name: Install build and host test dependencies
         run: apk add --no-cache cmake make build-base git python3 curl ca-certificates libpng-dev zlib-dev
+      - name: Verify published USB 1.0 assets and the public R4 CA bundle
+        run: |
+          set -eu
+          mkdir -p prerequisites
+          release=https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.0
+          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-USB-COMPLETE.zip" \
+            -o prerequisites/usb10.zip
+          curl -fsSL --retry 3 "$release/PSX-DVR-ART-Server-v0.8.exe" \
+            -o prerequisites/PSX-DVR-ART-Server-v0.8.exe
+          curl -fsSL --retry 3 https://curl.se/ca/cacert-2026-11-05.pem -o prerequisites/N4E.CA
+          curl -fsSL --retry 3 https://www.mozilla.org/media/MPL/2.0/index.815ca599c9df.txt \
+            -o prerequisites/MPL-2.0.txt
+          sha256sum -c <<'EOF'
+          d3e2b08cdb22d33da9247e21bf0402e280b085693ccc9a623d29e34018f841c6  prerequisites/usb10.zip
+          aabe7bcce7f594ed15763e44093f87d3e84893d44ea110a527da455872cdd86a  prerequisites/PSX-DVR-ART-Server-v0.8.exe
+          427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285  prerequisites/N4E.CA
+          fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85  prerequisites/MPL-2.0.txt
+          EOF
       - name: Preserve the stock SDK for the USB Manager
         run: |
           set -eu
@@ -64,6 +82,22 @@ jobs:
             "$manager/tests/net/test_n6g_cpu_entropy.c" monocypher-upstream/src/monocypher.c \
             -o /tmp/n6g-cpu-entropy
           /tmp/n6g-cpu-entropy
+      - name: Host-test the USB BATCH50 limit, resume and verified artwork writes
+        run: |
+          set -eu
+          manager=dvr-iso-manager
+          mock="$manager/tests/net/usb-art-mock"
+          cc -std=c11 -Wall -Wextra -Werror -I"$manager/include" -I"$mock" \
+            -DDESR_USB12_HTTPS=1 -DN6G_BATCH_50=1 -DN6D_READONLY=1 \
+            "$manager/src/net/n6_usb_art.c" "$manager/src/iso_utils.c" \
+            "$manager/src/cover_index.c" "$mock/test_batch_scan.c" -o /tmp/n6g-usb-scan
+          /tmp/n6g-usb-scan
+          cc -std=c11 -Wall -Wextra -Werror -I"$manager/include" -I"$mock" \
+            -DDESR_USB12_HTTPS=1 -DN6G_BATCH_50=1 -DN6G_USB_SAFE=1 \
+            "$manager/src/net/n6_usb_art.c" "$manager/src/net/probe_png.c" \
+            "$manager/src/iso_utils.c" "$manager/src/cover_index.c" \
+            "$mock/test_write.c" -o /tmp/n6g-usb-write
+          /tmp/n6g-usb-write
       - name: Rebuild pinned NETFIX PS2SDK for the HTTPS worker
         run: sh hdd-netfix/build_sdk.sh sdk-source
       - name: Build wolfSSL with the same options and diagnostics as BATCH50 R3
@@ -148,6 +182,7 @@ jobs:
           manager=build-manager/DVR_ISO_MANAGER_V12_CPU.ELF
           mips64r5900el-ps2-elf-strip --strip-debug "$manager"
           python3 dvr-iso-manager/tools/pack_usb12_tail.py pack "$manager" "$DESR_USB12_PAYLOAD"
+          printf '%s\n' "81a0f045e2597719d58d798499378afcdce7466a6c7ca967546c1499e2355741  $manager" | sha256sum -c -
           strings "$manager" > /tmp/usb12-strings
           grep -Fx '1.2 USB CPU ENTROPY TEST R4' /tmp/usb12-strings
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
@@ -159,24 +194,33 @@ jobs:
           grep -Fx 'HTTPS PAYLOAD FOOTER' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
           if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
-      - name: Package the single ELF for an existing USB 1.0 installation
+      - name: Package the tested R4 ELF, unmodified USB 1.0 files and PC tools
         run: |
           set -eu
-          mkdir -p package/DESR_DVR package/licenses
+          mkdir -p package/licenses package/tools
+          python3 -m zipfile -e prerequisites/usb10.zip prerequisites/usb10
+          cp -a prerequisites/usb10/PSX-DVR-ISO-Manager-v1.0-USB-COMPLETE/DESR_DVR package/
           cp build-manager/DVR_ISO_MANAGER_V12_CPU.ELF package/DESR_DVR/
           cp docs/usb12-cpu-entropy.md package/README.md
+          cp release-tools/v1_2/V12_NET.CNF.example package/
+          cp prerequisites/N4E.CA package/
+          cp prerequisites/PSX-DVR-ART-Server-v0.8.exe package/tools/
+          cp prerequisites/MPL-2.0.txt package/licenses/
           cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
           cp wolfssl-n5a/COPYING package/licenses/WOLFSSL-COPYING
           cp sdk-source/LICENSE package/licenses/PS2SDK-AFL-2.0
           cp monocypher-upstream/LICENCE.md package/licenses/MONOCYPHER-LICENCE.md
           printf '%s\n' "$GITHUB_SHA" > package/SOURCE_COMMIT
           cd package
-          sha256sum DESR_DVR/*.ELF > SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4.zip \
-            DESR_DVR README.md licenses SOURCE_COMMIT SHA256SUMS
+          find . -type f ! -name SHA256SUMS | LC_ALL=C sort | while IFS= read -r path; do
+            sha256sum "${path#./}"
+          done > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-EXPERIMENTAL.zip \
+            DESR_DVR README.md N4E.CA V12_NET.CNF.example tools licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4
-          path: PSX-DVR-ISO-Manager-1.2-USB-CPU-ENTROPY-R4.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-EXPERIMENTAL
+          path: PSX-DVR-ISO-Manager-1.2-USB-EXPERIMENTAL.zip
           if-no-files-found: error
           retention-days: 30

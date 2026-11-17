@@ -1,5 +1,8 @@
 # PSX DVR ISO Manager 1.2 USB — prototyp
 
+Archiwum wcześniejszego wariantu z dwoma ELF-ami. Aktualna instrukcja
+jest w [README eksperymentalnego R4](usb12-cpu-entropy.md).
+
 Dodatek do [wydania 1.0 USB](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.0).
 Pobieracz bazuje na BATCH50 R3 (`314ed49752e42251c00ecfebc8fb0e3710745037`).
 Na DESR-7000 prototyp 1.2 zapisał 45 z 45 okładek w dwóch podejściach.
