@@ -1,6 +1,6 @@
 # PSX DVR ISO Manager 1.2 USB — UI EN + Roughtime Retry (TEST)
 
-**Experimental CA-layout candidate; its new CA location is not yet hardware-tested.** The prior English UI + Roughtime retry variant passed 45/45 and 32/32 HTTPS hardware tests and 15/15 LAN HTTP; the intermittent green-screen issue is not root-caused.
+**Experimental standalone-USB network-config candidate; its new USB V12_NET.CNF location is not yet hardware-tested.** The prior English UI + Roughtime retry variant passed 45/45 and 32/32 HTTPS hardware tests and 15/15 LAN HTTP; the intermittent green-screen issue is not root-caused.
 Base commit: `735188867a27cd1d8663fa6fdde8e9125c334d14`.
 Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
 
@@ -30,7 +30,14 @@ Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
    If you already have a known-good `N4E.CA` at the USB root,
    you may move that same file into `DESR_DVR/` (do not regenerate it).
    The new worker **does not use the old USB-root CA path**.
-   Keep `V12_NET.CNF`, `ART/`, HDD 1.0, and XMB unchanged.
+   Copy the **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/`
+   to `mass0:/DESR_DVR/V12_NET.CNF`, without deleting the HDD original.
+   Alternatively, edit `DESR_DVR/V12_NET.CNF.example` using your real LAN
+   settings (IP/NETMASK/GATEWAY/DNS) and save as `V12_NET.CNF`.
+   The ZIP intentionally ships **only the example**: never overwrite your
+   known-good IP configuration with the documentation-only addresses.
+   The new USB HTTPS downloader no longer reads config from HDD.
+   Keep `NET_PROBE.CNF`, `ART/`, HDD 1.0, and XMB unchanged.
 3. Start from wLE-R3Z 4.80. Press Triangle to scan, then Triangle to
    run HTTPS. Test 5-10 missing covers first, then 20, then up to 50.
 4. Confirm English screens, saved files, X/O return, and game launch.
@@ -48,8 +55,9 @@ Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
 - Verified JPEG/PNG fallback, BATCH50, download resume, `.PART`,
   write/readback/rename, and the verified R4 loader contract remain.
 - Both stable USB/HDD 1.0 and the tested R4 remain untouched.
-- Planned HDD 1.2: `N4E.CA` will live in the `hdd0:PP.DVRISO`
-  application partition (mounted as `pfs1:/N4E.CA`), not on USB.
+- Planned HDD 1.2: both `N4E.CA` and `V12_NET.CNF` will live in
+  `hdd0:PP.DVRISO` (mounted as `pfs1:/N4E.CA` and `pfs1:/V12_NET.CNF`).
+  No HDD 1.2 code is being built here.
   This HDD requirement is documented only; no HDD build is changed.
 
 If this regresses, restore your saved working R4 ELF.

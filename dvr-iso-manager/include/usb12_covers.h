@@ -19,6 +19,7 @@ const char *desr_usb12_loader_error(int result);
 #define DESR_USB12_HTTPS_ELF DESR_APP_ROOT "COVER_HTTPS_V12.ELF"
 #endif
 #define DESR_USB12_CA_FILE DESR_APP_ROOT "N4E.CA"
+#define DESR_USB12_NET_CNF DESR_APP_ROOT "V12_NET.CNF"
 #define DESR_USB12_ENTROPY_FILE "mass0:/N6G50.ENT"
 #define DESR_USB12_ART_RESULT "--usb12-art-result"
 #define DESR_USB12_ROUGHTIME_NOT_CHECKED 1

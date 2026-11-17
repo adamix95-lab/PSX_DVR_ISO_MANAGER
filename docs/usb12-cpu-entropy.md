@@ -3,6 +3,9 @@
 > `mass0:/DESR_DVR/N4E.CA` instead; see
 > [the current CA-layout/English UI test instructions](usb12-ui-en-retry-test.md).
 > Do not move the CA file when testing the old R4 binary.
+> **Historical network setup:** R4 reads `hdd0:PP.DVRISO12/V12_NET.CNF`.
+> Newer standalone USB 1.2 tests read `mass0:/DESR_DVR/V12_NET.CNF`,
+> therefore the file must be copied from HDD or configured from the example.
 
 # PSX DVR ISO Manager 1.2 USB — eksperymentalny R4
 

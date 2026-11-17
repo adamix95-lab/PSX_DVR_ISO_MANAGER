@@ -4,7 +4,7 @@
 
 ## Version 1.2 USB — HTTPS cover downloading on Sony PSX (development)
 
-> **Development / pre-release — 17 November 2026.** The relocation of `N4E.CA` into `DESR_DVR/` is a subsequent **untested-on-hardware** packaging change.  The latest tested work lives on the experimental [`test/v1.2-usb-ui-en-rt-retry` branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/test/v1.2-usb-ui-en-rt-retry). It has passed hardware tests, but **1.2 is not a public stable release yet**. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
+> **Development / pre-release — 17 November 2026.** The USB-only network configuration relocation is a further **not-yet-hardware-verified change**. Earlier 45/45 and 32/32 results used the prior HDD-hosted network file. The relocation of `N4E.CA` into `DESR_DVR/` is a subsequent **untested-on-hardware** packaging change.  The latest tested work lives on the experimental [`test/v1.2-usb-ui-en-rt-retry` branch](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/test/v1.2-usb-ui-en-rt-retry). It has passed hardware tests, but **1.2 is not a public stable release yet**. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
 
 **Goal:** allow the Sony PSX DESR-7000 to download missing PlayStation 2 game covers **by itself, directly over HTTPS**, without starting the Windows ART Server. The previous PC-based LAN HTTP downloader remains available as an alternative.
 
@@ -46,7 +46,7 @@ The distributable contains **one Manager file**: `DESR_DVR/DVR_ISO_MANAGER_V12_C
 
 For the experimental USB build:
 - Game ISOs are read from Sony's `dvr_pfs0:/ISO` **without modification**.
-- Network configuration is read from an existing `hdd0:PP.DVRISO12/V12_NET.CNF` application partition; the CA bundle is `mass0:/DESR_DVR/N4E.CA`.
+- **USB 1.2 is independent of any HDD application partition for network setup:** HTTPS reads `mass0:/DESR_DVR/V12_NET.CNF` and the CA bundle from `mass0:/DESR_DVR/N4E.CA`. The legacy `NET_PROBE.CNF` remains solely for the PC ART Server.
 - Newly verified artwork goes into `mass0:/DESR_DVR/ART/`.
 - **Planned HDD 1.2:** store the same `N4E.CA` inside the existing `hdd0:PP.DVRISO` application partition (accessible as `pfs1:/N4E.CA` once mounted). This is a design target, **not an implemented HDD 1.2 build**.
 - Each run processes at most **50** missing covers (`BATCH50`); previously saved artwork is detected and not downloaded again.
@@ -119,13 +119,13 @@ USB writing uses exclusive temporary `.PART` files, readback checking and renami
 | Legacy Windows ART Server / LAN HTTP | **15/15** covers | **PASS** |
 | Host-side BATCH50 test | Limit of **50** verified against 60 simulated candidate games | Not a console run |
 
-The latest experimental build therefore completed **77/77 HTTPS cover downloads across two hardware sessions with the previous USB-root CA layout** and kept the earlier **15/15 LAN HTTP** workflow working. This is strong practical evidence for that build, but **not proof** that the sporadic green screen has been permanently eliminated or that the entropy source is cryptographically secure.
+The earlier experimental build completed **77/77 HTTPS cover downloads across two hardware sessions with the previous HDD-hosted V12_NET.CNF layout** and kept the earlier **15/15 LAN HTTP** workflow working. This is strong practical evidence for that build, but **not proof** that the sporadic green screen has been permanently eliminated or that the entropy source is cryptographically secure.
 
 Sources and test history: [R4 test details](docs/usb12-cpu-entropy.md), [older two-ELF prototype](docs/usb12-https-prototype.md), [English UI/retry test instructions](docs/usb12-ui-en-retry-test.md), [CI build and artifacts](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/44082362681). The previous hardware-tested experimental Manager ELF was built with SHA-256 `26c4989e77de9b9f3feff6086807497f5f511c0c5bb634efc019e7b228010275` (this is a **test build hash**, not a promise about the eventual 1.2 release artifact).
 
 ### Using the experimental build
 
-Back up a known-good R4 or stable 1.0 ELF and your existing ART files. On a FAT32 USB drive, replace only `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **new, not-yet-hardware-verified CA layout**. Keep `hdd0:PP.DVRISO12/V12_NET.CNF`, ART and the 1.0 HDD/XMB installation unchanged. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
+Back up a known-good R4 or stable 1.0 ELF and your existing ART files. On a FAT32 USB drive, replace only `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **new, not-yet-hardware-verified CA layout**. Copy your **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/` into `DESR_DVR/` on USB **once** (or fill in `DESR_DVR/V12_NET.CNF.example`, save it as `V12_NET.CNF`). Keep the originals and ART and the 1.0 HDD/XMB installation unchanged. The downloader will no longer mount PP.DVRISO12 for network configuration. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
 
 The experimental CPU entropy build does **not** require `N6G50.ENT`. Do not assume that an unfinished or interrupted series has been saved completely: after restarting, rescan and check the remaining missing covers. Never perform live write/partition experiments on the Sony system partitions without a recoverable sector-level HDD backup.
 

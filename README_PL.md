@@ -15,8 +15,8 @@ i zapisuje sprawdzone PNG w `DESR_DVR/ART/`. Ten wariant korzysta z
 eksperymentalnej entropii z licznika CPU, dzięki czemu działa bez `N6G50.ENT`.
 
 Uruchom `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF`. Paczka eksperymentalna
-zawiera oryginalne pliki USB 1.0, publiczny plik `DESR_DVR/N4E.CA`, wzór konfiguracji sieci
-i ART Server dla Windows. **Nowe umiejscowienie CA w `DESR_DVR` wymaga jeszcze testu sprzętowego**. Dla przyszłej wersji HDD 1.2 plik `N4E.CA` będzie w partycji `PP.DVRISO` (po zamontowaniu `pfs1:/N4E.CA`). [Instalacja i wynik sprzętowy](docs/usb12-cpu-entropy.md)
+zawiera oryginalne pliki USB 1.0, publiczny plik `DESR_DVR/N4E.CA`, wzór `DESR_DVR/V12_NET.CNF.example` konfiguracji sieci
+i ART Server dla Windows. **Lokalizacja CA w `DESR_DVR` przeszła już test sprzętowy 45/45; nowa lokalizacja pliku sieciowego na USB wymaga osobnego testu.** HTTPS w USB 1.2 korzysta z `DESR_DVR/V12_NET.CNF`, **bez zależności od konfiguracji HDD**. Dla przyszłej wersji HDD 1.2 pliki `N4E.CA` i `V12_NET.CNF` będą w partycji `PP.DVRISO` (po zamontowaniu `pfs1:/N4E.CA`). [Instalacja i wynik sprzętowy](docs/usb12-cpu-entropy.md)
 
 ## v1.0.0 — HDD + USB
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. 

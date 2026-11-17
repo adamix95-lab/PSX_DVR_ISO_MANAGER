@@ -94,9 +94,13 @@ static int batch_ca_first;
 #define USB_TEST_NAME "N6F"
 #endif
 
+/* Historic standalone diagnostics keep their read-only PFS configuration.
+ * USB 1.2 HTTPS no longer opens PP.DVRISO12 just to obtain IP settings. */
+#ifndef DESR_USB12_HTTPS
 #define PART "hdd0:PP.DVRISO12"
 #define MOUNT "pfs1:"
 #define NET_CNF "pfs1:/V12_NET.CNF"
+#endif
 #define NAME "time.txryan.com"
 #define PORT "2002"
 #define TLS_HOST "raw.githubusercontent.com"
@@ -464,6 +468,19 @@ static int init_io(void) {
 static int read_cfg(v12_net_config *cfg) {
   char text[V12_NET_CONFIG_MAX+1U];
   int fd,total=0,n,closed;
+#ifdef DESR_USB12_HTTPS
+  /* USB modules are loaded before this call. Read ONLY from DESR_DVR;
+   * no HDD mount and no implicit fallback to the old PP.DVRISO12 file.
+   * A short retry allows FAT device registration on physical DESR. */
+  scr_printf("STAGE 3: USB DESR_DVR/V12_NET.CNF (read-only)\n");
+  fd=-1;
+  for(int i=0;i<16;i++) {
+    fd=fileXioOpen(DESR_USB12_NET_CNF,FIO_O_RDONLY,0);
+    if(fd>=0)break;
+    if(i+1<16)usleep(500000);
+  }
+  if(fd<0)return -503;
+#else
   scr_printf("STAGE 3: PFS read-only config\n");
   fd=fileXioDopen("pfs1:/");
   if(fd>=0) {fileXioDclose(fd);return -503;}
@@ -473,6 +490,7 @@ static int read_cfg(v12_net_config *cfg) {
   mounted=1;
   fd=fileXioOpen(NET_CNF,FIO_O_RDONLY,0);
   if(fd<0) return -503;
+#endif
   while(total<(int)sizeof(text)) {
     n=fileXioRead(fd,text+total,(int)sizeof(text)-total);
     if(n<=0) break;
@@ -482,10 +500,12 @@ static int read_cfg(v12_net_config *cfg) {
   if(n<0 || closed<0 || total==0 || total>(int)V12_NET_CONFIG_MAX ||
      v12_parse_net_config(text,(size_t)total,cfg)!=0) return -503;
   scr_printf("V12_NET.CNF parsed\n");
+#ifndef DESR_USB12_HTTPS
   fd=fileXioUmount(MOUNT);
   if(fd<0) return -503;
   mounted=0;
   scr_printf("RO unmount=%d\n",fd);
+#endif
   return 0;
 }
 
@@ -513,8 +533,14 @@ static int read_entropy_file(const char *path,uint8_t *data,int bytes) {
   uint8_t transfer[4096] __attribute__((aligned(64)));
 #endif
   scr_printf("USB %s read-only: %d bytes\n",path,bytes);
+#ifndef DESR_USB12_HTTPS
+  /* Legacy diagnostics start USB on first entropy-file access; USB 1.2
+   * HTTPS has already started it to read V12_NET.CNF from DESR_DVR. */
   rc=load_usb_modules();
   if(rc<0)return rc;
+#else
+  (void)rc;
+#endif
   for(int i=0;i<16;i++) {
     fd=fileXioOpen(path,FIO_O_RDONLY,0);
     if(fd>=0)break;
@@ -1251,7 +1277,7 @@ static void return_to_manager(int saved, int result, int english, char *details)
 }
 
 int main(int argc, char **argv) {
-  int io_ready;
+  int io_ready,usb_ready=0;
   int english=argc>=2 && strcmp(argv[1],"1")==0;
 #else
 int main(void) {
@@ -1265,11 +1291,17 @@ int main(void) {
   n6g_ui_prepare();
 #endif
   scr_printf("N6G50 R3 BATCH HTTPS USB ART - MAX 50\n");
-  scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
+  scr_printf("DVR ISO: READ ONLY, HTTPS CONFIG: USB/DESR_DVR\n");
   sleep(1);
   rc=init_io();
 #ifdef DESR_USB12_HTTPS
   io_ready=rc==0;
+  /* The HTTP/USB worker needs mass0:/ before reading its own network
+   * configuration. Preserve the proven init_io() DVR IRX order. */
+  if(rc==0) {
+    rc=load_usb_modules();
+    usb_ready=(rc==0);
+  }
 #endif
   if(rc==0)rc=read_cfg(&cfg);
   if(rc==0) {
@@ -1277,11 +1309,10 @@ int main(void) {
     if(!entropy)rc=-734;
   }
 #ifdef DESR_USB12_HTTPS
-  /* Keep USB available for the return ELF if config or allocation failed. */
-  if(io_ready && rc!=0)load_usb_modules();
+  /* Keep USB available for the return ELF even if early USB setup failed. */
+  if(io_ready && rc!=0 && !usb_ready)load_usb_modules();
 #endif
 #ifdef DESR_USB12_CPU_ENTROPY
-  if(rc==0)rc=load_usb_modules();
   if(rc==0)rc=fill_cpu_entropy(argc,argv,*entropy);
 #else
 #ifdef DESR_USB12_HTTPS
@@ -1317,10 +1348,12 @@ int main(void) {
     v12_n4a_wipe(entropy,sizeof(*entropy));
     free(entropy);
   }
+#ifndef DESR_USB12_HTTPS
   if(mounted){
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;
   }
+#endif
 #if defined(DESR_USB12_HTTPS) && defined(N6G_UI_SIMPLE)
   n6g_ui_summary(targets,saved,unavailable,rc);
 #endif
@@ -1480,10 +1513,12 @@ int main(void) {
   }
   v12_n4a_wipe(nonce,sizeof(nonce));
   v12_n4a_wipe(seeds,sizeof(seeds));
+#ifndef DESR_USB12_HTTPS
   if(mounted){
     int unmount=fileXioUmount(MOUNT);
     if(unmount<0 && rc==0)rc=-509;
   }
+#endif
 #ifdef N6G_SCREEN_PROBE
   n6g_mute_screen(0);
 #endif
