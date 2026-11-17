@@ -31,6 +31,9 @@
 
 /* All read paths come from one v1 layout header. HDD_PREVIEW never writes. */
 #include "runtime_storage.h"
+#ifdef DESR_USB12_HTTPS
+#include "usb12_covers.h"
+#endif
 #define USB_TEST_CNF DESR_APP_TEST_CNF
 #define USB_BOOT_CNF DESR_APP_BOOT_CNF
 #define USB_BACKUP_CNF DESR_APP_BACKUP_CNF
@@ -96,15 +99,28 @@ static int hdd_at_boot_system = -999, hdd_at_boot_osd = -999;
 static int hdd_at_boot_root = -999;
 #endif
 
+/* Only suppress successful boot messages when returning from HTTPS.
+ * All other Manager variants are unchanged; errors stay visible. */
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+static int usb12_quiet_return;
+#define BOOT_LOG(...) do { if (!usb12_quiet_return) scr_printf(__VA_ARGS__); } while (0)
+#else
+#define BOOT_LOG(...) scr_printf(__VA_ARGS__)
+#endif
+
 static int load_irx(const char *label, void *irx, unsigned size) {
   int rv = 0, id;
-  scr_printf("Loading %-18s ", label);
+  BOOT_LOG("Loading %-18s ", label);
   id = SifExecModuleBuffer(irx, size, 0, NULL, &rv);
   if (id < 0 || rv < 0) {
-    scr_printf("FAIL id=%d rv=%d\n", id, rv);
+    BOOT_LOG("FAIL id=%d rv=%d\n", id, rv);
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+    if (usb12_quiet_return)
+      scr_printf("DRIVER LOAD FAILED: %s (%d/%d)\n", label, id, rv);
+#endif
     return id < 0 ? id : rv;
   }
-  scr_printf("OK\n");
+  BOOT_LOG("OK\n");
   return 0;
 }
 
@@ -128,7 +144,7 @@ static int init_drivers(void) {
 #if defined(DESR_HDD_PREVIEW) || defined(DESR_HDD_TEST)
   u32 notice_arg = 0;
 #endif
-  scr_printf("Resetting IOP (no disk writes)...\n");
+  BOOT_LOG("Resetting IOP (no disk writes)...\n");
   while (!SifIopReset("", 0)) { }
   while (!SifIopSync()) { }
   sceSifInitRpc(0);
@@ -189,7 +205,7 @@ static int init_drivers(void) {
 #if !defined(DESR_HDD_PREVIEW) && !defined(DESR_HDD_TEST)
   /* wLaunchELF R3Z calls this after its PSX DVR stack is loaded. */
   dvr_notice_game_start = sceCdNoticeGameStart(0, NULL);
-  scr_printf("DVR game-start notice: %d\n", dvr_notice_game_start);
+  BOOT_LOG("DVR game-start notice: %d\n", dvr_notice_game_start);
   /* Let USB/DVR devices register. */
   sleep(2);
 #endif
@@ -414,15 +430,29 @@ static void draw_scan_art_question(int missing) {
   scr_setXY(2, 12);
   scr_printf("MISSING COVERS: %d", missing);
   scr_setXY(2, 16);
+#ifdef DESR_USB12_HTTPS
+  scr_printf("DOWNLOAD MISSING COVERS?");
+  scr_setXY(2, 18);
+  scr_printf("X: PC APP (LAN HTTP)");
+  scr_setXY(2, 20);
+  scr_printf("TRIANGLE: SERVER (HTTPS, UP TO 50)");
+  scr_setXY(2, 22);
+  scr_printf("O: SKIP / RETURN");
+#else
   scr_printf("DOWNLOAD MISSING COVERS FROM LOCAL HTTP?");
   scr_setXY(2, 19);
   scr_printf("X: DOWNLOAD       O: SKIP / RETURN");
+#endif
   scr_setfontcolor(0xA0A0A0);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_TEST
   scr_printf("Missing PNGs are saved to PP.DVRISO/ART.");
 #else
   scr_printf("Only new PNG files are written to USB ART.");
+#endif
+#ifdef DESR_USB12_CPU_ENTROPY
+  scr_setXY(2, 26);
+  scr_printf("HTTPS uses experimental CPU counter entropy.");
 #endif
   scr_setfontcolor(0xFFFFFF);
 }
@@ -435,6 +465,130 @@ static int check_usb_file(const char *path) {
   closed = fileXioClose(fd);
   return closed < 0 ? closed : 0;
 }
+
+#ifdef DESR_USB12_HTTPS
+static void launch_usb12_covers(void) {
+  const char *required[] = {
+#ifdef DESR_USB12_ONE_ELF
+#ifdef DESR_USB12_CPU_ENTROPY
+    DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE
+#else
+    DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+#endif
+#else
+    DESR_USB12_HTTPS_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+#endif
+  };
+  char *args[] = { force_english ? "1" : "0" };
+  int rc;
+
+  for (unsigned i = 0; i < sizeof(required) / sizeof(required[0]); ++i) {
+    if (check_usb_file(required[i]) < 0) {
+      snprintf(status, sizeof(status), "HTTPS: missing %s",
+               strrchr(required[i], '/') + 1);
+      return;
+    }
+  }
+
+#ifdef DESR_USB12_UI_SIMPLE
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2, 5);
+  scr_printf("PLEASE WAIT...\n");
+#endif
+  padPortClose(0, 0);
+  padEnd();
+#ifdef DESR_USB12_ONE_ELF
+  rc = desr_run_embedded_https(args[0]);
+#else
+  rc = LoadELFFromFile(DESR_USB12_HTTPS_ELF, 1, args);
+#endif
+  if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
+    scr_clear();
+    scr_printf("HTTPS loader returned %d. Reopen Manager 1.2.\n", rc);
+    for (;;) sleep(1);
+  }
+  prev_buttons = 0xffff;
+#ifdef DESR_USB12_TAIL_PAYLOAD
+  snprintf(status, sizeof(status), "HTTPS loader: %s (%d)", desr_usb12_loader_error(rc), rc);
+#else
+  snprintf(status, sizeof(status), "HTTPS loader returned %d", rc);
+#endif
+}
+
+/* Consumer HTTPS summary. The worker still returns to this Manager using
+ * exactly the same R4 argv protocol. X/O dismissal is intentionally
+ * unchanged, and the detailed codes still travel in argv for diagnosis.
+ * The regular screen no longer exposes TLS, HTTP, RET or Roughtime logs.
+ */
+static int show_usb12_result(int argc, char **argv, int scan_result) {
+  const unsigned dismiss = PAD_CROSS | PAD_CIRCLE;
+  unsigned held = dismiss;
+  struct padButtonStatus buttons;
+  int iso_count=0, ids=0, missing=0, batch=0, attempted=0;
+  int unavailable=0, http=0, tls=0, roughtime=0;
+  int identified, refresh_failed, have_details=0, failed;
+  long saved, result;
+  char *end;
+
+  if ((argc != 5 && argc != 7) || strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
+  saved = strtol(argv[2], &end, 10);
+  if (end == argv[2] || *end || saved < 0 || saved > N6G_BATCH_LIMIT) return 0;
+  errno = 0;
+  result = strtol(argv[3], &end, 10);
+  if (end == argv[3] || *end || errno == ERANGE) return 0;
+  force_english = strcmp(argv[4], "1") == 0;
+  refresh_failed = saved > 0 && (scan_result < 0 ||
+                                desr_covers_refresh(games, count, covers, &identified) < 0);
+  if (argc == 7 &&
+      sscanf(argv[5], "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%8d,%4d",
+             &iso_count, &ids, &missing, &batch, &attempted, &unavailable,
+             &http, &tls, &roughtime) == 9 &&
+      batch >= 0 && batch <= N6G_BATCH_LIMIT &&
+      unavailable >= 0 && unavailable <= batch)
+    have_details=1;
+  /* If every attempted cover was unavailable in both sources, that is
+   * not a network/TLS failure, even if the R4 worker returns -404. */
+  failed=result!=0 && !(have_details && attempted==batch &&
+                         unavailable==batch && batch>0);
+  if(refresh_failed)
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld. RESCAN WITH TRIANGLE",saved);
+  else if(failed)
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld. DOWNLOAD ERROR",saved);
+  else
+    snprintf(status,sizeof(status),"HTTPS: DOWNLOADED %ld COVERS",saved);
+  status_visible=1;
+
+  scr_setbgcolor(0x000000);
+  scr_setfontcolor(0xFFFFFF);
+  scr_clear();
+  scr_setXY(2,2);
+  scr_printf("PSX DVR ISO MANAGER 1.2 USB\n\n");
+  scr_printf("%s\n\n",failed?"DOWNLOAD INTERRUPTED":"DOWNLOAD COMPLETE");
+  if(have_details) {
+    scr_printf("DOWNLOADED: %ld/%d\n",saved,batch);
+    scr_printf("SKIPPED: %d\n",unavailable);
+  }else {
+    scr_printf("DOWNLOADED: %ld\n",saved);
+  }
+  if(failed)scr_printf("\nERROR DURING DOWNLOAD\n");
+  if(refresh_failed)scr_printf("\nRESCAN COVERS WITH TRIANGLE\n");
+  scr_printf("\nX / O: RETURN TO GAME LIST");
+
+  /* Preserve the confirmed hardware behavior: the summary is dismissed
+   * ONLY by a new X or O button press, never by a timeout. */
+  for (;;) {
+    if (padRead(0, 0, &buttons) > 0) {
+      unsigned pressed = (0xffff ^ buttons.btns) & dismiss;
+      if (pressed & ~held) break;
+      held = pressed;
+    }
+    usleep(16000);
+  }
+  return 1;
+}
+#endif
 
 static int usb_ready(void) {
   int rc;
@@ -817,13 +971,25 @@ static int hdd_enable_writes(void) {
 int main(int argc, char *argv[]) {
   int rc, bits, new_press;
   struct padButtonStatus btn;
+#ifndef DESR_USB12_HTTPS
   (void)argc; (void)argv;
+#endif
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+  usb12_quiet_return = (argc == 5 || argc == 7) && argv && argv[1] &&
+                       strcmp(argv[1], DESR_USB12_ART_RESULT) == 0;
+#endif
   init_scr();
   /* Disable the default PS2SDK block cursor. */
   scr_setCursor(0);
   scr_setbgcolor(0x000000);
   scr_setfontcolor(0xFFFFFF);
-  scr_printf("PSX DVR ISO Manager - reading DVR games\n");
+  BOOT_LOG("PSX DVR ISO Manager - reading DVR games\n");
+#if defined(DESR_USB12_HTTPS) && defined(DESR_USB12_UI_SIMPLE)
+  if (usb12_quiet_return) {
+    scr_clear();
+    scr_printf("PLEASE WAIT...\n");
+  }
+#endif
   rc = init_drivers();
   if (rc < 0) {
     scr_printf("\nDriver initialization error %d\n", rc);
@@ -849,7 +1015,7 @@ int main(int argc, char *argv[]) {
   scr_printf("HDD EARLY: ROOT=%d SYS=%d OSD=%d\n",
              hdd_at_boot_root,hdd_at_boot_system,hdd_at_boot_osd);
 #endif
-  scan_dvr();
+  rc = scan_dvr();
   desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_printf("\nUnable to initialize gamepad\n");
@@ -859,7 +1025,11 @@ int main(int argc, char *argv[]) {
     sleep(60);
     return 2;
   }
+#ifdef DESR_USB12_HTTPS
+  prev_buttons = show_usb12_result(argc, argv, rc) ? 0xffff : 0;
+#else
   prev_buttons = 0;
+#endif
   draw();
   while (1) {
     if (padRead(0, 0, &btn) > 0) {
@@ -1004,6 +1174,14 @@ int main(int argc, char *argv[]) {
 #endif
           status_visible = 1;
           draw();
+#ifdef DESR_USB12_HTTPS
+        } else if (new_press & PAD_TRIANGLE) {
+          art_prompt = 0;
+          art_retry_cached = 1;
+          launch_usb12_covers();
+          status_visible = 1;
+          draw();
+#endif
         }
         /* Consume the whole key event even if another pad button is held. */
         continue;

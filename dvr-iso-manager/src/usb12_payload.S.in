@@ -1,0 +1,7 @@
+  .section .rodata
+  .balign 16
+  .globl desr_usb12_payload_start
+  .globl desr_usb12_payload_end
+desr_usb12_payload_start:
+  .incbin "@https_worker@"
+desr_usb12_payload_end:
