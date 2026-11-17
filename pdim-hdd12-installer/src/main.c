@@ -10,6 +10,8 @@
 #include <sifrpc.h>
 #include <smem.h>
 #include <delaythread.h>
+#include <kernel.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,6 +37,11 @@ MODULE(sio2man);
 MODULE(padman);
 
 static unsigned char pad_buffer[256] __attribute__((aligned(64)));
+static unsigned char pad_init_stack[16384] __attribute__((aligned(64)));
+static volatile int pad_init_done;
+static volatile int pad_init_stage;
+static volatile int pad_init_rc;
+extern void *_gp;
 static uint32_t buttons_prev;
 static const char hdd_args[]="-o\0" "4\0" "-n\0" "20";
 static const char pfs_args[]="-m\0" "4\0" "-o\0" "10\0" "-n\0" "40";
@@ -98,6 +105,43 @@ static int setup_modules(void){
     LOAD(sio2man,"sio2man");
     LOAD(padman,"padman");
     return 0;
+}
+/* On the DESR, PADMAN RPC can hang during startup from wLE-R3Z.
+ * Keep it in a bounded EE worker. On timeout, NEVER enable HDD writes.
+ */
+static void pad_init_thread(void *unused) {
+    (void)unused;
+    pad_init_stage=1;
+    int rc=padInit(0);
+    pad_init_stage=2;
+    if(rc>=0)rc=padPortOpen(0,0,pad_buffer)>0?0:-EIO;
+    pad_init_rc=rc;
+    pad_init_done=1;
+    ExitDeleteThread();
+}
+static int pad_initialize_bounded(void) {
+    ee_thread_t t;
+    ee_thread_status_t parent;
+    memset(&t,0,sizeof(t));
+    pad_init_done=0;
+    pad_init_stage=0;
+    pad_init_rc=-EIO;
+    if(ReferThreadStatus(GetThreadId(),&parent)<0 || parent.current_priority>=127)
+        return -EIO;
+    t.func=pad_init_thread;
+    t.stack=pad_init_stack;
+    t.stack_size=sizeof(pad_init_stack);
+    t.gp_reg=&_gp;
+    t.initial_priority=parent.current_priority+1;
+    int id=CreateThread(&t);
+    if(id<0)return id;
+    if(StartThread(id,NULL)<0){DeleteThread(id);return -EIO;}
+    for(int i=0;i<1000;i++){
+        if(pad_init_done)return pad_init_rc;
+        DelayThread(10000);
+    }
+    /* Do not terminate a thread which may own an active IOP RPC buffer. */
+    return -ETIMEDOUT;
 }
 static void screen(void){
     scr_setbgcolor(0x08080C);
@@ -213,11 +257,11 @@ int main(void) {
         scr_printf("REBOOT REQUIRED. NO DISK WRITES.\n");
         for(;;)DelayThread(1000000);
     }
-    /* Pad init after module startup, with a safe timeout on the IOP RPC
-     * path enforced by separate hardware verification in the first test.
-     * NEVER run disk writes without a functioning controller. */
-    if(padInit(0)<0 || padPortOpen(0,0,pad_buffer)<=0) {
-        scr_printf("\nSTOP: GAMEPAD INIT FAILED. NO HDD WRITE.\n");
+    /* The controller must initialize within 10s, else no disk actions. */
+    int pad_rc=pad_initialize_bounded();
+    if(pad_rc<0) {
+        scr_printf("\nSTOP: GAMEPAD FAIL %d STAGE %d. NO HDD WRITE.\n",
+                   pad_rc,pad_init_stage);
         for(;;)DelayThread(1000000);
     }
     buttons_prev=0;
