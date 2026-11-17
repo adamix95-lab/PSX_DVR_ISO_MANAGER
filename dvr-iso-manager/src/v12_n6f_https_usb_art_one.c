@@ -103,6 +103,11 @@ static int batch_ca_first;
 #define MOUNT "pfs1:"
 #define NET_CNF "pfs1:/V12_NET.CNF"
 #endif
+#ifdef DESR_HDD_V12_PRODUCTION
+#define HDD_DIAG_TARGET "PP.DVRISO"
+#else
+#define HDD_DIAG_TARGET "PP.DVRISO12"
+#endif
 #define NAME "time.txryan.com"
 #define PORT "2002"
 #define TLS_HOST "raw.githubusercontent.com"
@@ -239,6 +244,7 @@ static void n6g_ui_redraw(void) {
   scr_setfontcolor(0xFFFFFF);
   scr_clear();
   scr_setCursor(0);
+  scr_setXY(2,2);
 #ifdef DESR_HDD12_HTTPS
   scr_printf("PSX DVR ISO MANAGER 1.2 HDD\n");
 #else
@@ -483,7 +489,7 @@ static int read_cfg(v12_net_config *cfg) {
    * RW is required only for the post-TLS validated new-cover publish.
    * Keep PFS1 mounted to LoadELFFromFile() this Manager after download.
    */
-  scr_printf("STAGE 3: HDD12 PFS1 config (PP.DVRISO12)\n");
+  scr_printf("STAGE 3: HDD PFS1 config (" HDD_DIAG_TARGET ")\n");
   fd=fileXioDopen("pfs1:/");
   if(fd>=0){fileXioDclose(fd);return -503;}
   fd=fileXioMount("pfs1:",DESR_APP_PARTITION,FIO_MT_RDWR);
@@ -1324,7 +1330,7 @@ int main(void) {
 #endif
 #ifdef DESR_HDD12_HTTPS
   scr_printf("PSX DVR ISO MANAGER 1.2 HDD - MAX 50\n");
-  scr_printf("DVR ISO: READ ONLY; ART: PP.DVRISO12/ART\n");
+  scr_printf("DVR ISO: READ ONLY; ART: " HDD_DIAG_TARGET "/ART\n");
 #else
   scr_printf("N6G50 R3 BATCH HTTPS USB ART - MAX 50\n");
   scr_printf("DVR ISO: READ ONLY, HTTPS CONFIG: USB/DESR_DVR\n");
@@ -1440,7 +1446,7 @@ int main(void) {
   init_scr();scr_setCursor(0);
   scr_printf(USB_TEST_NAME " ONE COVER HTTPS -> USB ART TEST\n");
   scr_printf("SIGNED TLS+GET, USB .PART+READBACK+RENAME\n");
-  scr_printf("DVR HDD / PP.DVRISO12: READ ONLY\n");
+  scr_printf("DVR HDD / " HDD_DIAG_TARGET ": READ ONLY\n");
   scr_printf("ONLY WRITE mass0:/ART/ (ONE NEW COVER)\n");
 #endif
 #ifdef N6G_TLS_ARENA
