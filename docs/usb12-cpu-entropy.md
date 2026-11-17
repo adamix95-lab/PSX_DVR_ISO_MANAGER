@@ -1,3 +1,9 @@
+> **Historical R4 instructions.** The original hardware-tested R4 read `N4E.CA`
+> from the USB root. The newer USB 1.2 CA-layout test **requires**
+> `mass0:/DESR_DVR/N4E.CA` instead; see
+> [the current CA-layout/English UI test instructions](usb12-ui-en-retry-test.md).
+> Do not move the CA file when testing the old R4 binary.
+
 # PSX DVR ISO Manager 1.2 USB — eksperymentalny R4
 
 **Wynik sprzętowy z 17 listopada 2026 r. na Sony PSX DESR-7000.**

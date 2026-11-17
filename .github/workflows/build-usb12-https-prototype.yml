@@ -1,4 +1,4 @@
-name: Build PSX DVR ISO Manager 1.2 USB UI EN + Roughtime Retry TEST
+name: Build PSX DVR ISO Manager 1.2 USB CA-layout RC TEST
 on:
   push:
     branches: [test/v1.2-usb-https-covers, test/v1.2-usb-ui-en-rt-retry]
@@ -98,7 +98,7 @@ jobs:
             "$manager/src/iso_utils.c" "$manager/src/cover_index.c" \
             "$mock/test_write.c" -o /tmp/n6g-usb-write
           /tmp/n6g-usb-write
-      - name: Host-test English HTTPS progress and strict Roughtime retries
+      - name: Host-test English UI, strict Roughtime retries and CA layout
         run: |
           set -eu
           cc -std=c11 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
@@ -115,6 +115,7 @@ jobs:
           from pathlib import Path
           worker=Path('dvr-iso-manager/src/v12_n6f_https_usb_art_one.c').read_text()
           manager=Path('dvr-iso-manager/src/main.c').read_text()
+          covers=Path('dvr-iso-manager/include/usb12_covers.h').read_text()
           cmake=Path('dvr-iso-manager/usb12_worker.cmake').read_text()
           packer=Path('dvr-iso-manager/tools/pack_usb12_tail.py').read_text()
           assert 'N6G_UI_SIMPLE=1' in cmake
@@ -125,6 +126,10 @@ jobs:
           assert 'n6g_ui_done(*attempted,USB12_UI_ERROR)' in worker
           assert 'n6g_ui_summary(targets,saved,unavailable,rc)' in worker
           assert 'n6g_roughtime_retry(entropy->nonce,retry_signed_probe,&signed_time)' in worker
+          assert '#define DESR_USB12_CA_FILE DESR_APP_ROOT "N4E.CA"' in covers
+          assert 'fileXioOpen(DESR_USB12_CA_FILE,FIO_O_RDONLY,0)' in worker
+          assert 'Do not silently fall back to an outdated CA at the USB root.' in worker
+          assert 'DESR_USB12_MANAGER_ELF, DESR_USB12_CA_FILE' in manager
           assert '#define scr_printf(...) ((void)0)' in worker
           assert '#define scr_clear() ((void)0)' in worker
           assert 'DOWNLOAD COMPLETE' in worker
@@ -192,6 +197,8 @@ jobs:
           cmake --build build-worker -j2 --target COVER_HTTPS_V12.ELF
           strings build-worker/COVER_HTTPS_V12.ELF > /tmp/worker-strings
           grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF' /tmp/worker-strings
+          grep -Fx 'mass0:/DESR_DVR/N4E.CA' /tmp/worker-strings
+          if grep -Fx 'mass0:/N4E.CA' /tmp/worker-strings; then exit 1; fi
           grep -F 'mass0:/DESR_DVR/ART' /tmp/worker-strings
           grep -Fx 'DOWNLOADING MISSING COVERS' /tmp/worker-strings
           grep -Fx 'PLEASE WAIT...' /tmp/worker-strings
@@ -246,6 +253,8 @@ jobs:
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 USB' /tmp/usb12-strings
+          grep -Fx 'mass0:/DESR_DVR/N4E.CA' /tmp/usb12-strings
+          if grep -Fx 'mass0:/N4E.CA' /tmp/usb12-strings; then exit 1; fi
           grep -Fx 'DOWNLOAD COMPLETE' /tmp/usb12-strings
           grep -Fx 'X / O: RETURN TO GAME LIST' /tmp/usb12-strings
           if grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings; then exit 1; fi
@@ -253,7 +262,7 @@ jobs:
           grep -Fx 'HTTPS PAYLOAD FOOTER' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
           if grep -F 'mass0:/N6G50.ENT' /tmp/usb12-strings; then exit 1; fi
-      - name: Package experimental UI TEST ELF, unchanged USB 1.0 files and PC tools
+      - name: Package CA in DESR_DVR, preserve unchanged USB 1.0 files and PC tools
         run: |
           set -eu
           mkdir -p package/licenses package/tools
@@ -262,7 +271,7 @@ jobs:
           cp build-manager/DVR_ISO_MANAGER_V12_CPU.ELF package/DESR_DVR/
           cp docs/usb12-ui-en-retry-test.md package/README.md
           cp release-tools/v1_2/V12_NET.CNF.example package/
-          cp prerequisites/N4E.CA package/
+          cp prerequisites/N4E.CA package/DESR_DVR/N4E.CA
           cp prerequisites/PSX-DVR-ART-Server-v0.8.exe package/tools/
           cp prerequisites/MPL-2.0.txt package/licenses/
           cp wolfssl-n5a/LICENSING package/licenses/WOLFSSL-LICENSING
@@ -275,11 +284,25 @@ jobs:
             sha256sum "${path#./}"
           done > SHA256SUMS
           sha256sum -c SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST.zip \
-            DESR_DVR README.md N4E.CA V12_NET.CNF.example tools licenses SOURCE_COMMIT SHA256SUMS
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-CA-LAYOUT-RC-TEST.zip \
+            DESR_DVR README.md V12_NET.CNF.example tools licenses SOURCE_COMMIT SHA256SUMS
+          cd ..
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          expected = Path('prerequisites/N4E.CA').read_bytes()
+          with ZipFile('PSX-DVR-ISO-Manager-1.2-USB-CA-LAYOUT-RC-TEST.zip') as z:
+              paths = set(z.namelist())
+              assert 'DESR_DVR/N4E.CA' in paths
+              assert 'N4E.CA' not in paths
+              assert z.read('DESR_DVR/N4E.CA') == expected
+              assert 'DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF' in paths
+              assert b'DESR_DVR/N4E.CA' in z.read('README.md')
+          print('PASS: ZIP contains exactly the intended DESR_DVR CA location and ELF')
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST
-          path: PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-CA-LAYOUT-RC-TEST
+          path: PSX-DVR-ISO-Manager-1.2-USB-CA-LAYOUT-RC-TEST.zip
           if-no-files-found: error
           retention-days: 30

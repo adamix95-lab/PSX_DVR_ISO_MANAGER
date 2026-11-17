@@ -583,14 +583,17 @@ static int read_ca_bundle(void) {
 #else
   const int attempts=1; /* Reading .ENT already waited for USB. */
 #endif
-  scr_printf("STAGE 4B: USB public N4E.CA (PEM)\n");
+  scr_printf("STAGE 4B: USB DESR_DVR/N4E.CA (PEM)\n");
   for(int i=0;i<attempts;i++) {
 #ifdef DESR_USB12_HTTPS
+    /* One authoritative CA location for USB 1.2: DESR_DVR beside the ELF.
+     * Do not silently fall back to an outdated CA at the USB root. */
     fd=fileXioOpen(DESR_USB12_CA_FILE,FIO_O_RDONLY,0);
 #else
+    /* Keep the legacy standalone diagnostic layout unchanged. */
     fd=fileXioOpen("mass0:/N4E.CA",FIO_O_RDONLY,0);
-#endif
     if(fd<0)fd=fileXioOpen("mass:/N4E.CA",FIO_O_RDONLY,0);
+#endif
     if(fd>=0)break;
     if(i+1<attempts)usleep(500000);
   }

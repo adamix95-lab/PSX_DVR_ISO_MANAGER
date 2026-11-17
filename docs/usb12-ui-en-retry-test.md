@@ -1,6 +1,6 @@
 # PSX DVR ISO Manager 1.2 USB — UI EN + Roughtime Retry (TEST)
 
-**Experimental hardware-test build: the intermittent green-screen issue is not resolved.**
+**Experimental CA-layout candidate; its new CA location is not yet hardware-tested.** The prior English UI + Roughtime retry variant passed 45/45 and 32/32 HTTPS hardware tests and 15/15 LAN HTTP; the intermittent green-screen issue is not root-caused.
 Base commit: `735188867a27cd1d8663fa6fdde8e9125c334d14`.
 Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
 
@@ -26,7 +26,11 @@ Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
 1. Back up R4 and the previous UI TEST ELF.
 2. From the archive, replace **only**
    `DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF` on FAT32 USB.
-   Keep `N4E.CA`, `V12_NET.CNF`, `ART/`, HDD 1.0, and XMB unchanged.
+   Place `DESR_DVR/N4E.CA` from the new ZIP **next to the ELF**.
+   If you already have a known-good `N4E.CA` at the USB root,
+   you may move that same file into `DESR_DVR/` (do not regenerate it).
+   The new worker **does not use the old USB-root CA path**.
+   Keep `V12_NET.CNF`, `ART/`, HDD 1.0, and XMB unchanged.
 3. Start from wLE-R3Z 4.80. Press Triangle to scan, then Triangle to
    run HTTPS. Test 5-10 missing covers first, then 20, then up to 50.
 4. Confirm English screens, saved files, X/O return, and game launch.
@@ -44,5 +48,8 @@ Do not overwrite your proven R4 backup or the stable HDD/USB 1.0 installer.
 - Verified JPEG/PNG fallback, BATCH50, download resume, `.PART`,
   write/readback/rename, and the verified R4 loader contract remain.
 - Both stable USB/HDD 1.0 and the tested R4 remain untouched.
+- Planned HDD 1.2: `N4E.CA` will live in the `hdd0:PP.DVRISO`
+  application partition (mounted as `pfs1:/N4E.CA`), not on USB.
+  This HDD requirement is documented only; no HDD build is changed.
 
 If this regresses, restore your saved working R4 ELF.
