@@ -1,4 +1,4 @@
-/* Simple Polish USB 1.2 HTTPS progress messages, ASCII-only for PS2 debug font.
+/* Simple English USB 1.2 HTTPS progress messages, ASCII-only for PS2 debug font.
  * Pure formatting only. Rendering happens on the EE main thread between
  * network/TLS operations. This module MUST NOT touch IOP, sockets or GS.
  */
@@ -36,8 +36,8 @@ int usb12_progress_line(const usb12_progress_ui *ui, int ordinal,
       ordinal < 1 || ordinal > ui->completed) return -1;
   switch (ui->results[ordinal - 1]) {
     case USB12_UI_OK:      label = "OK"; break;
-    case USB12_UI_SKIPPED: label = "POMINIETO"; break;
-    case USB12_UI_ERROR:   label = "BLAD"; break;
+    case USB12_UI_SKIPPED: label = "SKIPPED"; break;
+    case USB12_UI_ERROR:   label = "ERROR"; break;
     default: return -1;
   }
   n = snprintf(dst, capacity, "%d/%d %s", ordinal, ui->total, label);
