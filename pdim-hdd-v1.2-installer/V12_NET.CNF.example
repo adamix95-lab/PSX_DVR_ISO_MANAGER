@@ -1,0 +1,5 @@
+# Example only! Replace addresses with real Ethernet LAN configuration.
+IP=192.0.2.70
+NETMASK=255.255.255.0
+GATEWAY=192.0.2.1
+DNS=192.0.2.53
