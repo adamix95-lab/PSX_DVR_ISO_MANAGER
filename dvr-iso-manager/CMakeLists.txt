@@ -91,7 +91,11 @@ endif()
 # partition PP.DVRISO12. It uses the existing HDD NETFIX runtime, with
 # the *same* wolfSSL/Roughtime/PNG worker from USB R4. The worker is
 # embedded in the Manager file as a tail payload (not a second XMB app).
-option(DESR_HDD12_HTTPS "Target PP.DVRISO12 for the native HTTPS ART worker" OFF)
+option(DESR_HDD12_HTTPS "Build native HTTPS ART worker for HDD" OFF)
+option(DESR_HDD_V12_PRODUCTION "Production PDIM 1.2 HDD on PP.DVRISO (never PP.DVRISO12)" OFF)
+if(DESR_HDD_V12_PRODUCTION AND NOT DESR_HDD12_HTTPS)
+  message(FATAL_ERROR "Production HDD 1.2 requires DESR_HDD12_HTTPS=ON")
+endif()
 option(DESR_USB12_USE_CPU_ENTROPY "Use the USB R4 CPU-count entropy expansion" OFF)
 option(DESR_BUILD_USB12_WORKER "Build HTTPS cover worker (USB R4 or HDD12)" OFF)
 if(DESR_BUILD_USB12_WORKER)
