@@ -128,6 +128,11 @@ jobs:
           assert 'const unsigned dismiss = PAD_CROSS | PAD_CIRCLE' in manager
           assert 'if (pressed & ~held) break;' in manager
           assert 'LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args)' in worker
+          assert 'loader_rc=LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args);' in worker
+          assert 'LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args));' not in worker
+          # Muted screen calls must never contain an action in their arguments.
+          assert 'n6g_ui_summary(targets,saved,unavailable,rc)' in worker
+
           assert 'pack-ui' in packer
           assert 'R1_WORKER_SHA' in packer
           print('PASS UI: counters, zero observer screen I/O, X/O, R4 preservation')
