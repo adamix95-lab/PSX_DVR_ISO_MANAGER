@@ -170,23 +170,23 @@ static void red_warning(int final_stage) {
     scr_clear();
     scr_setXY(2,3);
     scr_printf("========================================\n");
-    scr_printf("         UWAGA! OSTRZEZENIE!\n");
+    scr_printf("      WARNING: HDD WRITE OPERATION\n");
     scr_printf("========================================\n\n");
-    scr_printf("ZAPIS MODYFIKUJE STRUKTURE APA\n");
-    scr_printf("CALEGO DYSKU PSX DESR!\n\n");
-    scr_printf("AWARIA MOZE USZKODZIC INNE PARTYCJE,\n");
-    scr_printf("NIE TYLKO PP.DVRISO12!\n\n");
-    scr_printf("WYMAGANA JEST ODTWARZALNA KOPIA\n");
-    scr_printf("SEKTOROWA CALEGO HDD!\n");
-    scr_printf("KOPIA SPISU APA NIE WYSTARCZA!\n\n");
-    scr_printf("PP.DVRISO 1.0 MA POZOSTAC NIETKNIETA.\n");
+    scr_printf("PARTITION CREATION CHANGES APA DATA\n");
+    scr_printf("FOR THE ENTIRE PSX DESR HDD!\n\n");
+    scr_printf("FAILURE MAY DAMAGE OTHER PARTITIONS,\n");
+    scr_printf("NOT ONLY PP.DVRISO12!\n\n");
+    scr_printf("A FULL, TESTED, RESTORABLE SECTOR\n");
+    scr_printf("BACKUP OF THE ENTIRE HDD IS REQUIRED!\n");
+    scr_printf("BACKING UP ONLY APA IS NOT ENOUGH!\n\n");
+    scr_printf("DO NOT MODIFY WORKING PP.DVRISO 1.0.\n");
     if(final_stage) {
-        scr_printf("\nOSTATECZNE POTWIERDZENIE:\n");
-        scr_printf("TRZYMAJ L1 + R1 I NACISNIJ X\n");
-    }else{
-        scr_printf("\nX = PRZECZYTALEM, MAM KOPIE SEKTOROWA\n");
+        scr_printf("\nFINAL CONFIRMATION:\n");
+        scr_printf("HOLD L1 + R1 AND PRESS X\n");
+    } else {
+        scr_printf("\nX = I HAVE A VERIFIED FULL HDD BACKUP\n");
     }
-    scr_printf("O = ANULUJ BEZ ZAPISU\n");
+    scr_printf("O = CANCEL WITHOUT WRITING\n");
 }
 static unsigned pad_pressed(unsigned *held_out) {
     struct padButtonStatus pad;
@@ -252,12 +252,13 @@ static void show_menu(const pdim12_state *st,int probe_rc) {
            (unsigned long)st->start,(unsigned long)st->sectors);
         scr_printf("ALL OTHER PARTITIONS: NEVER TARGETED\n\n");
         scr_printf("X: CREATE IF ABSENT + INSTALL TEST FILES\n");
-        scr_printf("TRIANGLE: REGISTER XMB ENTRY (OPTIONAL)\n");
-        scr_printf("SQUARE: READ-ONLY VERIFY FILES\n\n");
+        scr_printf("TRIANGLE: REGISTER XMB + COPY ASSETS\n");
+        scr_printf("SQUARE: VERIFY CORE FILES (READ ONLY)\n");
+        scr_printf("SELECT: INSPECT XMB HEADER (READ ONLY)\n\n");
     }
     scr_printf("O: EXIT\n\n");
-    scr_printf("UWAGA! ZAPIS NA HDD JEST RYZYKOWNY.\n");
-    scr_printf("KOPIA SEKTOROWA CALEGO HDD WYMAGANA!\n");
+    scr_printf("WARNING: HDD METADATA WRITES ARE RISKY.\n");
+    scr_printf("VERIFIED FULL SECTOR BACKUP REQUIRED!\n");
 }
 int main(void) {
     init_scr();
@@ -291,7 +292,11 @@ int main(void) {
         if(pressed&PAD_SQUARE){
             screen();
             scr_printf("READ-ONLY FILE VERIFICATION\n\n");
-            pause_result(pdim12_verify_files(&st),&st);
+            pause_result(pdim12_verify_core_files(&st),&st);
+        }else if(pressed&PAD_SELECT) {
+            screen();
+            scr_printf("READ ONLY: XMB HEADER DIAGNOSTICS\n\n");
+            pause_result(pdim12_inspect_xmb(&st),&st);
         }else if(pressed&PAD_CROSS) {
             if(!confirm_danger())continue;
             screen();scr_printf("WRITING ONLY PP.DVRISO12\n");
@@ -303,7 +308,7 @@ int main(void) {
             pause_result(rc,&st);
         }else if(pressed&PAD_TRIANGLE){
             if(!confirm_danger())continue;
-            screen();scr_printf("REGISTERING XMB FOR PP.DVRISO12 ONLY\n");
+            screen();scr_printf("XMB HEADER + ASSETS: PP.DVRISO12 ONLY\n");
             rc=pdim12_install_xmb(&st);
             pause_result(rc,&st);
         }

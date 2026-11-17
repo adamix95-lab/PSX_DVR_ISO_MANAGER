@@ -1,4 +1,4 @@
-# PDIM HDD12 INSTALLER — testowy kreator partycji i instalator XMB
+# PDIM HDD12 INSTALLER R3 — testowy kreator partycji i instalator XMB
 
 **Stan: eksperymentalny, bez potwierdzenia na fizycznym Sony PSX DESR-7000.**
 **Cel zapisu: wyłącznie testowa partycja \`hdd0:PP.DVRISO12\`.**
@@ -37,7 +37,7 @@ wciąż zatrzymują instalator przed zapisem.
 Usunięto także **białe kwadraciki kursora** przez `scr_setCursor(0)`
 zaraz po `init_scr()` — jak w działającym PDIM.
 
-**R2 wymaga dopiero testu na fizycznym DESR-7000.** Najpierw uruchom
+**R2 został przetestowany na fizycznym DESR-7000: tworzenie partycji i kopiowanie PASS, rejestracja XMB FAIL (-31).** Najpierw uruchom
 ELF i sprawdź, czy przechodzi `LOAD fileXio` oraz dochodzi do
 sprawdzania `PP.DVRISO12`. **Nie naciskaj X ani Trójkąta, dopóki nie
 masz sprawdzonej kopii sektorowej całego HDD.**
@@ -94,24 +94,61 @@ mass0:/
         └── jkt_002.png
 \`\`\`
 
-## Tryby instalatora
+## Obsługa R3: pełna instalacja bez ręcznego kopiowania zasobów XMB
 
-- **X — CREATE IF ABSENT + INSTALL:** sprawdza, czy \`PP.DVRISO12\`
-  już istnieje. Jeśli tak, wymaga poprawnego montowania PFS i **NIGDY
-  nie formatuje istniejącej partycji**. Jeśli jej nie ma, po osobnym
-  potwierdzeniu próbuje utworzyć 256 MiB PFS.
-  Bezpieczny zakres LBA28 jest dodatkowym warunkiem. Po utworzeniu
-  ponownie sprawdza faktyczne położenie partycji przed jej formatowaniem.
-  Instalowane pliki są kopiowane przez tymczasowe \`.PDIMNEW\`, odczytywane
-  ponownie i weryfikowane CRC. Istniejące pliki o tej samej zawartości
-  są pomijane; o innej zawartości **blokują operację bez nadpisywania**.
-- **TRIANGLE — REGISTER XMB ENTRY (OPTIONAL):** dopiero po pozytywnej
-  weryfikacji wszystkich plików generuje nagłówek PPAA na wybranej
-  partycji testowej, wykorzystując sprawdzoną ikonę PDIM i KELF OSDMenu.
-  Obcy/nieznany nagłówek powoduje STOP, bez nadpisywania.
-- **SQUARE — READ-ONLY VERIFY FILES:** porównuje rozmiary i CRC32 plików
-  na HDD z manifestem z USB; niczego nie modyfikuje.
-- **O — EXIT:** kończy instalator.
+Używamy **tych samych plików z publicznego wydania HDD 1.0**, w tym
+KELF OSDMenu, `EXECUTE.CNF` i oryginalnych okładek XMB. Wykonywalny
+Manager i obie wersje Neutrino są kompilowane z odniesieniem wyłącznie
+do testowej `PP.DVRISO12`.
+
+- **X — CREATE PARTITION IF MISSING + INSTALL CORE:** sprawdza partycję,
+  tworzy tylko brakującą `PP.DVRISO12` jako 256 MiB PFS, instaluje i
+  weryfikuje podstawowe pliki aplikacji. **Trzy pliki `res/` celowo
+  pozostawia dla etapu rejestracji XMB**.
+- **SQUARE — VERIFY CORE FILES (READ ONLY):** sprawdza rozmiary i CRC32
+  plików podstawowych; nie wymaga jeszcze zasobów `res/`, nie zapisuje.
+- **SELECT — INSPECT XMB HEADER (READ ONLY):** pokazuje sektory i
+  deskryptory PPAA bez żadnych zapisów. Gdy brakuje partycji, zwraca błąd.
+- **TRIANGLE — REGISTER XMB + COPY ASSETS:** sprawdza pliki aplikacji,
+  źródła ikon i ich CRC na USB, odczytuje i aktualizuje nagłówek PPAA
+  metodą sektorową wLE-R3Z. Następnie **automatycznie kopiuje i
+  weryfikuje** na PFS:
+  `res/info.sys`, `res/jkt_001.png` i `res/jkt_002.png`.
+  Po operacji pełna weryfikacja manifestu powinna wykazać **84/84**.
+  Żadnych plików z `res/` nie trzeba kopiować ręcznie przez wLE.
+- **O — EXIT.**
+
+Wszystkie komunikaty na ekranie konsoli — także pełnoekranowe ostrzeżenia
+przed zapisem — są **po angielsku**. Ta instrukcja pozostaje po polsku.
+
+### Czym R3 różni się od nieudanego R2?
+
+R2 odczytywał nagłówek przez surowy uchwyt
+`hdd0:PP.DVRISO12`, wymagał wyzerowanego obszaru i błędnie
+umieszczał obraz PNG w polu `list.ico` struktury PPAA.
+Wynik na DESR-7000: `FAIL -31`, po czym w XMB widniał wpis
+`Corrupted Data`; użytkownik go usunął, a PDIM 1.0 nadal działał.
+
+R3 opiera się na źródle
+[wLE-R3Z hdd_header_injector.c](https://github.com/NathanNeurotic/wLaunchELF_R3Z/blob/master/src/hdd_header_injector.c):
+`HDIOC_READSECTOR` i `HDIOC_WRITESECTOR`, odczyt wartości LBA APA
+i sektory **start+8 / +9 / +10**. Kod zachowuje pozostałe bajty
+sektora PPAA, modyfikuje wyłącznie deskryptory `system.cnf` i
+`icon.sys`, zapisuje tekst przed deskryptorem i sprawdza odczyt
+po zapisie. W przeciwieństwie do ogólnego mechanizmu wLE zapisuje
+tylko trzy wymagane sektory, a nie ponownie wszystkie 4096.
+
+Nagłówek może być obcy lub częściowo zapisany; taki przypadek
+kończy się **STOP bez nadpisywania**. Jeśli poprawny nagłówek R3
+już istnieje, TRIANGLE może dokończyć brakujące pliki `res/`.
+W razie wyłączenia zasilania między zatwierdzeniem nagłówka a
+ukończeniem kopiowania zasobów wpis XMB **może tymczasowo wyglądać
+jak Corrupted Data**. Nie formatuj wtedy partycji; sprawdź wynik
+diagnostyki i ponów jedynie dokończenie instalacji na poprawnym nagłówku.
+
+**R3 ma PASS testów hostowych dopiero po ukończeniu CI; nie ma jeszcze
+potwierdzenia XMB na fizycznym DESR-7000.** Przed pierwszym zapisem
+konieczna jest sprawdzona kopia sektorowa całego dysku.
 
 ## Dlaczego nie ma przycisku FORMAT / DELETE / CLEAN?
 
@@ -133,7 +170,7 @@ Sprawdź start gier i język ENGLISH; nie dotykaj partycji
 w celu zarejestrowania wpisu XMB. W menu Games powinna się pojawić
 odróżnialna pozycja **PDIM HDD12 TEST** z dotychczasową ikoną PDIM.
 
-Po wpisaniu nagłówka XMB wyłącz konsolę całkowicie, odłącz i
+Po `TRIANGLE` i końcowym `PASS (0)`, obejmującym nagłówek oraz trzy pliki `res/`, wyłącz konsolę całkowicie, odłącz i
 podłącz zasilanie, następnie uruchom XMB. Nie usuwaj istniejącej
 instalacji PDIM HDD 1.0.
 

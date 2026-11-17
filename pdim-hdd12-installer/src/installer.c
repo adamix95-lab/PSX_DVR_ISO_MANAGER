@@ -48,9 +48,11 @@ const char *pdim12_error(int rc) {
     case -25:return "DIRECTORY CREATE FAILED";
     case -26:return "FILE RENAME/SYNC FAILED - CHECK .NEW";
     case -30:return "REQUIRED XMB FILES NOT VERIFIED";
-    case -31:return "XMB HEADER NOT EMPTY / FOREIGN";
+    case -31:return "XMB HEADER FOREIGN / INCOMPLETE - PRESERVED";
     case -32:return "XMB HEADER WRITE FAILED";
     case -33:return "XMB HEADER VERIFY FAILED";
+    case -34:return "XMB RAW SECTOR READ/DRIVE STATUS FAILED";
+    case -35:return "XMB TARGET PARTITION IDENTITY CHANGED";
     default:return "UNEXPECTED ERROR; NO AUTOMATIC ROLLBACK";
     }
 }
@@ -221,6 +223,24 @@ static int make_parents(const char *relative) {
     }
     return 0;
 }
+/* XMB resource files are finalized ONLY by TRIANGLE after the header
+ * has been injected. X installs the core app files first; it does not
+ * require the user to copy res/ manually through wLE-R3Z.
+ */
+static int is_xmb_resource(const manifest_entry *m) {
+    return strncmp(m->relative,"res/",4)==0;
+}
+static int xmb_assets_complete_manifest(void) {
+    int info=0,large=0,small=0,total=0;
+    for(int i=0;i<manifest_count;i++) {
+        if(!is_xmb_resource(&manifest[i]))continue;
+        total++;
+        info+=!strcmp(manifest[i].relative,"res/info.sys");
+        large+=!strcmp(manifest[i].relative,"res/jkt_001.png");
+        small+=!strcmp(manifest[i].relative,"res/jkt_002.png");
+    }
+    return total==3 && info==1 && large==1 && small==1;
+}
 static int verify_one(const manifest_entry *m) {
     char path[256];uint32_t got,crc;
     if(path_for(path,sizeof(path),PDIM12_MOUNT "/",m->relative,NULL)<0)return -21;
@@ -274,6 +294,82 @@ static int copy_one(const manifest_entry *m,int *already) {
     if(fileXioSync(PDIM12_MOUNT,FXIO_WAIT)<0)return -26;
     return verify_one(m);
 }
+/* All-files verification is the final post-XMB check. Before TRIANGLE,
+ * the three res/ assets are deliberately absent from a fresh install.
+ */
+int pdim12_verify_core_files(pdim12_state *state) {
+    int rc=parse_manifest();
+    if(rc<0)return rc;
+    if(!xmb_assets_complete_manifest())return -30;
+    rc=pdim12_mount(1);
+    if(rc<0)return rc;
+    int count=0,total=0;
+    for(int i=0;i<manifest_count;i++) {
+        if(is_xmb_resource(&manifest[i]))continue;
+        total++;
+        rc=verify_one(&manifest[i]);
+        if(rc<0) {
+            scr_printf("MISMATCH: %s  error %d\n",manifest[i].relative,rc);
+            break;
+        }
+        count++;
+    }
+    pdim12_unmount();
+    if(state) {state->files_total=total;state->files_verified=count;}
+    return rc;
+}
+int pdim12_preflight_xmb_assets(pdim12_state *state) {
+    if(!state || !state->exists || !state->pfs_ok)return -30;
+    int rc=parse_manifest();
+    if(rc<0)return rc;
+    if(!xmb_assets_complete_manifest())return -30;
+    rc=pdim12_mount(1);
+    if(rc<0)return rc;
+    for(int i=0;i<manifest_count;i++) {
+        if(!is_xmb_resource(&manifest[i]))continue;
+        manifest_entry *m=&manifest[i];
+        char src[256],dst[256];
+        uint32_t got=0,crc=0;
+        if(path_for(src,sizeof(src),source_prefix,m->relative,NULL)<0 ||
+           path_for(dst,sizeof(dst),PDIM12_MOUNT "/",m->relative,NULL)<0) {
+            rc=-21;break;
+        }
+        /* Detect corrupt USB assets BEFORE the PPAA commit. */
+        if(file_crc(src,&got,&crc)<0 || got!=m->size || crc!=m->crc) {
+            scr_printf("XMB SOURCE INVALID: %s\n",m->relative);
+            rc=-21;break;
+        }
+        /* Existing correct files are kept. Different files are NOT
+         * overwritten. Missing destination files are allowed. */
+        if(file_crc(dst,&got,&crc)==0 && (got!=m->size || crc!=m->crc)) {
+            scr_printf("XMB DESTINATION DIFFERS: %s\n",m->relative);
+            rc=-22;break;
+        }
+    }
+    pdim12_unmount();
+    return rc;
+}
+int pdim12_install_xmb_assets(pdim12_state *state) {
+    if(!state || !state->exists || !state->pfs_ok)return -30;
+    int rc=parse_manifest();
+    if(rc<0)return rc;
+    if(!xmb_assets_complete_manifest())return -30;
+    rc=pdim12_mount(0);
+    if(rc<0)return rc;
+    for(int i=0;i<manifest_count;i++) {
+        if(!is_xmb_resource(&manifest[i]))continue;
+        int already=0;
+        scr_printf("XMB asset: %s\n",manifest[i].relative);
+        rc=copy_one(&manifest[i],&already);
+        if(rc<0)break;
+        scr_printf("XMB asset %s: CRC PASS\n",already?"KEEP":"COPY");
+    }
+    pdim12_unmount();
+    if(rc<0)return rc;
+    /* The final install may be labeled PASS only after ALL 84 files
+     * were re-read from the HDD and compared to the USB manifest. */
+    return pdim12_verify_files(state);
+}
 int pdim12_verify_files(pdim12_state *state) {
     int rc=parse_manifest();
     if(rc<0)return rc;
@@ -298,11 +394,16 @@ int pdim12_install_files(pdim12_state *state) {
     if(rc<0)return rc;
     rc=pdim12_mount(0);
     if(rc<0)return rc;
-    state->files_total=manifest_count;
+    state->files_total=0;
+    for(int i=0;i<manifest_count;i++)
+        if(!is_xmb_resource(&manifest[i]))state->files_total++;
     state->files_copied=state->files_existing=state->files_verified=0;
+    int step=0;
     for(int i=0;i<manifest_count;i++){
+        if(is_xmb_resource(&manifest[i]))continue;
         int existed=0;
-        scr_printf("[%d/%d] %s\n",i+1,manifest_count,manifest[i].relative);
+        step++;
+        scr_printf("[%d/%d] %s\n",step,state->files_total,manifest[i].relative);
         rc=copy_one(&manifest[i],&existed);
         if(rc<0)break;
         if(existed)state->files_existing++;

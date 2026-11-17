@@ -39,3 +39,36 @@ First run it and report whether the startup passes `fileXio` and
 reaches `PP.DVRISO12` preflight. **Do not use X/Triangle to modify
 the disk before a verified full sector-level HDD backup.**
 
+
+## R3: automatic XMB jackets and wLE-R3Z compatible PPAA sector writer
+
+The R2 installer was hardware-tested on the DESR-7000: creating the
+`PP.DVRISO12` partition and copying the 1.0 HDD payload worked, but XMB
+registration returned FAIL -31. Sony XMB booted and the original PDIM 1.0
+HDD still worked. The old R2 writer read the PPAA region through a raw
+partition file and incorrectly treated PNG jacket data as a list.ico.
+
+R3 uses the **physical sector-based approach from wLE-R3Z** to modify
+only PPAA sectors at partition start+8,+9,+10, verifying each write
+and leaving unrelated APA/PFS sectors intact. The PPAA text descriptors
+point to `system.cnf` and `icon.sys`, not PNG artwork.
+
+**X** creates the test partition if absent and copies the application
+core. **SQUARE** checks only the installed core files read-only.
+**SELECT** inspects the PPAA header without writing. **TRIANGLE**
+registers the PPAA header and then automatically installs
+`res/info.sys`, `res/jkt_001.png`, `res/jkt_002.png`, checking their
+CRC and finally verifying the whole manifest (84/84 files).
+No manual wLE file copy is needed. All console commands and warnings
+are **English**. The existing PDIM 1.0 HDD and USB 1.2 remain untouched.
+
+If power is lost after header registration but before the PFS jackets
+are in place, the incomplete entry may appear as Corrupted Data until
+the TRIANGLE operation is completed again. Do not delete the partition
+automatically. **R3 hardware behavior has not yet been verified.**
+Keep a restorable full-sector HDD backup before any write.
+
+Source references:
+- https://github.com/NathanNeurotic/wLaunchELF_R3Z/blob/master/src/hdd_header_injector.c
+- https://github.com/shefben/psx_udpfs_xmb_game_installer/blob/main/src/apa_osd_header.c
+- https://github.com/TTRMG3/DESR_XMB_INSTALLER (README-only at inspection)

@@ -1,124 +1,182 @@
-/* Optional Sony PSX XMB registration for PP.DVRISO12 only.
- * The PPAA partition-relative area starts at offset 0 for a RAW hdd0:PP.*
- * handle (sector 8). Mirrored from the hdl-dump/RepairBox working header
- * layout. We do not change the global APA linked list or any other target.
- * Existing, foreign or unrecognised headers are never overwritten.
+/* PDIM HDD12 Installer R3.
+ * XMB header injection uses the physical sector method from
+ * NathanNeurotic/wLaunchELF_R3Z src/hdd_header_injector.c.
+ * Only hdd0:PP.DVRISO12 sectors start+8, +9 and +10 can be written.
+ * No PNG is ever injected into the PPAA list.ico descriptor.
+ * res/info.sys + jkt_001.png + jkt_002.png are installed afterwards.
  */
 #include "pdim12_installer.h"
+#include "ppaa_plan.h"
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <debug.h>
+#include <hdd-ioctl.h>
 
 #define NEWLIB_PORT_AWARE
 #include <fileXio_rpc.h>
 #include <io_common.h>
 
-#define PPAA_SIZE (0x800+0x10000)
-#define SYS_OFF 0x200
-#define ICONSYS_OFF 0x400
-#define ICON_OFF 0x800
-#define ICON_LIMIT 0x10000
-static unsigned char current[PPAA_SIZE] __attribute__((aligned(64)));
-static unsigned char planned[PPAA_SIZE] __attribute__((aligned(64)));
-static unsigned char readback[4096] __attribute__((aligned(64)));
-static unsigned char sys[512] __attribute__((aligned(64)));
-static unsigned char iconsys[1024] __attribute__((aligned(64)));
-static unsigned char icon[ICON_LIMIT] __attribute__((aligned(64)));
+#define B PDIM12_PPAA_SECTOR_BYTES
+static unsigned char request[sizeof(hddAtaTransfer_t)+B] __attribute__((aligned(64)));
+static unsigned char original[3][B] __attribute__((aligned(64)));
+static unsigned char proposed[3][B] __attribute__((aligned(64)));
+static unsigned char again[B] __attribute__((aligned(64)));
+static unsigned char sys[B+1] __attribute__((aligned(64)));
+static unsigned char icon[B+1] __attribute__((aligned(64)));
+static uint32_t sector_base;
 
-static void set_le32(unsigned char *dst,unsigned value){
-    for(int i=0;i<4;i++)dst[i]=(unsigned char)(value>>(8*i));
+static uint32_t le32(const unsigned char *p) {
+    return (uint32_t)p[0]|((uint32_t)p[1]<<8)|
+           ((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);
 }
-static int exact_asset(const char *path,void *buffer,unsigned limit) {
+static int read_sector(uint32_t lba, unsigned char dst[B]) {
+    hddAtaTransfer_t *req=(hddAtaTransfer_t *)request;
+    memset(request,0,sizeof(request));
+    req->lba=lba; req->size=1;
+    int rc=fileXioDevctl("hdd0:",HDIOC_READSECTOR,
+                         request,sizeof(hddAtaTransfer_t),dst,B);
+    return rc<0?rc:0;
+}
+static int write_sector(uint32_t lba, const unsigned char src[B]) {
+    hddAtaTransfer_t *req=(hddAtaTransfer_t *)request;
+    memset(request,0,sizeof(request));
+    req->lba=lba; req->size=1;
+    memcpy(req->data,src,B);
+    int rc=fileXioDevctl("hdd0:",HDIOC_WRITESECTOR,
+                         request,sizeof(hddAtaTransfer_t)+B,NULL,0);
+    return rc<0?rc:0;
+}
+static int read_asset(const char *path,unsigned char *dst,int capacity) {
     int fd=fileXioOpen(path,FIO_O_RDONLY,0);
     if(fd<0)return -1;
     int total=0,n=0;
-    while(total<(int)limit){
-        n=fileXioRead(fd,(unsigned char*)buffer+total,(int)limit-total);
+    while(total<capacity) {
+        n=fileXioRead(fd,dst+total,capacity-total);
         if(n<=0)break;
         total+=n;
     }
-    unsigned char extra=0;
-    int x=fileXioRead(fd,&extra,1),c=fileXioClose(fd);
-    return n<0 || x!=0 || c<0 || total<=0 ? -1:total;
+    unsigned char extra;
+    int last=fileXioRead(fd,&extra,1);
+    int end=fileXioClose(fd);
+    if(n<0 || last!=0 || end<0 || total<=0)return -1;
+    return total;
 }
-static int raw_read(int fd,unsigned char *dst,unsigned size) {
-    if(fileXioLseek(fd,0,FIO_SEEK_SET)!=0)return -1;
-    for(unsigned done=0;done<size;){
-        int want=size-done>4096?4096:(int)(size-done);
-        int n=fileXioRead(fd,dst+done,want);
-        if(n!=want)return -1;
-        done+=(unsigned)n;
+static int load_plan(pdim12_state *state, int *status) {
+    iox_stat_t stat;
+    if(!state || !state->exists || !state->pfs_ok ||
+       !pdim12_partition_name_allowed(PDIM12_PARTITION))
+        return -30;
+    if(fileXioDevctl("hdd0:",HDIOC_STATUS,NULL,0,NULL,0)!=0)
+        return -34;
+    int rc=fileXioGetStat(PDIM12_DEVICE,&stat);
+    if(rc<0 || (uint32_t)stat.private_5!=state->start ||
+       (uint32_t)stat.size!=state->sectors ||
+       !pdim12_address_safe(state->start,state->sectors) ||
+       state->start>UINT32_MAX-10u)return -35;
+    sector_base=state->start+8u;
+    for(unsigned j=0;j<3;j++) {
+        rc=read_sector(sector_base+j,original[j]);
+        if(rc<0) {
+            scr_printf("XMB sector read FAILED LBA=%lu code=%d\n",
+                       (unsigned long)(sector_base+j),rc);
+            return -34;
+        }
     }
-    return 0;
+    int ns=read_asset(PDIM12_XMB_SOURCE "system.cnf",sys,B);
+    int ni=read_asset(PDIM12_XMB_SOURCE "icon.sys",icon,B);
+    if(ns<=0||ns>=B||ni<=0||ni>=B)return -30;
+    sys[ns]=0;icon[ni]=0;
+    if(!strstr((char*)sys,"BOOT2 = pfs:/EXECUTE.ELF") ||
+       !strstr((char*)icon,"title1=HDD12 TEST") ||
+       memcmp(icon,"PS2X",4))return -30;
+    int plan=pdim12_ppaa_plan(original,sys,(size_t)ns,
+                              icon,(size_t)ni,proposed);
+    if(status)*status=plan;
+    return plan==-2?-31:(plan==-1?-30:0);
 }
-static int raw_write(int fd,const unsigned char *src,unsigned size){
-    if(fileXioLseek(fd,0,FIO_SEEK_SET)!=0)return -1;
-    for(unsigned done=0;done<size;){
-        int want=size-done>4096?4096:(int)(size-done);
-        int n=fileXioWrite(fd,(void*)(src+done),want);
-        if(n!=want)return -1;
-        done+=(unsigned)n;
-    }
-    return 0;
+static void describe_header(int status) {
+    scr_printf("XMB PPAA: sector %lu (target only)\n",
+               (unsigned long)sector_base);
+    scr_printf("MAGIC: %.9s  first=%02X %02X %02X %02X\n",
+               !memcmp(original[0],"PS2ICON3D",9)?"PS2ICON3D":"UNKNOWN",
+               original[0][0],original[0][1],
+               original[0][2],original[0][3]);
+    scr_printf("system.cnf: offset=%08lX length=%lu\n",
+               (unsigned long)le32(original[0]+0x10),
+               (unsigned long)le32(original[0]+0x14));
+    scr_printf("icon.sys: offset=%08lX length=%lu\n",
+               (unsigned long)le32(original[0]+0x18),
+               (unsigned long)le32(original[0]+0x1c));
+    scr_printf("list.ico: offset=%08lX length=%lu\n",
+               (unsigned long)le32(original[0]+0x20),
+               (unsigned long)le32(original[0]+0x24));
+    if(status==0)scr_printf("HEADER: NEW SLOT AVAILABLE\n");
+    else if(status==1)scr_printf("HEADER: ALREADY INSTALLED\n");
+    else scr_printf("HEADER: FOREIGN/PARTIAL - WRITES BLOCKED\n");
 }
-static int already_registered_or_foreign(const unsigned char *buf,unsigned len) {
-    /* A registered partition must match EXACTLY; never replace a foreign
-     * channel even if its partition happens to share our test name.
-     */
-    if(!memcmp(buf,"PS2ICON3D",9))
-        return !memcmp(buf,planned,len)?1:-1;
-    /* The newly created partition's PPAA header must be untouched/zero. */
-    for(unsigned i=0;i<len;i++)if(buf[i])return -1;
-    return 0;
+int pdim12_inspect_xmb(pdim12_state *state) {
+    int status=-3,rc=load_plan(state,&status);
+    if(rc==0||rc==-31)describe_header(status);
+    scr_printf("READ-ONLY XMB INSPECTION (NO DISK WRITES)\n");
+    return rc;
 }
 int pdim12_install_xmb(pdim12_state *state) {
-    if(!state || !state->exists || !state->pfs_ok ||
-       !pdim12_partition_name_allowed(PDIM12_PARTITION))return -30;
-    /* Only register a channel if ALL app and launcher files read back. */
-    int rc=pdim12_verify_files(state);
-    if(rc<0 || state->files_verified!=state->files_total)return -30;
-
-    int sys_size=exact_asset(PDIM12_XMB_SOURCE "system.cnf",sys,sizeof(sys));
-    int ini_size=exact_asset(PDIM12_XMB_SOURCE "icon.sys",iconsys,sizeof(iconsys));
-    int png_size=exact_asset(PDIM12_XMB_SOURCE "jkt_002.png",icon,sizeof(icon));
-    if(sys_size>0 && sys_size<(int)sizeof(sys))sys[sys_size]=0;
-    if(ini_size>0 && ini_size<(int)sizeof(iconsys))iconsys[ini_size]=0;
-    if(sys_size<=0 || sys_size>511 || ini_size<=0 || ini_size>1023 ||
-       png_size<=0 || png_size>=ICON_LIMIT ||
-       (sys_size<26 || strstr((const char *)sys,"BOOT2 = pfs:/EXECUTE.ELF")==NULL) ||
-       memcmp(icon,"\x89PNG\r\n\x1a\n",8))return -30;
-    unsigned padded=((unsigned)png_size+511u)&~511u;
-    unsigned bytes=ICON_OFF+padded;
-    if(bytes>sizeof(current))return -30;
-
-    /* The XMB metadata and canonical icon bytes come from the existing
-     * PDIM 1.0 XMB assets, with only the TEST12 titles adapted on PC.
+    if(!state || !state->exists || !state->pfs_ok)return -30;
+    /* Make sure the whole application is present, and the XMB jackets
+     * can be copied after registration, before changing any PPAA bytes.
      */
-    int fd=fileXioOpen(PDIM12_DEVICE,FIO_O_RDWR,0);
-    if(fd<0)return -31;
-    if(raw_read(fd,current,bytes)<0){fileXioClose(fd);return -31;}
-    memcpy(planned,current,bytes);
-    memcpy(planned,"PS2ICON3D",9);
-    set_le32(planned+0x10,SYS_OFF);
-    set_le32(planned+0x14,(unsigned)sys_size);
-    set_le32(planned+0x18,ICONSYS_OFF);
-    set_le32(planned+0x1c,(unsigned)ini_size);
-    set_le32(planned+0x20,ICON_OFF);
-    set_le32(planned+0x24,(unsigned)png_size);
-    set_le32(planned+0x28,ICON_OFF);
-    set_le32(planned+0x2c,(unsigned)png_size);
-    memcpy(planned+SYS_OFF,sys,(unsigned)sys_size);
-    memset(planned+SYS_OFF+sys_size,0,ICONSYS_OFF-SYS_OFF-(unsigned)sys_size);
-    memcpy(planned+ICONSYS_OFF,iconsys,(unsigned)ini_size);
-    memset(planned+ICONSYS_OFF+ini_size,0,ICON_OFF-ICONSYS_OFF-(unsigned)ini_size);
-    memcpy(planned+ICON_OFF,icon,(unsigned)png_size);
-    memset(planned+ICON_OFF+png_size,0,padded-(unsigned)png_size);
-    int header=already_registered_or_foreign(current,bytes);
-    if(header<0){fileXioClose(fd);return -31;}
-    if(header==0 && raw_write(fd,planned,bytes)<0){fileXioClose(fd);return -32;}
-    if(raw_read(fd,current,bytes)<0){fileXioClose(fd);return -33;}
-    int close=fileXioClose(fd);
-    if(close<0||memcmp(current,planned,bytes))return -33;
-    scr_printf("XMB header: PP.DVRISO12 VERIFIED %s\n",header?"EXISTING":"NEW");
+    int rc=pdim12_verify_core_files(state);
+    if(rc<0)return -30;
+    rc=pdim12_preflight_xmb_assets(state);
+    if(rc<0)return rc;
+    int status=-3;
+    rc=load_plan(state,&status);
+    if(rc<0) {
+        if(rc==-31)describe_header(status);
+        return rc;
+    }
+    if(status==0) {
+        /* Re-read the three sectors before modifying ANY of them. */
+        iox_stat_t stat;
+        if(fileXioGetStat(PDIM12_DEVICE,&stat)<0 ||
+           (uint32_t)stat.private_5!=state->start ||
+           (uint32_t)stat.size!=state->sectors)return -35;
+        for(unsigned j=0;j<3;j++) {
+            rc=read_sector(sector_base+j,again);
+            if(rc<0||memcmp(again,original[j],B))return -35;
+        }
+        /* Text first; magic and descriptors last. No unrelated sectors. */
+        for(unsigned j=1;j<3;j++) {
+            if(!memcmp(original[j],proposed[j],B))continue;
+            rc=write_sector(sector_base+j,proposed[j]);
+            if(rc<0)return -32;
+            rc=read_sector(sector_base+j,again);
+            if(rc<0||memcmp(again,proposed[j],B))return -33;
+        }
+        rc=write_sector(sector_base,proposed[0]);
+        if(rc<0)return -32;
+        for(unsigned j=0;j<3;j++) {
+            rc=read_sector(sector_base+j,again);
+            if(rc<0||memcmp(again,proposed[j],B))return -33;
+        }
+        scr_printf("XMB PPAA header: VERIFIED NEW\n");
+    } else if(status==1) {
+        scr_printf("XMB PPAA header: ALREADY VERIFIED\n");
+    } else return -31;
+    /* The PNG jackets and info.sys are normal PFS files, not raw
+     * APA sectors. Copy them NOW with CRC/readback, no manual wLE step.
+     * Rerunning TRIANGLE after a power loss resumes this phase if
+     * the previous PPAA header matches, rather than overwriting it.
+     */
+    scr_printf("Installing XMB res/ assets after header...\n");
+    rc=pdim12_install_xmb_assets(state);
+    if(rc<0) {
+        scr_printf("XMB res/ installation FAILED (%d).\n",rc);
+        scr_printf("Do NOT delete the partition; retry TRIANGLE\n");
+        scr_printf("after checking the USB / full HDD backup.\n");
+        return rc;
+    }
+    scr_printf("XMB: PP.DVRISO12 HEADER + ASSETS VERIFIED\n");
     return 0;
 }

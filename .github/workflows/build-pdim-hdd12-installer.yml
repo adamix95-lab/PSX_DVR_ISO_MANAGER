@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   installer:
-    name: Build separate controller installer with RepairBox PSX1 IOP modules
+    name: R3 standalone installer - wLE-style XMB PPAA + post-header assets
     runs-on: ubuntu-latest
     container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
     steps:
@@ -41,9 +41,9 @@ jobs:
           p=Path("dist/PDIM_HDD12_INSTALLER.ELF").read_bytes()
           assert p[:4]==b'\x7fELF' and int.from_bytes(p[18:20],'little')==8
           assert b'PP.DVRISO12' in p
-          assert b'KOPIA SEKTOROWA CALEGO HDD' in p
-          assert b'AWARIA MOZE USZKODZIC INNE PARTYCJE' in p
-          assert b'WYMAGANA JEST ODTWARZALNA KOPIA' in p
+          assert b'A FULL, TESTED, RESTORABLE SECTOR' in p
+          assert b'FAILURE MAY DAMAGE OTHER PARTITIONS' in p
+          assert b'WARNING: HDD WRITE OPERATION' in p
           assert b'FIO_O_CREAT' not in p # symbolic flags are compile-time
           assert b'STAGE IOP RESET: CLEAN MODULE SET' in p
           src=Path("pdim-hdd12-installer/src/main.c").read_text()
@@ -55,7 +55,18 @@ jobs:
           assert 'MODULE(ps2dev9);' not in src
           assert 'for(int i=0;i<200;i++)' in src # Bounded reset request
           assert 'for(int i=0;i<400;i++)' in src # Bounded sync wait
-          print('PASS installer R2: valid MIPS ELF, IOP reset + NETFIX dev9_ns + no block cursor + warnings')
+          xmb=Path("pdim-hdd12-installer/src/xmb.c").read_text()
+          main=Path("pdim-hdd12-installer/src/main.c").read_text()
+          install=Path("pdim-hdd12-installer/src/installer.c").read_text()
+          assert 'HDIOC_READSECTOR' in xmb and 'HDIOC_WRITESECTOR' in xmb
+          assert 'fileXioOpen(PDIM12_DEVICE' not in xmb
+          assert 'pdim12_install_xmb_assets' in xmb and 'pdim12_preflight_xmb_assets' in xmb
+          assert 'jkt_002.png' not in xmb # PNGs are PFS files, not PPAA icons
+          assert 'pdim12_inspect_xmb(&st)' in main and 'PAD_SELECT' in main
+          assert 'UWAGA' not in main and 'OSTRZEZENIE' not in main
+          assert 'if(is_xmb_resource(&manifest[i]))continue;' in install
+          assert 'XMB asset:' in install
+          print('PASS R3 installer: English UI, bounded IOP, wLE-style PPAA, post-header XMB assets')
           PY
       - uses: actions/upload-artifact@v4
         with:

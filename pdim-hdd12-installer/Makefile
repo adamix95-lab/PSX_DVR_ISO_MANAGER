@@ -3,7 +3,7 @@
 VENDOR_IRX ?= ../repairbox/irx
 BUILD := build
 EE_BIN := $(BUILD)/PDIM_HDD12_INSTALLER.ELF
-SOURCES := src/main.c src/policy.c src/installer.c src/xmb.c
+SOURCES := src/main.c src/policy.c src/installer.c src/xmb.c src/ppaa_plan.c
 OBJECTS := $(patsubst src/%.c,$(BUILD)/src/%.o,$(SOURCES))
 COMMON_IRX := iomanX fileXio ps2atad ps2fs bdm bdmfs_fatfs usbd usbmass_bd sio2man padman
 IRX_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix _irx.o,$(COMMON_IRX))) $(BUILD)/dev9_ns_irx.o $(BUILD)/ps2hdd_psx1_irx.o
@@ -18,6 +18,8 @@ all: $(EE_BIN)
 host-test:
 	cc -std=c11 -Wall -Wextra -Werror -Iinclude src/policy.c tests/test_policy.c -o /tmp/pdim12-policy-test
 	/tmp/pdim12-policy-test
+	cc -std=c11 -Wall -Wextra -Werror -Iinclude src/ppaa_plan.c tests/test_ppaa_plan.c -o /tmp/pdim12-ppaa-test
+	/tmp/pdim12-ppaa-test
 $(BUILD)/src/%.o: src/%.c $(wildcard include/*.h)
 	@mkdir -p $(dir $@)
 	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
