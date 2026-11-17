@@ -1,0 +1,234 @@
+name: Build PDIM HDD12 isolated partition + XMB installer TEST (no release)
+
+on:
+  push:
+    branches: [test/pdim-hdd12-installer]
+    paths:
+      - 'pdim-hdd12-installer/**'
+      - 'dvr-iso-manager/**'
+      - 'neutrino-hdd-v1/**'
+      - 'neutrino-v02/**'
+      - '.github/workflows/build-pdim-hdd12-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Build separate controller installer with RepairBox PSX1 IOP modules
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache make build-base python3 git
+      - uses: actions/checkout@v4
+        with:
+          repository: DanielFergisz/RepairBox-PSX-XMB-Apps-Installer
+          ref: df426622e29ed14445e5732ba0ef137c4f2c38ba
+          path: repairbox
+      - name: Host-test target allowlist, paths, LBA boundary and CRC
+        run: make -C pdim-hdd12-installer host-test
+      - name: Build isolated test installer ELF
+        run: |
+          set -eu
+          make -C pdim-hdd12-installer VENDOR_IRX="$GITHUB_WORKSPACE/repairbox/irx" all
+          mkdir -p dist
+          cp pdim-hdd12-installer/build/PDIM_HDD12_INSTALLER.ELF dist/
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("dist/PDIM_HDD12_INSTALLER.ELF").read_bytes()
+          assert p[:4]==b'\x7fELF' and int.from_bytes(p[18:20],'little')==8
+          assert b'PP.DVRISO12' in p
+          assert b'KOPIA SEKTOROWA CALEGO HDD' in p
+          assert b'AWARIA MOZE USZKODZIC INNE PARTYCJE' in p
+          assert b'WYMAGANA JEST ODTWARZALNA KOPIA' in p
+          assert b'FIO_O_CREAT' not in p # symbolic flags are compile-time
+          print('PASS installer: valid MIPS ELF, specific partition + prominent two-stage warnings')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd12-installer-elf
+          path: dist/
+          if-no-files-found: error
+
+  manager:
+    name: Build v1.0 HDD Manager with strictly isolated PP.DVRISO12 path
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache cmake make build-base git python3 bash
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2dev/ps2sdk
+          ref: d41ea62946e53d9a0c8788bb9eb8c8faf488b559
+          path: sdk-source
+      - name: Build HDD1.0 NETFIX SDK and HDD12-only Manager
+        run: |
+          set -eu
+          sh hdd-netfix/build_sdk.sh sdk-source
+          cmake -S dvr-iso-manager -B build-hdd12 -DDESR_BUILD_HDD_NETFIX=ON
+          cmake --build build-hdd12 --target DVR_ISO_MANAGER_HDD12_TEST.ELF -j2
+          mkdir -p dist
+          cp build-hdd12/DVR_ISO_MANAGER_HDD12_TEST.ELF dist/DVR_ISO_MANAGER_HDD.ELF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/DVR_ISO_MANAGER_HDD.ELF').read_bytes()
+          assert p[:4]==b'\x7fELF'
+          assert b'hdd0:PP.DVRISO12' in p
+          assert b'hdd0:PP.DVRISO/' not in p
+          assert b'1.0 HDD TEST12' in p
+          assert b'pfs1:/neutrino_hdd_lang.elf' in p
+          print('PASS: HDD1.0 Manager rebuilt only for PP.DVRISO12')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd12-manager
+          path: dist/
+          if-no-files-found: error
+
+  system:
+    name: Rebuild HDD1.0 Neutrino SYSTEM FIX95 for test partition
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Patch proven HDD1.0 runtime to test target, preserve FIX95
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/pdim-hdd12-installer/patch_neutrino12.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          make -C ee/loader all
+          mkdir -p ../dist
+          cp ee/loader/neutrino_unpacked.elf ../dist/neutrino_hdd.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('../dist/neutrino_hdd.elf').read_bytes()
+          assert p[:4]==b'\x7fELF'
+          assert b'hdd0:PP.DVRISO12' in p
+          assert b'hdd0:PP.DVRISO:pfs:/' not in p
+          assert b'HDD FIX95 ISO argument/path mismatch' in p
+          print('PASS: SYSTEM FIX95 exclusively targets test partition')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd12-system
+          path: dist/
+          if-no-files-found: error
+
+  english:
+    name: Rebuild HDD1.0 Neutrino ENGLISH FIX95 for test partition
+    runs-on: ubuntu-latest
+    container: ps2max/dev:v20260228
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: manager
+      - uses: actions/checkout@v4
+        with:
+          repository: ps2max32/neutrino
+          ref: aa8d80a1a0b5323cb407c814c0568c3489597c1c
+          fetch-depth: 0
+          path: neutrino
+      - name: Build matching English Neutrino and EE core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd neutrino
+          git apply --check ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          git apply ../manager/neutrino-v02/neutrino-osdlang-en.patch
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_runtime.py ee/loader/src/main.c
+          python3 ../manager/pdim-hdd12-installer/patch_neutrino12.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_stages.py ee/loader/src/main.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_config_trace.py ee/loader/src/main.c ee/loader/src/config.c
+          python3 ../manager/neutrino-hdd-v1/patch_hdd_error_screen.py ee/loader/src/main.c ee/loader/Makefile
+          make -C ee/ee_core all
+          make -C ee/loader all
+          mkdir -p ../dist/modules
+          cp ee/loader/neutrino_unpacked.elf ../dist/neutrino_hdd_lang.elf
+          cp ee/ee_core/ee_core.elf ../dist/modules/ee_core_lang.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('../dist/neutrino_hdd_lang.elf').read_bytes()
+          assert p[:4]==b'\x7fELF'
+          assert b'hdd0:PP.DVRISO12' in p
+          assert b'hdd0:PP.DVRISO:pfs:/' not in p
+          assert b'HDD FIX95 ISO argument/path mismatch' in p
+          print('PASS: ENGLISH FIX95 targets test partition')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdd12-english
+          path: dist/
+          if-no-files-found: error
+
+  package:
+    name: Assemble complete HDD12 installer with existing 1.0 HDD and XMB assets
+    needs: [installer, manager, system, english]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd12-installer-elf
+          path: input/installer
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd12-manager
+          path: input/manager
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd12-system
+          path: input/system
+      - uses: actions/download-artifact@v4
+        with:
+          name: hdd12-english
+          path: input/english
+      - name: Fetch and verify existing official v1.0 HDD and XMB ZIP archives
+        run: |
+          set -eu
+          mkdir -p input/releases input/ca
+          release="https://github.com/$GITHUB_REPOSITORY/releases/download/1.0"
+          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip" -o input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip
+          curl -fsSL --retry 3 "$release/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip" -o input/releases/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip
+          curl -fsSL --retry 3 "$release/SHA256SUMS.txt" -o input/releases/SHA256SUMS.txt
+          (cd input/releases && sha256sum -c SHA256SUMS.txt --ignore-missing)
+          echo '4ad658817f25b6254b66f0f65f3bd34ca72af70e89d71756eed706d432b7e00f  input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip' | sha256sum -c -
+          curl -fsSL --retry 3 https://curl.se/ca/cacert-2026-11-05.pem -o input/ca/N4E.CA
+          echo '427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285  input/ca/N4E.CA' | sha256sum -c -
+      - name: Build and verify test-only installer ZIP
+        run: |
+          set -eu
+          python3 pdim-hdd12-installer/tools/stage_package.py \
+            --hdd input/releases/PSX-DVR-ISO-Manager-v1.0.0-HDD-COMPLETE.zip \
+            --xmb input/releases/PSX-DVR-ISO-Manager-v1.0.0-XMB-PDIM-INSTALL.zip \
+            --manager input/manager/DVR_ISO_MANAGER_HDD.ELF \
+            --system input/system/neutrino_hdd.elf \
+            --english input/english/neutrino_hdd_lang.elf \
+            --core input/english/modules/ee_core_lang.elf \
+            --installer input/installer/PDIM_HDD12_INSTALLER.ELF \
+            --ca input/ca/N4E.CA \
+            --config pdim-hdd12-installer/V12_NET.CNF.example \
+            --readme pdim-hdd12-installer/README_PL.md \
+            --commit "$GITHUB_SHA" \
+            --output PDIM-HDD12-INSTALLER-TEST-UNRELEASED.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDIM-HDD12-INSTALLER-TEST-UNRELEASED
+          path: PDIM-HDD12-INSTALLER-TEST-UNRELEASED.zip
+          if-no-files-found: error
+          retention-days: 30
