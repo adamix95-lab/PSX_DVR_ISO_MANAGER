@@ -82,6 +82,7 @@ static int n6g_use_arena=1;
 #endif
 #ifdef N6G_BATCH_50
 #include "n6g_batch_entropy.h"
+#include "n6g_roughtime_retry.h"
 static int batch_trace_prep;
 static int batch_trace_new;
 static int batch_ca_first;
@@ -234,30 +235,30 @@ static void n6g_ui_redraw(void) {
   scr_printf("-----------------------------------------\n\n");
   if(n6g_ui_finished) {
     scr_printf(n6g_ui_progress.errors ?
-               "POBIERANIE PRZERWANE\n\n" :
-               "POBIERANIE ZAKONCZONE\n\n");
+               "DOWNLOAD INTERRUPTED\n\n" :
+               "DOWNLOAD COMPLETE\n\n");
     if(n6g_ui_progress.total==0) {
       if(n6g_ui_progress.errors)
-        scr_printf("BLAD PRZYGOTOWANIA POBIERANIA\n");
+        scr_printf("DOWNLOAD PREPARATION FAILED\n");
       else
-        scr_printf("BRAK BRAKUJACYCH OKLADEK\n");
+        scr_printf("NO MISSING COVERS\n");
     }else {
-      scr_printf("POBRANO: %d/%d\n",n6g_ui_progress.saved,
+      scr_printf("DOWNLOADED: %d/%d\n",n6g_ui_progress.saved,
                  n6g_ui_progress.total);
-      scr_printf("POMINIETO: %d\n",n6g_ui_progress.skipped);
+      scr_printf("SKIPPED: %d\n",n6g_ui_progress.skipped);
       if(n6g_ui_progress.errors)
-        scr_printf("BLAD PODCZAS POBIERANIA\n");
+        scr_printf("ERROR DURING DOWNLOAD\n");
     }
-    scr_printf("\nPOWROT DO MANAGERA...\n");
+    scr_printf("\nRETURNING TO MANAGER...\n");
     return;
   }
   if(!n6g_ui_started) {
-    scr_printf("PRZYGOTOWYWANIE POBIERANIA OKLADEK\n");
-    scr_printf("PROSZE CZEKAC...\n");
+    scr_printf("PREPARING COVER DOWNLOAD\n");
+    scr_printf("PLEASE WAIT...\n");
     return;
   }
-  scr_printf("TRWA POBIERANIE BRAKUJACYCH OKLADEK\n");
-  scr_printf("PROSZE CZEKAC...\n\n");
+  scr_printf("DOWNLOADING MISSING COVERS\n");
+  scr_printf("PLEASE WAIT...\n\n");
   first=n6g_ui_progress.completed-USB12_UI_VISIBLE_ROWS+1;
   if(first<1)first=1;
   for(int i=first;i<=n6g_ui_progress.completed;i++) {
@@ -266,9 +267,9 @@ static void n6g_ui_redraw(void) {
   }
   if(n6g_ui_active>n6g_ui_progress.completed &&
      n6g_ui_active<=n6g_ui_progress.total)
-    scr_printf("%d/%d POBIERANIE...\n",n6g_ui_active,
+    scr_printf("%d/%d DOWNLOADING...\n",n6g_ui_active,
                n6g_ui_progress.total);
-  scr_printf("\nPOBRANO: %d  POMINIETO: %d\n",
+  scr_printf("\nDOWNLOADED: %d  SKIPPED: %d\n",
              n6g_ui_progress.saved,n6g_ui_progress.skipped);
 }
 
@@ -1112,6 +1113,10 @@ static int verify_cover_tls(const v12_rt_signed_time *signed_time,
 #endif
 
 #ifdef N6G_BATCH_50
+static int retry_signed_probe(const uint8_t nonce[32],void *ctx) {
+  return live_signed_probe(nonce,(v12_rt_signed_time *)ctx);
+}
+
 static int fetch_batch_cover(const n6g_source_entropy *entropy,int source,
                              const uint8_t **normalized,size_t *normalized_size) {
   v12_rt_signed_time signed_time={0,0};
@@ -1127,7 +1132,9 @@ static int fetch_batch_cover(const n6g_source_entropy *entropy,int source,
   n6_png_size=0;
   *normalized=NULL;
   *normalized_size=0;
-  rc=live_signed_probe(entropy->nonce,&signed_time);
+  /* Invalid Roughtime replies never become accepted. Each retry
+   * carries a different nonce from this game's/source's seed. */
+  rc=n6g_roughtime_retry(entropy->nonce,retry_signed_probe,&signed_time);
   if(rc==0)rc=verify_cover_tls(&signed_time,entropy->low,entropy->high);
   if(rc==0)rc=normalize_download(normalized,normalized_size,-565);
   return rc;
