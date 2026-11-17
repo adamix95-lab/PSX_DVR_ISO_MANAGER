@@ -24,7 +24,7 @@ $(BUILD)/src/%.o: src/%.c $(wildcard include/*.h)
 # Reuse our DESR-7000-verified HDD NETFIX DEV9 rather than a second provider.
 $(BUILD)/dev9_ns_irx.c: ../dvr-iso-manager/modules/dev9_ns.irx
 	@mkdir -p $(dir $@)
-	$(PS2SDK)/bin/bin2c $< $@ dev9_ns
+	$(PS2SDK)/bin/bin2c $< $@ dev9_ns_irx
 
 $(BUILD)/ps2hdd_psx1_irx.c: $(VENDOR_IRX)/psx1/ps2hdd-sparse-skip.irx
 	@mkdir -p $(dir $@)
