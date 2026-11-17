@@ -18,10 +18,10 @@ int main(void) {
   assert(strcmp(text, "1/45 OK") == 0);
   assert(usb12_progress_record(&ui, 2, USB12_UI_SKIPPED) == 0);
   assert(usb12_progress_line(&ui, 2, text, sizeof text) == 0);
-  assert(strcmp(text, "2/45 POMINIETO") == 0);
+  assert(strcmp(text, "2/45 SKIPPED") == 0);
   assert(usb12_progress_record(&ui, 3, USB12_UI_ERROR) == 0);
   assert(usb12_progress_line(&ui, 3, text, sizeof text) == 0);
-  assert(strcmp(text, "3/45 BLAD") == 0);
+  assert(strcmp(text, "3/45 ERROR") == 0);
   assert(usb12_progress_line(&ui, 3, small, sizeof small) != 0);
   assert(ui.saved == 1 && ui.skipped == 1 && ui.errors == 1 &&
          ui.completed == 3);
