@@ -61,7 +61,9 @@ jobs:
           assert 'HDIOC_READSECTOR' in xmb and 'HDIOC_WRITESECTOR' in xmb
           assert 'fileXioOpen(PDIM12_DEVICE' not in xmb
           assert 'pdim12_install_xmb_assets' in xmb and 'pdim12_preflight_xmb_assets' in xmb
-          assert 'jkt_002.png' not in xmb # PNGs are PFS files, not PPAA icons
+          # Verify there is no code that reads a PNG into a raw PPAA list.ico slot.
+          assert 'read_asset(PDIM12_XMB_SOURCE "jkt_002.png"' not in xmb
+          assert 'pdim12_install_xmb_assets(state)' in xmb
           assert 'pdim12_inspect_xmb(&st)' in main and 'PAD_SELECT' in main
           assert 'UWAGA' not in main and 'OSTRZEZENIE' not in main
           assert 'if(is_xmb_resource(&manifest[i]))continue;' in install

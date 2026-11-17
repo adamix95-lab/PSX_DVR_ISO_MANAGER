@@ -85,7 +85,7 @@ static int load_plan(pdim12_state *state, int *status) {
     }
     int ns=read_asset(PDIM12_XMB_SOURCE "system.cnf",sys,B);
     int ni=read_asset(PDIM12_XMB_SOURCE "icon.sys",icon,B);
-    if(ns<=0||ns>=B||ni<=0||ni>=B)return -30;
+    if(ns<=0||ns>=(int)B||ni<=0||ni>=(int)B)return -30;
     sys[ns]=0;icon[ni]=0;
     if(!strstr((char*)sys,"BOOT2 = pfs:/EXECUTE.ELF") ||
        !strstr((char*)icon,"title1=HDD12 TEST") ||
