@@ -31,6 +31,9 @@
 
 /* All read paths come from one v1 layout header. HDD_PREVIEW never writes. */
 #include "runtime_storage.h"
+#ifdef DESR_USB12_HTTPS
+#include "usb12_covers.h"
+#endif
 #define USB_TEST_CNF DESR_APP_TEST_CNF
 #define USB_BOOT_CNF DESR_APP_BOOT_CNF
 #define USB_BACKUP_CNF DESR_APP_BACKUP_CNF
@@ -414,9 +417,19 @@ static void draw_scan_art_question(int missing) {
   scr_setXY(2, 12);
   scr_printf("MISSING COVERS: %d", missing);
   scr_setXY(2, 16);
+#ifdef DESR_USB12_HTTPS
+  scr_printf("DOWNLOAD MISSING COVERS?");
+  scr_setXY(2, 18);
+  scr_printf("X: PC APP (LAN HTTP)");
+  scr_setXY(2, 20);
+  scr_printf("TRIANGLE: SERVER (HTTPS, UP TO 50)");
+  scr_setXY(2, 22);
+  scr_printf("O: SKIP / RETURN");
+#else
   scr_printf("DOWNLOAD MISSING COVERS FROM LOCAL HTTP?");
   scr_setXY(2, 19);
   scr_printf("X: DOWNLOAD       O: SKIP / RETURN");
+#endif
   scr_setfontcolor(0xA0A0A0);
   scr_setXY(2, 24);
 #ifdef DESR_HDD_TEST
@@ -435,6 +448,57 @@ static int check_usb_file(const char *path) {
   closed = fileXioClose(fd);
   return closed < 0 ? closed : 0;
 }
+
+#ifdef DESR_USB12_HTTPS
+static void launch_usb12_covers(void) {
+  const char *required[] = {
+    DESR_USB12_HTTPS_ELF, DESR_USB12_CA_FILE, DESR_USB12_ENTROPY_FILE
+  };
+  char *args[] = { force_english ? "1" : "0" };
+  int rc;
+
+  for (unsigned i = 0; i < sizeof(required) / sizeof(required[0]); ++i) {
+    if (check_usb_file(required[i]) < 0) {
+      snprintf(status, sizeof(status), "HTTPS: missing %s",
+               strrchr(required[i], '/') + 1);
+      return;
+    }
+  }
+
+  padPortClose(0, 0);
+  padEnd();
+  rc = LoadELFFromFile(DESR_USB12_HTTPS_ELF, 1, args);
+  if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
+    scr_clear();
+    scr_printf("HTTPS loader returned %d. Reopen Manager 1.2.\n", rc);
+    for (;;) sleep(1);
+  }
+  prev_buttons = 0xffff;
+  snprintf(status, sizeof(status), "HTTPS loader returned %d", rc);
+}
+
+static int read_usb12_result(int argc, char **argv, int scan_result) {
+  int identified;
+  long saved, result;
+  char *end;
+
+  if (argc != 5 || strcmp(argv[1], DESR_USB12_ART_RESULT) != 0) return 0;
+  saved = strtol(argv[2], &end, 10);
+  if (end == argv[2] || *end || saved < 0 || saved > N6G_BATCH_LIMIT) return 0;
+  errno = 0;
+  result = strtol(argv[3], &end, 10);
+  if (end == argv[3] || *end || errno == ERANGE) return 0;
+  force_english = strcmp(argv[4], "1") == 0;
+  if (saved > 0 && (scan_result < 0 ||
+                   desr_covers_refresh(games, count, covers, &identified) < 0))
+    snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld. TRIANGLE: rebuild index",
+             saved, result);
+  else
+    snprintf(status, sizeof(status), "HTTPS: %ld saved. RET=%ld", saved, result);
+  status_visible = 1;
+  return 1;
+}
+#endif
 
 static int usb_ready(void) {
   int rc;
@@ -817,7 +881,9 @@ static int hdd_enable_writes(void) {
 int main(int argc, char *argv[]) {
   int rc, bits, new_press;
   struct padButtonStatus btn;
+#ifndef DESR_USB12_HTTPS
   (void)argc; (void)argv;
+#endif
   init_scr();
   /* Disable the default PS2SDK block cursor. */
   scr_setCursor(0);
@@ -849,7 +915,7 @@ int main(int argc, char *argv[]) {
   scr_printf("HDD EARLY: ROOT=%d SYS=%d OSD=%d\n",
              hdd_at_boot_root,hdd_at_boot_system,hdd_at_boot_osd);
 #endif
-  scan_dvr();
+  rc = scan_dvr();
   desr_covers_load(games, count, covers);
   if (!padInit(0) || !padPortOpen(0, 0, padbuf)) {
     scr_printf("\nUnable to initialize gamepad\n");
@@ -859,7 +925,11 @@ int main(int argc, char *argv[]) {
     sleep(60);
     return 2;
   }
+#ifdef DESR_USB12_HTTPS
+  prev_buttons = read_usb12_result(argc, argv, rc) ? 0xffff : 0;
+#else
   prev_buttons = 0;
+#endif
   draw();
   while (1) {
     if (padRead(0, 0, &btn) > 0) {
@@ -1004,6 +1074,14 @@ int main(int argc, char *argv[]) {
 #endif
           status_visible = 1;
           draw();
+#ifdef DESR_USB12_HTTPS
+        } else if (new_press & PAD_TRIANGLE) {
+          art_prompt = 0;
+          art_retry_cached = 1;
+          launch_usb12_covers();
+          status_visible = 1;
+          draw();
+#endif
         }
         /* Consume the whole key event even if another pad button is held. */
         continue;

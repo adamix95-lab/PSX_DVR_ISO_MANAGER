@@ -27,7 +27,11 @@
 #define DESR_APP_SYSTEM_NEUTRINO "pfs1:/neutrino_hdd.elf"
 #define DESR_APP_ENGLISH_NEUTRINO "pfs1:/neutrino_hdd_lang.elf"
 #else
+#ifdef DESR_USB12_HTTPS
+#define DESR_APP_VARIANT "1.2 USB PROTOTYPE"
+#else
 #define DESR_APP_VARIANT "1.0 USB"
+#endif
 #define DESR_APP_ROOT "mass0:/DESR_DVR/"
 #define DESR_APP_READONLY 0
 #define DESR_APP_SYSTEM_NEUTRINO "mass0:/DESR_DVR/neutrino.elf"

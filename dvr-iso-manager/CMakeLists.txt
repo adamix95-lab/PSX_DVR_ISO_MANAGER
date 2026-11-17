@@ -44,6 +44,12 @@ target_include_directories(DVR_ISO_MANAGER.ELF PRIVATE include "$ENV{PS2SDK}/por
 target_link_libraries(DVR_ISO_MANAGER.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
 target_compile_options(DVR_ISO_MANAGER.ELF PRIVATE -Os -Wall -Wextra)
 
+add_executable(DVR_ISO_MANAGER_V12.ELF EXCLUDE_FROM_ALL ${SOURCES})
+target_compile_definitions(DVR_ISO_MANAGER_V12.ELF PRIVATE DESR_USB12_HTTPS=1)
+target_include_directories(DVR_ISO_MANAGER_V12.ELF PRIVATE include "$ENV{PS2SDK}/ports/include")
+target_link_libraries(DVR_ISO_MANAGER_V12.ELF PRIVATE pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
+target_compile_options(DVR_ISO_MANAGER_V12.ELF PRIVATE -Os -Wall -Wextra)
+
 # Staged 1.0 HDD UI using the same USB menu and cover renderer.
 # READ-ONLY PREVIEW: no CNF, ART or INDEX writes; X launch disabled.
 # First verify PP.DVRISO PFS init/access on real hardware.
@@ -74,4 +80,9 @@ if(DESR_BUILD_HDD_NETFIX)
   target_link_libraries(DVR_ISO_MANAGER_HDD_TEST.ELF pad patches fileXio cdvd elf-loader ps2ip netman libdebug.a "$ENV{PS2SDK}/ports/lib/libpng.a" "$ENV{PS2SDK}/ports/lib/libz.a" m)
   target_compile_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE -Os -Wall -Wextra)
   target_link_options(DVR_ISO_MANAGER_HDD_TEST.ELF PRIVATE "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/HDD_NETFIX.map")
+endif()
+
+option(DESR_BUILD_USB12_WORKER "Build the standalone USB 1.2 HTTPS cover ELF" OFF)
+if(DESR_BUILD_USB12_WORKER)
+  include(usb12_worker.cmake)
 endif()
