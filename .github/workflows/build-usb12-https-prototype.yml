@@ -1,7 +1,7 @@
-name: Build PSX DVR ISO Manager 1.2 USB UI TEST (R4-derived)
+name: Build PSX DVR ISO Manager 1.2 USB UI EN + Roughtime Retry TEST
 on:
   push:
-    branches: [test/v1.2-usb-https-covers]
+    branches: [test/v1.2-usb-https-covers, test/v1.2-usb-ui-en-rt-retry]
   workflow_dispatch:
 permissions:
   contents: read
@@ -98,7 +98,7 @@ jobs:
             "$manager/src/iso_utils.c" "$manager/src/cover_index.c" \
             "$mock/test_write.c" -o /tmp/n6g-usb-write
           /tmp/n6g-usb-write
-      - name: Host-test minimal Polish HTTPS progress and R4 result protocol
+      - name: Host-test English HTTPS progress and strict Roughtime retries
         run: |
           set -eu
           cc -std=c11 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include \
@@ -106,6 +106,11 @@ jobs:
             dvr-iso-manager/tests/net/test_usb12_progress_ui.c \
             -o /tmp/usb12-progress-ui
           /tmp/usb12-progress-ui
+          cc -std=c11 -O2 -Wall -Wextra -Werror -Idvr-iso-manager/include -Imonocypher-upstream/src \
+            dvr-iso-manager/src/net/n6g_roughtime_retry.c \
+            dvr-iso-manager/tests/net/test_n6g_roughtime_retry.c \
+            monocypher-upstream/src/monocypher.c -o /tmp/usb12-roughtime-retry
+          /tmp/usb12-roughtime-retry
           python3 - <<'PY'
           from pathlib import Path
           worker=Path('dvr-iso-manager/src/v12_n6f_https_usb_art_one.c').read_text()
@@ -119,14 +124,18 @@ jobs:
           assert 'n6g_ui_done(*attempted,USB12_UI_OK)' in worker
           assert 'n6g_ui_done(*attempted,USB12_UI_ERROR)' in worker
           assert 'n6g_ui_summary(targets,saved,unavailable,rc)' in worker
+          assert 'n6g_roughtime_retry(entropy->nonce,retry_signed_probe,&signed_time)' in worker
           assert '#define scr_printf(...) ((void)0)' in worker
           assert '#define scr_clear() ((void)0)' in worker
-          assert 'POBIERANIE ZAKONCZONE' in worker
-          assert 'TRWA POBIERANIE BRAKUJACYCH OKLADEK' in worker
-          assert 'scr_printf("POBRANO: %ld/%d' in manager
-          assert 'scr_printf("POMINIETO: %d' in manager
+          assert 'DOWNLOAD COMPLETE' in worker
+          assert 'DOWNLOADING MISSING COVERS' in worker
+          assert 'scr_printf("DOWNLOADED: %ld/%d' in manager
+          assert 'scr_printf("SKIPPED: %d' in manager
           assert 'const unsigned dismiss = PAD_CROSS | PAD_CIRCLE' in manager
           assert 'if (pressed & ~held) break;' in manager
+          assert 'BOOT_LOG("Resetting IOP' in manager
+          assert 'usb12_quiet_return' in manager
+          assert 'scr_printf("PLEASE WAIT...' in manager
           assert 'LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args)' in worker
           assert 'loader_rc=LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args);' in worker
           assert 'LoadELFFromFile(DESR_USB12_MANAGER_ELF,6,args));' not in worker
@@ -184,10 +193,10 @@ jobs:
           strings build-worker/COVER_HTTPS_V12.ELF > /tmp/worker-strings
           grep -Fx 'mass0:/DESR_DVR/DVR_ISO_MANAGER_V12_CPU.ELF' /tmp/worker-strings
           grep -F 'mass0:/DESR_DVR/ART' /tmp/worker-strings
-          grep -Fx 'TRWA POBIERANIE BRAKUJACYCH OKLADEK' /tmp/worker-strings
-          grep -Fx 'PROSZE CZEKAC...' /tmp/worker-strings
-          grep -Fx 'POBIERANIE ZAKONCZONE' /tmp/worker-strings
-          grep -Fx 'POMINIETO' /tmp/worker-strings
+          grep -Fx 'DOWNLOADING MISSING COVERS' /tmp/worker-strings
+          grep -Fx 'PLEASE WAIT...' /tmp/worker-strings
+          grep -Fx 'DOWNLOAD COMPLETE' /tmp/worker-strings
+          grep -Fx 'SKIPPED' /tmp/worker-strings
           if grep -F 'N6G.CAFIRST' /tmp/worker-strings; then exit 1; fi
       - name: Strip and verify UI worker without substituting old R4
         run: |
@@ -200,9 +209,9 @@ jobs:
           worker=Path('build-worker/usb12-payload.elf').read_bytes()
           assert worker[:4] == b'\x7fELF' and 200000 < len(worker) < 10000000
           assert hashlib.sha256(worker).hexdigest() != '23654c1755c1b79c3d30af32580f823ba451992dc3fcd654ce7bcfc234d7b489'
-          for m in (b'TRWA POBIERANIE BRAKUJACYCH OKLADEK',
-                    b'PROSZE CZEKAC...',b'POBIERANIE ZAKONCZONE',
-                    b'POMINIETO',b'POBRANO: %d/%d'):
+          for m in (b'DOWNLOADING MISSING COVERS',
+                    b'PLEASE WAIT...',b'DOWNLOAD COMPLETE',
+                    b'SKIPPED',b'DOWNLOADED: %d/%d'):
               assert m in worker,m
           print('NEW UI worker',len(worker),'SHA256',hashlib.sha256(worker).hexdigest())
           PY
@@ -237,9 +246,9 @@ jobs:
           grep -Fx 'X: PC APP (LAN HTTP)' /tmp/usb12-strings
           grep -Fx 'TRIANGLE: SERVER (HTTPS, UP TO 50)' /tmp/usb12-strings
           grep -Fx 'PSX DVR ISO MANAGER 1.2 USB' /tmp/usb12-strings
-          grep -Fx 'POBIERANIE ZAKONCZONE' /tmp/usb12-strings
-          grep -Fx 'X / O: POWROT DO LISTY GIER' /tmp/usb12-strings
-          grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings
+          grep -Fx 'DOWNLOAD COMPLETE' /tmp/usb12-strings
+          grep -Fx 'X / O: RETURN TO GAME LIST' /tmp/usb12-strings
+          if grep -Fx 'Reading HTTPS worker from Manager ELF...' /tmp/usb12-strings; then exit 1; fi
           grep -Fx 'GET MANAGER FILE SIZE' /tmp/usb12-strings
           grep -Fx 'HTTPS PAYLOAD FOOTER' /tmp/usb12-strings
           if grep -F 'mass0:/DESR_DVR/COVER_HTTPS_V12.ELF' /tmp/usb12-strings; then exit 1; fi
@@ -251,7 +260,7 @@ jobs:
           python3 -m zipfile -e prerequisites/usb10.zip prerequisites/usb10
           cp -a prerequisites/usb10/PSX-DVR-ISO-Manager-v1.0-USB-COMPLETE/DESR_DVR package/
           cp build-manager/DVR_ISO_MANAGER_V12_CPU.ELF package/DESR_DVR/
-          cp docs/usb12-ui-test.md package/README.md
+          cp docs/usb12-ui-en-retry-test.md package/README.md
           cp release-tools/v1_2/V12_NET.CNF.example package/
           cp prerequisites/N4E.CA package/
           cp prerequisites/PSX-DVR-ART-Server-v0.8.exe package/tools/
@@ -266,11 +275,11 @@ jobs:
             sha256sum "${path#./}"
           done > SHA256SUMS
           sha256sum -c SHA256SUMS
-          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-UI-TEST.zip \
+          python3 -m zipfile -c ../PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST.zip \
             DESR_DVR README.md N4E.CA V12_NET.CNF.example tools licenses SOURCE_COMMIT SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: PSX-DVR-ISO-Manager-1.2-USB-UI-TEST
-          path: PSX-DVR-ISO-Manager-1.2-USB-UI-TEST.zip
+          name: PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST
+          path: PSX-DVR-ISO-Manager-1.2-USB-UI-EN-RETRY-TEST.zip
           if-no-files-found: error
           retention-days: 30
