@@ -31,10 +31,23 @@ def unpack_r1(reference, destination):
     destination.write_bytes(worker)
 
 
-def append_worker(manager_path, worker_path):
+def append_worker(manager_path, worker_path, *, ui_preview=False):
     manager = manager_path.read_bytes()
     worker = worker_path.read_bytes()
-    require_sha256(worker, R1_WORKER_SHA)
+    worker_sha = hashlib.sha256(worker).hexdigest()
+    if ui_preview:
+        if worker_sha == R1_WORKER_SHA:
+            raise SystemExit("UI preview unexpectedly contains the OLD hardware R4 worker")
+        for marker in (
+            b"TRWA POBIERANIE BRAKUJACYCH OKLADEK",
+            b"POBIERANIE ZAKONCZONE",
+            b"POMINIETO",
+        ):
+            if marker not in worker:
+                raise SystemExit(f"UI worker missing {marker!r}")
+    else:
+        # Preserve the original R4 reproducible packaging mode untouched.
+        require_sha256(worker, R1_WORKER_SHA)
     loadable_segment(worker)
     metadata, segment = loadable_segment(manager)
     if len(segment) >= 2 * 1024 * 1024:
@@ -44,7 +57,9 @@ def append_worker(manager_path, worker_path):
     )
     assert loadable_segment(bytes_on_usb) == (metadata, segment)
     manager_path.write_bytes(bytes_on_usb)
-    print(f"Manager loadable segment: {len(segment)} bytes; appended exact R1 worker: {len(worker)} bytes")
+    print(f"Manager loadable segment: {len(segment)} bytes; "
+          f"appended {'UI PREVIEW' if ui_preview else 'exact R1'} worker: "
+          f"{len(worker)} bytes, sha256={worker_sha}")
 
 
 def main():
@@ -56,9 +71,14 @@ def main():
     pack = commands.add_parser("pack")
     pack.add_argument("manager", type=Path)
     pack.add_argument("worker", type=Path)
+    ui = commands.add_parser("pack-ui", help="Append newly built UI worker (never recover old R4)")
+    ui.add_argument("manager", type=Path)
+    ui.add_argument("worker", type=Path)
     args = parser.parse_args()
     if args.action == "extract":
         unpack_r1(args.reference, args.worker)
+    elif args.action == "pack-ui":
+        append_worker(args.manager, args.worker, ui_preview=True)
     else:
         append_worker(args.manager, args.worker)
 
