@@ -76,7 +76,7 @@ These are functional hardware results, **not a claim of crash-proof APA transact
 
 1. **HDD 1.2 AUTO:** installer ELF, 79 Core files, five XMB PFS files, raw PPAA header assets, supplied `V12_NET.CNF` and docs. [Installation details](../pdim-hdd-v1.2-installer/README.md).
 2. **HDD 1.2 MANUAL:** matching files for manual PFS copy and wLE-R3Z XMB registration. [Manual guide](INSTALL_MANUAL.md).
-3. **USB 1.2:** separate package planned for Release 1.2, based on hardware-tested USB R4.
+3. **USB 1.2:** officially released complete USB package with native HTTPS, based on the hardware-tested USB R4 work. [USB download](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip).
 
 **The three official archives are available in [Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2).**
 

@@ -76,7 +76,7 @@ To **testy funkcjonalne**, a nie gwarancja odporności APA na przerwanie zapisu 
 
 1. **HDD 1.2 AUTO** — ELF instalatora, 79 plików Core, pięć plików XMB, nagłówki PPAA, CA, `V12_NET.CNF` i dokumentacja. [Opis instalatora](../pdim-hdd-v1.2-installer/README_PL.md).
 2. **HDD 1.2 MANUAL** — te same pliki do ręcznego kopiowania i rejestracji XMB w wLE-R3Z. [Instrukcja](INSTALL_MANUAL_PL.md).
-3. **USB 1.2** — planowana osobna paczka oparta na sprawdzonym sprzętowo USB R4.
+3. **USB 1.2** — oficjalna kompletna paczka USB z natywnym HTTPS, oparta na testach USB R4. [Pobierz USB 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip).
 
 **Wydanie 1.2 zostało opublikowane:** [GitHub Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2).
 
