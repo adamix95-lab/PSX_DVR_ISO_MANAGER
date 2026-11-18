@@ -245,6 +245,12 @@ static void pause_result(int rc, const pdim12_state *st) {
     if(st)scr_printf("FILES TOTAL %d COPIED %d KEPT %d VERIFIED %d\n",
                     st->files_total,st->files_copied,
                     st->files_existing,st->files_verified);
+    if(st && st->net_config_status) {
+        const char *net=st->net_config_status==PDIM12_NET_COPIED?"COPIED":
+                        st->net_config_status==PDIM12_NET_KEPT?"KEPT":
+                        "MISSING - HTTPS NEEDS CONFIG";
+        scr_printf("V12_NET.CNF: %s\n",net);
+    }
     scr_printf("\nX OR O: RETURN TO MENU\n");
     release_all_buttons();
     for(;;){unsigned bits=read_action();if(bits&(PAD_CROSS|PAD_CIRCLE))break;}

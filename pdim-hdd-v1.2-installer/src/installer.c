@@ -3,6 +3,7 @@
  * Upgrade only the manager executable, with a retained recovery backup.
  */
 #include "pdim12_installer.h"
+#include "v12_net_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +31,9 @@ static unsigned char transfer[IO_CHUNK] __attribute__((aligned(64)));
 static int mount_owned=0;
 static const char *format_str="hdd0:PP.DVRISO,,,256M,PFS";
 static const char *source_prefix=PDIM12_APP_SOURCE;
+/* V12_NET.CNF is deliberately outside the immutable 84-file manifest.
+ * Copy-if-missing only; existing network settings must never be replaced. */
+static unsigned char net_bytes[V12_NET_CONFIG_MAX+1U] __attribute__((aligned(64)));
 
 const char *pdim12_error(int rc) {
     switch(rc) {
@@ -46,6 +50,7 @@ const char *pdim12_error(int rc) {
     case -24:return "FILE READBACK/CRC FAILED - .NEW PRESERVED";
     case -25:return "DIRECTORY CREATE FAILED";
     case -26:return "FILE RENAME/SYNC FAILED - CHECK .NEW";
+    case -27:return "NETWORK CONFIG WRITE/VERIFY FAILED - CHECK .PDIMNEW";
     case -30:return "REQUIRED XMB FILES NOT VERIFIED";
     case -31:return "XMB HEADER FOREIGN / INCOMPLETE - PRESERVED";
     case -32:return "XMB HEADER WRITE FAILED";
@@ -452,6 +457,89 @@ int pdim12_verify_files(pdim12_state *state) {
     if(state) {state->files_total=manifest_count;state->files_verified=count;}
     return rc;
 }
+
+/* Directory enumeration distinguishes an existing file from an unreadable
+ * path. Treat any enumeration error as fatal; never assume it is absent. */
+static int net_name_exists(const char *basename) {
+    int dd=fileXioDopen(PDIM12_MOUNT "/");
+    if(dd<0)return -1;
+    iox_dirent_t item __attribute__((aligned(64)));
+    int n,found=0;
+    while((n=fileXioDread(dd,&item))>0) {
+        item.name[sizeof(item.name)-1]='\0';
+        if(!strcmp(item.name,basename)) {found=1;break;}
+    }
+    int closed=fileXioDclose(dd);
+    if(n<0||closed<0)return -1;
+    return found;
+}
+/* Read and validate the exact USB configuration with the same parser as
+ * the native HTTPS worker. Never install an example with placeholder IPs. */
+static int read_valid_net_source(void) {
+    int fd=fileXioOpen(PDIM12_SOURCE "V12_NET.CNF",FIO_O_RDONLY,0);
+    if(fd<0)return 0;  /* optional source missing */
+    int total=0,n;
+    while(total<(int)V12_NET_CONFIG_MAX) {
+        n=fileXioRead(fd,net_bytes+total,(int)V12_NET_CONFIG_MAX-total);
+        if(n<=0)break;
+        total+=n;
+    }
+    unsigned char extra=0;
+    int extra_n=fileXioRead(fd,&extra,1);
+    int closed=fileXioClose(fd);
+    v12_net_config parsed;
+    if(n<0||extra_n!=0||closed<0||total==0||
+       v12_parse_net_config((const char *)net_bytes,(size_t)total,&parsed)!=0)
+        return -1;
+    return total;
+}
+/* A separate optional installer action, NOT a normal manifest entry:
+ * a matching 79/79 result stays true even if user network settings differ.
+ * Existing config is never read, rewritten, replaced or compared to USB.
+ * Missing/bad USB config only disables automatic HTTPS setup, not Core. */
+static int install_optional_net_config(pdim12_state *state) {
+    static const char *dst=PDIM12_MOUNT "/V12_NET.CNF";
+    static const char *tmp=PDIM12_MOUNT "/V12_NET.CNF.PDIMNEW";
+    int exists=net_name_exists("V12_NET.CNF");
+    if(exists<0)return -27;
+    if(exists>0) {
+        state->net_config_status=PDIM12_NET_KEPT;
+        scr_printf("NET CONFIG: KEEP (USER SETTINGS)\n");
+        return 0;
+    }
+    exists=net_name_exists("V12_NET.CNF.PDIMNEW");
+    if(exists!=0)return -27; /* orphan temp or directory read failure */
+    int size=read_valid_net_source();
+    if(size<=0) {
+        state->net_config_status=PDIM12_NET_NEEDS_SETUP;
+        scr_printf("NET CONFIG: NO VALID USB V12_NET.CNF\n");
+        scr_printf("HTTPS REQUIRES MANUAL NETWORK SETUP\n");
+        return 0;
+    }
+    int out=fileXioOpen(tmp,FIO_O_WRONLY|FIO_O_CREAT|FIO_O_EXCL,0666);
+    if(out<0)return -27;
+    int written=0,failed=0;
+    while(written<size) {
+        int n=fileXioWrite(out,net_bytes+written,size-written);
+        if(n<=0||n>size-written){failed=1;break;}
+        written+=n;
+    }
+    if(fileXioClose(out)<0||failed)return -27;
+    if(fileXioSync(PDIM12_MOUNT,FXIO_WAIT)<0)return -27;
+    uint32_t got_size=0,got_crc=0;
+    uint32_t source_crc=pdim12_crc32_end(
+        pdim12_crc32_update(0xffffffffu,net_bytes,(size_t)size));
+    if(file_crc(tmp,&got_size,&got_crc)<0 ||
+       got_size!=(uint32_t)size||got_crc!=source_crc)return -27;
+    if(net_name_exists("V12_NET.CNF")!=0)return -27;
+    if(fileXioRename(tmp,dst)<0)return -27;
+    if(fileXioSync(PDIM12_MOUNT,FXIO_WAIT)<0)return -27;
+    if(file_crc(dst,&got_size,&got_crc)<0 ||
+       got_size!=(uint32_t)size||got_crc!=source_crc)return -27;
+    state->net_config_status=PDIM12_NET_COPIED;
+    scr_printf("NET CONFIG: COPIED + CRC VERIFIED\n");
+    return 0;
+}
 int pdim12_install_files(pdim12_state *state) {
     if(!state || !state->exists || !state->pfs_ok)return -12;
     int rc=parse_manifest();
@@ -462,6 +550,7 @@ int pdim12_install_files(pdim12_state *state) {
     for(int i=0;i<manifest_count;i++)
         if(!is_xmb_resource(&manifest[i]))state->files_total++;
     state->files_copied=state->files_existing=state->files_verified=0;
+    state->net_config_status=PDIM12_NET_NOT_CHECKED;
     int step=0;
     for(int i=0;i<manifest_count;i++){
         if(is_xmb_resource(&manifest[i]))continue;
@@ -474,6 +563,7 @@ int pdim12_install_files(pdim12_state *state) {
         else state->files_copied++;
         state->files_verified++;
     }
+    if(rc==0)rc=install_optional_net_config(state);
     pdim12_unmount();
     return rc;
 }

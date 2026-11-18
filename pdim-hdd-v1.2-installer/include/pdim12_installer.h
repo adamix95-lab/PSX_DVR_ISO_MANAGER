@@ -3,6 +3,12 @@
 #include "pdim12_policy.h"
 #include <stdint.h>
 
+/* Network config is optional and NOT counted among the 79 Core files. */
+#define PDIM12_NET_NOT_CHECKED 0
+#define PDIM12_NET_COPIED 1
+#define PDIM12_NET_KEPT 2
+#define PDIM12_NET_NEEDS_SETUP 3
+
 typedef struct {
     int exists;
     int pfs_ok;
@@ -14,6 +20,7 @@ typedef struct {
     int files_copied;
     int files_existing;
     int files_verified;
+    int net_config_status;
 } pdim12_state;
 
 int pdim12_probe(pdim12_state *state);
