@@ -199,7 +199,7 @@ mass0:/DESR_DVR/
 └── modules/
 ```
 
-Zachowaj wszystkie pliki z folderu `DESR_DVR/`, w tym moduły i konfiguracje. Szczegóły: [instrukcja USB 1.2](docs/usb12-package.md).
+Zachowaj wszystkie pliki z folderu `DESR_DVR/`, w tym moduły i konfiguracje. Szczegóły: [instrukcja USB 1.2 po polsku](docs/usb12-package-pl.md).
 
 </details>
 
