@@ -117,16 +117,18 @@ Choose **one** method below. The automatic HDD installer and the manual HDD proc
 1. Back up the entire HDD at sector level and check that the backup can be restored. Do not format an existing `PP.DVRISO`.
 2. Extract the ZIP to a FAT32 drive, keeping the folder `PDIM_HDD_V12_INSTALLER/` directly under `mass0:/`.
 3. In **wLaunchELF-R3Z 4.80**, launch `mass0:/PDIM_HDD_V12_INSTALLER/PDIM_HDD_V12_INSTALLER.ELF`.
-<img width="4096" height="3072" alt="IMG_20261118_074946023_HDR" src="https://github.com/user-attachments/assets/6fa6a50a-0995-4988-870f-6396968e7ab1" />
 4. Confirm the displayed destination: **`PP.DVRISO`**. Use **SELECT** to inspect XMB/PPAA without writing.
+<img width="4096" height="3072" alt="IMG_20261118_232754515_HDR" src="https://github.com/user-attachments/assets/af9510f7-4bc1-4821-8c24-42d34074416f" />
+
 5. Press **X — Install Core**. Confirm with **X**, then **hold L1 + R1 and press X**. The installer creates a missing 256 MiB PFS partition or reuses an existing one **without reformatting**. Expect **79/79 Core files** verified.
-<img width="4096" height="3072" alt="IMG_20261118_074953267_HDR" src="https://github.com/user-attachments/assets/2c4ea4c7-74a8-412d-ae6c-d8bfa13a95fa" />
-<img width="4096" height="3072" alt="IMG_20261118_075025723_HDR" src="https://github.com/user-attachments/assets/2b60b50b-cd9a-4a94-8f2f-e41fa144bf00" />
-<img width="4096" height="3072" alt="IMG_20261118_075039939_HDR" src="https://github.com/user-attachments/assets/33704800-5f0e-4fe0-b805-f9dfd49d32dd" />
+<img width="4096" height="3072" alt="IMG_20261118_232811531_HDR" src="https://github.com/user-attachments/assets/b2e2176d-2199-4240-99bc-4e6d5d227415" />
+<img width="4096" height="3072" alt="IMG_20261118_232850922_HDR" src="https://github.com/user-attachments/assets/b100d05a-9b21-4598-9a33-ed4c111dae2d" />
+
 6. If the HDD does not already contain `V12_NET.CNF`, the installer copies a validated file from USB. Otherwise it displays **KEEP**.
 7. Press **TRIANGLE — Install XMB**, with the same two-step confirmation. It copies and CRC-verifies `EXECUTE.ELF`, `EXECUTE.CNF`, `res/info.sys`, `res/jkt_001.png`, `res/jkt_002.png` **before** registering PPAA. Expect **84/84 VERIFIED** and a valid header.
-<img width="4096" height="3072" alt="IMG_20261118_075053568_HDR" src="https://github.com/user-attachments/assets/11f62811-8fed-4cdc-91c8-d6260e436242" />
-<img width="4096" height="3072" alt="IMG_20261118_075127463_HDR" src="https://github.com/user-attachments/assets/c87e2be3-81db-49b0-980c-3543fb25418c" />
+<img width="4096" height="3072" alt="IMG_20261118_232906042_HDR" src="https://github.com/user-attachments/assets/69a360ca-d812-404e-8fa2-18b41d822d69" />
+<img width="4096" height="3072" alt="IMG_20261118_232943225_HDR" src="https://github.com/user-attachments/assets/c5b1094d-fdd8-4656-81c5-227f20fe93eb" />
+
 8. Fully power off, then boot Sony XMB → **Games** → **PSX DVR ISO MANAGER**. The Manager should show **1.2 HDD**.
 <img width="4096" height="3072" alt="IMG_20261118_075241288_HDR" src="https://github.com/user-attachments/assets/695d98d3-6582-4d6b-a944-168be6e41641" />
 <img width="4096" height="3072" alt="IMG_20261118_075338261_HDR" src="https://github.com/user-attachments/assets/254dbb50-5db9-4e3e-927b-83ea644a9951" />
@@ -208,9 +210,12 @@ Browse up to **128** game ISO entries (source-code limit), displaying **12 games
 | **SELECT** | Toggle `SYSTEM` / `ENGLISH` |
 | **START** | Exit PDIM |
 
-**Screenshots (real DESR-7000 XMB examples from the earlier version):**
+**Screenshots (real DESR-7000 XMB examples):**
 
 <img width="4096" height="3072" alt="PDIM application entry in the Sony PSX XMB" src="https://github.com/user-attachments/assets/3ed2f6ea-2c6d-4011-bd5c-3612ea6c18ce" />
+
+<img width="4096" height="3072" alt="IMG_20261118_231052225_HDR" src="https://github.com/user-attachments/assets/6a092292-7000-4da6-9a16-70da55ba7a7f" />
+
 
 <!-- TODO: Replace/extend these with your new PDIM 1.2 HDD, HTTPS progress and results photographs. -->
 
