@@ -2,7 +2,7 @@
 
 **Hardware status: PASS — Sony PSX DESR-7000 (November 2026).** Core installation, XMB/PPAA registration, repeat install, read-only diagnostics and network-config handling were confirmed on hardware.
 
-**Pre-release only. Do not create a public Release/tag 1.2 without explicit approval.**
+**Official Release 1.2:** [HDD AUTO Installer](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip). Functionally tested on Sony PSX DESR-7000.
 
 [Polski](README_PL.md) · [HDD 1.2 HTTPS overview](../hdd-v1.2/README.md) · [Manual installer alternative](../hdd-v1.2/INSTALL_MANUAL.md)
 
@@ -55,7 +55,7 @@ These are contributor-specific values, **not universal LAN defaults**. Edit the 
 
 ## Files on a FAT32 USB stick
 
-Extract the automatic CI test ZIP so the structure includes:
+Extract the official HDD AUTO ZIP so the structure includes:
 
 ~~~text
 mass0:/
@@ -109,6 +109,4 @@ On any unexpected partition identity, missing PFS, CRC/PPAA failure or interrupt
 - **R3:** read/write raw sector method derived from wLE-R3Z; hardware XMB registration PASS, but file-phase ordering was suboptimal.
 - **1.2 HDD:** five XMB files moved to TRIANGLE *before* PPAA, cleaner English UI and red warning, safe repeat-install path, existing HDD 1.0 upgrade, and optional `V12_NET.CNF` import.
 
-The **working R3 source and HDD 1.0 release** remain unchanged. The installer is developed on a separate branch.
-
-**No Release 1.2 or tag has been published or authorized.**
+The **working R3 source and HDD 1.0 release** remain historical reference points. The HDD 1.2 installer is included in [official Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2).

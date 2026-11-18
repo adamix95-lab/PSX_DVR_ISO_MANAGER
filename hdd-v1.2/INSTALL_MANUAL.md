@@ -1,10 +1,10 @@
-# PDIM 1.2 HDD — manual installation (pre-release)
+# PDIM 1.2 HDD — manual installation
 
-**No public Release 1.2 is authorized. Full recoverable sector-level HDD backup required before changes.**
+**Official package:** [HDD 1.2 Manual](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-MANUAL-OFFICIAL.zip). A full recoverable sector-level HDD backup is required before changes.
 
 Target: **hdd0:PP.DVRISO**. The old PP.DVRISO12 was only a test partition. ISO games stay in Sony's DVR filesystem; do not move or reformat them.
 
-1. Prepare the FAT32 USB stick by extracting the **MANUAL** test ZIP. Keep the `__Headers/PP.DVRISO/` folder exactly as supplied — wLE-R3Z recognizes `__Headers`, not an arbitrary renamed directory.
+1. Prepare the FAT32 USB stick by extracting the **HDD MANUAL OFFICIAL** ZIP. Keep the `__Headers/PP.DVRISO/` folder exactly as supplied — wLE-R3Z recognizes `__Headers`, not an arbitrary renamed directory.
 2. Launch wLE-R3Z 4.80. Inspect the HDD first. If `PP.DVRISO` already exists, **do not create, delete or format it**. If absent, deliberately create a 256 MiB PFS `PP.DVRISO` using the HDDManager after the full backup. Confirm the actual partition name before continuing.
 3. Before modifying an existing HDD 1.0 install, back up the original `DVR_ISO_MANAGER_HDD.ELF` and any files you will replace. Keep `BOOT.CNF`, `V12_NET.CNF`, `ART/` and cover indexes intact.
 4. Copy the **contents** of `PP.DVRISO-FILES/` to the root of the mounted PFS partition, preserving subdirectories. Do not copy `PP.DVRISO-FILES` as an extra directory. The 84-file manifest covers 79 runtime files and 5 XMB PFS files. Recheck key files by size or hash where available.

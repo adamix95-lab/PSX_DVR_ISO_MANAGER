@@ -2,7 +2,7 @@
 
 **Hardware status: PASS — Sony PSX DESR-7000 (November 2026).** Manager, HDD/XMB installation, game launch and HTTPS covers have been tested on real hardware.
 
-**Distribution status: PRE-RELEASE.** No public GitHub Release or tag 1.2 has been authorized. The CI ZIPs are test artifacts, not a public release.
+**Distribution status: OFFICIAL RELEASE 1.2.** Download the HDD AUTO, HDD MANUAL or USB packages from [Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2). Earlier CI packages remain historical test artifacts.
 
 [Polski](README_PL.md) · [HDD installer](../pdim-hdd-v1.2-installer/README.md) · [Manual installation](INSTALL_MANUAL.md)
 
@@ -72,13 +72,13 @@ These are functional hardware results, **not a claim of crash-proof APA transact
 
 [Successful HDD 1.2 integration CI](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/actions/runs/44253182195) builds the Manager, installer and both HDD test packages.
 
-## Installation and future packaging
+## Installation and available packages
 
 1. **HDD 1.2 AUTO:** installer ELF, 79 Core files, five XMB PFS files, raw PPAA header assets, supplied `V12_NET.CNF` and docs. [Installation details](../pdim-hdd-v1.2-installer/README.md).
 2. **HDD 1.2 MANUAL:** matching files for manual PFS copy and wLE-R3Z XMB registration. [Manual guide](INSTALL_MANUAL.md).
 3. **USB 1.2:** separate package planned for Release 1.2, based on hardware-tested USB R4.
 
-**All three are release plans only. Do not publish a GitHub Release or tag until explicitly authorized.**
+**The three official archives are available in [Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2).**
 
 ### Network configuration
 
@@ -100,6 +100,6 @@ They work on one local network but **are not universal router defaults**. Edit t
 - Preserve `BOOT*.CNF`, existing `V12_NET.CNF`, artwork and indexes. The installer also backs up a previous Manager ELF during an upgrade; interrupted writes may require manual recovery.
 - CPU-derived entropy and the TLS integration have been tested in this project but **are not an independently certified general-purpose secure TLS implementation**.
 - The software is tailored to the PSX DESR and is not guaranteed to work on arbitrary PS2 hardware or HDD layouts.
-- Third-party binary provenance and license notices should be reviewed before any public release.
+- Third-party licenses, notices and binary provenance remain applicable to this distributed release; attribution alone does not settle every possible distribution obligation.
 
-**Release 1.2 is not yet published.**
+**Release 1.2 is published:** [download packages](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2). [HTTPS technical details](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/docs/HTTPS_1.2_TECHNICAL_EN.md).

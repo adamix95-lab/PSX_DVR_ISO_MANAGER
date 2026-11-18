@@ -1,11 +1,13 @@
-# PSX DVR ISO MANAGER 1.2 HDD HTTPS — R1 hardware-test update
+# PSX DVR ISO MANAGER 1.2 HDD HTTPS — archived R1 development notes
+
+**Historical experimental branch / NOT the current installer.** The final PDIM 1.2 HDD was tested on a DESR-7000 and [released publicly as version 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2), using `PP.DVRISO`. See the [current HDD 1.2 guide](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/hdd-v1.2/README.md) and [HTTPS technical guide](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/docs/HTTPS_1.2_TECHNICAL_EN.md). The steps below describe an older, isolated test on `PP.DVRISO12` only.
 
 This branch, `pdim_v1.2_hdd`, builds on the physically tested **HDD
 1.0 game-launch / PFS / NETFIX / Neutrino** core, using the verified
 HDD12 R3 test-partition/XMB channel. The HTTPS cover worker is ported
 from the physically working USB 1.2 R4 and compiled for HDD12 PFS1.
 
-**Experimental / not yet physically tested on HDD HTTPS. Do not release.**
+**At the time this R1 prototype was written, its HTTPS stage had not yet been hardware tested. Do not use these historical R1 instructions as the official 1.2 installation method.**
 Requires an existing test `hdd0:PP.DVRISO12` from R3 and a restorable
 full-sector backup before modifying HDD files.
 
@@ -28,4 +30,4 @@ Check that `1.2 HDD` shows and games still launch. TRIANGLE indexes,
 then TRIANGLE on the scan result starts native HTTPS (up to 50).
 Check download, cover preview, rescan and game boot.
 
-The installer R3 will be adjusted only after HDD HTTPS is proven.
+The R3 installer was subsequently improved, and the final HDD 1.2 version passed hardware tests and has been released.

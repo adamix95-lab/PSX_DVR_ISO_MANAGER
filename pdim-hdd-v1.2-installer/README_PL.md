@@ -2,7 +2,7 @@
 
 **Stan: HARDWARE PASS — Sony PSX DESR-7000 (listopad 2026).** Potwierdzono na konsoli instalację Core/XMB, ponowne uruchomienie instalatora, inspekcję tylko do odczytu i obsługę konfiguracji sieci.
 
-**Status: przygotowania do wydania. Nie tworzyć publicznego Release/taga 1.2 bez wyraźnej zgody.**
+**Oficjalne wydanie 1.2:** [Instalator HDD AUTO](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip). Testy na DESR-7000 zakończone pomyślnie.
 
 [English](README.md) · [README HDD 1.2 / HTTPS](../hdd-v1.2/README_PL.md) · [Instalacja ręczna](../hdd-v1.2/INSTALL_MANUAL_PL.md)
 
@@ -55,7 +55,7 @@ To dane konkretnej sieci, **nie uniwersalne wartości każdego routera**. Jeśli
 
 ## Struktura pendrive'a FAT32
 
-Rozpakuj automatyczną paczkę testową, zachowując układ:
+Rozpakuj oficjalną paczkę HDD AUTO, zachowując układ:
 
 ~~~text
 mass0:/
@@ -111,4 +111,4 @@ Przy błędzie partycji/PFS/CRC/PPAA lub przerwanej operacji: **STOP, zapisz dok
 
 Sprawdzony instalator **R3 i wydanie HDD 1.0** pozostają nienaruszone. Nowy instalator rozwijamy na osobnej gałęzi.
 
-**Release 1.2 nie został jeszcze utworzony ani zatwierdzony do publikacji.**
+**Wydanie 1.2 jest dostępne:** [GitHub Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2).

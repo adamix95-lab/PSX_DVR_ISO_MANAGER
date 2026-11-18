@@ -1,6 +1,6 @@
-# PDIM 1.2 HDD — instalacja ręczna (przed wydaniem)
+# PDIM 1.2 HDD — instalacja ręczna
 
-**Wyłącznie do testów. Release 1.2 nie zostanie opublikowany bez zgody. Przed zapisem wymagamy pełnej, odtwarzalnej kopii sektorowej HDD.**
+**Oficjalna paczka:** [HDD 1.2 MANUAL](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-MANUAL-OFFICIAL.zip). Przed zapisem wymagana jest pełna, odtwarzalna kopia sektorowa HDD.
 
 Docelowo **hdd0:PP.DVRISO**. `PP.DVRISO12` była tylko partycją testową. Obrazy ISO pozostają na natywnej partycji DVR Sony.
 
