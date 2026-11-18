@@ -2,7 +2,7 @@
 
 # PSX DVR ISO MANAGER
 
-[Polski / Polish](ReadmePL.md)
+[Polski / Polish](README_PL.md)
 
 **Version 1.2 — HDD + USB, native HTTPS artwork downloading.**
 
@@ -15,8 +15,6 @@ PSX DVR ISO Manager (PDIM) browses and launches PlayStation 2 ISO games stored o
 | [HDD AUTO 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip) | Automatic HDD + XMB installation | Installer ELF, runtime, XMB files and network config |
 | [HDD MANUAL 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-MANUAL-OFFICIAL.zip) | Manual HDD install via wLE-R3Z | Runtime, XMB header assets and manual instructions |
 | [USB COMPLETE 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip) | USB execution | Complete USB runtime and HTTPS cover support |
-
-**Previous documentation:** [English README for 1.0](docs/archive/README_1.0.md) · [Polish README for 1.0](docs/archive/README_PL_1.0.md).
 
 **Technical background:** [HTTPS 1.2 — TXRyan, wolfSSL and NULD entropy](docs/HTTPS_1.2_TECHNICAL_EN.md).
 

@@ -2,7 +2,7 @@
 
 **Status:** Version 1.2 has been [published](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2) and functionally tested on a **Sony PSX DESR-7000**. This document describes the architecture and its remaining limitations. It does **not** claim certified randomness or formally proven TLS security.
 
-[Project README](../README.md) · [Polish README](../ReadmePL.md) · [HDD installation](../hdd-v1.2/README.md) · [USB installation](usb12-package.md)
+[Project README](../README.md) · [Polish README](../README_PL.md) · [HDD installation](../hdd-v1.2/README.md) · [USB installation](usb12-package.md)
 
 ## Why HTTPS on the Sony PSX?
 
