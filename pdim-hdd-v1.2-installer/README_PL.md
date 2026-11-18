@@ -26,7 +26,7 @@ Każdy plik zostaje odczytany ponownie i porównany z manifestem. Dopiero po PAS
 
 ## Aktualizacja z działającej wersji 1.0 HDD
 
-Instalator rozpoznaje istniejącą `PP.DVRISO`. Nie usuwa plików użytkownika ani katalogu `ART/` i nie podmienia `BOOT.CNF` ani `V12_NET.CNF`. Starego Managera zachowuje pod nazwą `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, nowy zapisuje przez plik tymczasowy `.PDIMNEW` i kontrolę CRC. Nie nadpisuje wcześniejszych backupów: kolejne aktualizacje mogą użyć nazw .PDIMBAK2 aż do .PDIMBAK9. W razie przerwania instalacji zatrzymaj działania i przeprowadź ręczną kontrolę; nie formatuj dysku.
+Instalator rozpoznaje istniejącą `PP.DVRISO`. Nie usuwa plików użytkownika ani katalogu `ART/` i nie podmienia `BOOT.CNF` ani istniejącego `V12_NET.CNF`. Starego Managera zachowuje pod nazwą `DVR_ISO_MANAGER_HDD.ELF.PDIMBAK`, nowy zapisuje przez plik tymczasowy `.PDIMNEW` i kontrolę CRC. Nie nadpisuje wcześniejszych backupów: kolejne aktualizacje mogą użyć nazw .PDIMBAK2 aż do .PDIMBAK9. W razie przerwania instalacji zatrzymaj działania i przeprowadź ręczną kontrolę; nie formatuj dysku.
 
 Wpis XMB z HDD 1.0 zostanie rozpoznany tylko przy zgodności ze znanym nagłówkiem. Instalator pozwoli wtedy zmienić wyłącznie tekst wersji na HDD 1.2. Nie ingeruje w obce nagłówki.
 
@@ -39,7 +39,7 @@ Wpis XMB z HDD 1.0 zostanie rozpoznany tylko przy zgodności ze znanym nagłówk
 5. Spróbuj uruchomić Managera przez wLE, sprawdź listę ISO, język SYSTEM i ENGLISH oraz start gry.
 6. TRIANGLE + potwierdzenia — 5 plików XMB i **84/84 CRC PASS**, później PPAA PASS.
 7. Pełny restart konsoli. Sprawdź ikonę i start z XMB (bez `Corrupted Data`).
-8. W `PP.DVRISO/V12_NET.CNF` umieść prawdziwą konfigurację sieci; plik `V12_NET.CNF.example` ma tylko przykładowe adresy.
+8. Nowa paczka zawiera faktyczny `V12_NET.CNF` na pendrive, obok `V12_NET.CNF.example`. Instalator podczas **X** skopiuje plik automatycznie wyłącznie przy jego braku na `PP.DVRISO`; istniejący zawsze **KEEP**. Po kopiowaniu oczekujemy **COPIED + CRC VERIFIED**. Osobny plik jest poza manifestem 79 plików Core. Dane przykładowe: `IP=192.168.0.240`, `NETMASK=255.255.255.0`, `GATEWAY=192.168.0.1`, `DNS=1.1.1.1`. To działające ustawienia autora, lecz nie dla każdego routera; możesz je edytować przed instalacją. Przy braku lub błędnym pliku na USB instalacja Core nie zostaje zablokowana, ale HTTPS wymaga wtedy ręcznej konfiguracji.
 9. Wykonaj próbę HTTPS na **wybranych, wcześniej zabezpieczonych** brakujących okładkach. Sprawdź pobranie, podgląd, limit 50, powrót do listy i ponowny skan bez duplikatów.
 10. Ponownie użyj instalatora X i TRIANGLE — zgodne pliki i nagłówek powinny zostać rozpoznane. `ART/`, CNF i gry muszą pozostać bez zmian.
 

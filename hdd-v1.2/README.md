@@ -33,4 +33,4 @@ Bring the hardware-confirmed HDD 1.0 (NETFIX, FIX95 Neutrino, SYSTEM/ENGLISH, PF
 
 ## Safety
 
-An existing `PP.DVRISO` may contain HDD 1.0. The installer never reformats, deletes or resizes it. It protects BOOT*.CNF, `V12_NET.CNF`, `ART/` and indexes. Only an existing Manager ELF may be replaced, with the old one retained as `.PDIMBAK`. Back up the complete HDD at sector level before any write; an interrupted rename or APA operation is not transactionally atomic. See the installer README for the exact test sequence.
+An existing `PP.DVRISO` may contain HDD 1.0. The installer never reformats, deletes or resizes it. It protects BOOT*.CNF, existing `V12_NET.CNF`, `ART/` and indexes. If network configuration is missing, the installer can copy the supplied valid `V12_NET.CNF` from USB once, with validation and CRC readback; it never overwrites existing settings. Only an existing Manager ELF may be replaced, with the old one retained as `.PDIMBAK`. Back up the complete HDD at sector level before any write; an interrupted rename or APA operation is not transactionally atomic. See the installer README for the exact test sequence.

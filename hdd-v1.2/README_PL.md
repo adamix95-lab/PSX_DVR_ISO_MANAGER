@@ -23,7 +23,7 @@ Połączenie sprawdzonego sprzętowo PDIM 1.0 HDD (NETFIX, FIX95, XMB, wybór SY
 - TRIANGLE: pięć plików XMB, ich CRC/readback, synchronizacja PFS; **zapis PPAA na samym końcu**.
 - Rozpoznawanie istniejącego nagłówka HDD 1.0 i bezpieczna aktualizacja wyłącznie jego identyfikatora wersji; obce nagłówki odrzucamy.
 - Poprawiony układ tekstu, czerwone ostrzeżenie, potwierdzenia X oraz L1+R1+X.
-- Istniejącej `PP.DVRISO` nie formatujemy, nie usuwamy i nie zmieniamy jej rozmiaru. Konfiguracja, ISO i ART pozostają zachowane.
+- Istniejącej `PP.DVRISO` nie formatujemy, nie usuwamy i nie zmieniamy jej rozmiaru. Konfiguracja, ISO i ART pozostają zachowane. W razie braku `V12_NET.CNF` instalator automatycznie kopiuje poprawny plik z USB (po walidacji i CRC), a gdy plik już istnieje, pozostawia go bez zmian (`KEEP`).
 
 ## Plan Release 1.2 (tylko plan)
 
