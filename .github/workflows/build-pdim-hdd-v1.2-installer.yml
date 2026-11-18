@@ -1,7 +1,7 @@
 name: PDIM 1.2 HDD PP.DVRISO install integration TEST (no release)
 on:
   push:
-    branches: [feature/pdim-v1.2-hdd-installer]
+    branches: [feature/pdim-v1.2-hdd-installer, fix/pdim-v1.2-hdd-net-config]
     paths:
       - 'dvr-iso-manager/**'
       - 'hdd-v1.2/**'
@@ -233,6 +233,14 @@ jobs:
           assert x.index('pdim12_install_xmb_assets(state)') < x.index('rc=load_plan(state,&status);\n    if(rc<0)return rc;\n    if(status==0 || status==2)')
           assert 'status==0 || status==2' in x
           assert 'fileXioRename(dst,bak)' in a
+          assert 'install_optional_net_config(state)' in a
+          assert 'v12_parse_net_config' in a
+          assert 'net_name_exists("V12_NET.CNF")' in a
+          assert 'net_config_status=PDIM12_NET_KEPT' in a
+          assert 'net_config_status=PDIM12_NET_COPIED' in a
+          assert '"V12_NET.CNF"' in Path('pdim-hdd-v1.2-installer/src/policy.c').read_text()  # immutable manifest must reject user config
+          assert 'net_config_status' in Path('pdim-hdd-v1.2-installer/include/pdim12_installer.h').read_text()
+          print('PASS: optional V12_NET.CNF COPY IF MISSING, existing USER CONFIG always KEEP')
           assert 'PDIM12_PARTITION "PP.DVRISO"' in Path('pdim-hdd-v1.2-installer/include/pdim12_policy.h').read_text()
           print('PASS installer: production partition, safe old Manager backup, XMB files first, PPAA last')
           PY
@@ -279,6 +287,7 @@ jobs:
             --installer input/installer/PDIM_HDD_V12_INSTALLER.ELF \
             --ca input/runtime/N4E.CA \
             --config pdim-hdd-v1.2-installer/V12_NET.CNF.example \
+            --net-config pdim-hdd-v1.2-installer/V12_NET.CNF \
             --readme pdim-hdd-v1.2-installer/README.md \
             --readme-pl pdim-hdd-v1.2-installer/README_PL.md \
             --manual-readme hdd-v1.2/INSTALL_MANUAL.md \
@@ -298,9 +307,16 @@ jobs:
               assert 'PDIM_HDD_V12_INSTALLER/XMB/icon.sys' in n
               m=z.read('PDIM_HDD_V12_INSTALLER/MANIFEST.TXT').decode().splitlines()
               assert len(m)==84
+              assert not any(line.startswith('V12_NET.CNF|') for line in m)
+              supplied=Path('pdim-hdd-v1.2-installer/V12_NET.CNF').read_bytes()
+              assert z.read('PDIM_HDD_V12_INSTALLER/V12_NET.CNF')==supplied
+              assert b'IP=192.168.0.240' in supplied
+              assert b'GATEWAY=192.168.0.1' in supplied
           with zipfile.ZipFile(b) as z:
               assert 'PP.DVRISO-FILES/DVR_ISO_MANAGER_HDD.ELF' in z.namelist()
               assert '__Headers/PP.DVRISO/icon.sys' in z.namelist()
+              assert z.read('V12_NET.CNF')==supplied
+              assert 'PP.DVRISO-FILES/V12_NET.CNF' not in z.namelist()
           print('PASS: two HDD 1.2 installer test artifacts. RELEASE NOT CREATED.')
           PY
       - uses: actions/upload-artifact@v4
