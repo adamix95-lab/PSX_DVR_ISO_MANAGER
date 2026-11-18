@@ -322,7 +322,9 @@ int main(void) {
             pause_result(pdim12_inspect_xmb(&st),&st);
         }else if(pressed&PAD_CROSS) {
             if(!confirm_danger())continue;
-            screen();scr_printf("WRITING ONLY PP.DVRISO\n");
+            screen();
+            scr_setXY(2,9);
+            scr_printf("WRITING ONLY PP.DVRISO\n");
             if(!st.exists) {
                 rc=pdim12_prepare_partition(&st);
                 if(rc<0){pause_result(rc,&st);continue;}
