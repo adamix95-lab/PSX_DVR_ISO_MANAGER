@@ -117,11 +117,20 @@ Choose **one** method below. The automatic HDD installer and the manual HDD proc
 1. Back up the entire HDD at sector level and check that the backup can be restored. Do not format an existing `PP.DVRISO`.
 2. Extract the ZIP to a FAT32 drive, keeping the folder `PDIM_HDD_V12_INSTALLER/` directly under `mass0:/`.
 3. In **wLaunchELF-R3Z 4.80**, launch `mass0:/PDIM_HDD_V12_INSTALLER/PDIM_HDD_V12_INSTALLER.ELF`.
+<img width="4096" height="3072" alt="IMG_20261118_074946023_HDR" src="https://github.com/user-attachments/assets/6fa6a50a-0995-4988-870f-6396968e7ab1" />
 4. Confirm the displayed destination: **`PP.DVRISO`**. Use **SELECT** to inspect XMB/PPAA without writing.
 5. Press **X — Install Core**. Confirm with **X**, then **hold L1 + R1 and press X**. The installer creates a missing 256 MiB PFS partition or reuses an existing one **without reformatting**. Expect **79/79 Core files** verified.
+<img width="4096" height="3072" alt="IMG_20261118_074953267_HDR" src="https://github.com/user-attachments/assets/2c4ea4c7-74a8-412d-ae6c-d8bfa13a95fa" />
+<img width="4096" height="3072" alt="IMG_20261118_075025723_HDR" src="https://github.com/user-attachments/assets/2b60b50b-cd9a-4a94-8f2f-e41fa144bf00" />
+<img width="4096" height="3072" alt="IMG_20261118_075039939_HDR" src="https://github.com/user-attachments/assets/33704800-5f0e-4fe0-b805-f9dfd49d32dd" />
 6. If the HDD does not already contain `V12_NET.CNF`, the installer copies a validated file from USB. Otherwise it displays **KEEP**.
 7. Press **TRIANGLE — Install XMB**, with the same two-step confirmation. It copies and CRC-verifies `EXECUTE.ELF`, `EXECUTE.CNF`, `res/info.sys`, `res/jkt_001.png`, `res/jkt_002.png` **before** registering PPAA. Expect **84/84 VERIFIED** and a valid header.
+<img width="4096" height="3072" alt="IMG_20261118_075053568_HDR" src="https://github.com/user-attachments/assets/11f62811-8fed-4cdc-91c8-d6260e436242" />
+<img width="4096" height="3072" alt="IMG_20261118_075127463_HDR" src="https://github.com/user-attachments/assets/c87e2be3-81db-49b0-980c-3543fb25418c" />
 8. Fully power off, then boot Sony XMB → **Games** → **PSX DVR ISO MANAGER**. The Manager should show **1.2 HDD**.
+<img width="4096" height="3072" alt="IMG_20261118_075241288_HDR" src="https://github.com/user-attachments/assets/695d98d3-6582-4d6b-a944-168be6e41641" />
+<img width="4096" height="3072" alt="IMG_20261118_075338261_HDR" src="https://github.com/user-attachments/assets/254dbb50-5db9-4e3e-927b-83ea644a9951" />
+
 
 **Repeat installation was hardware-tested:** Core reported `COPIED 0 / KEPT 79 / VERIFIED 79`; the XMB stage reported five `KEEP`, `VERIFIED 84`, and `ALREADY VERIFIED`.
 
@@ -139,6 +148,7 @@ Choose **one** method below. The automatic HDD installer and the manual HDD proc
 3. Open **wLaunchELF-R3Z 4.80 → MISC → HDDManager**. If `PP.DVRISO` already exists, **reuse it**. If missing, deliberately create a new **256 MiB PFS partition** named exactly `PP.DVRISO`.
 4. Copy the **contents** of `PP.DVRISO-FILES/` to the root of that partition, preserving all paths. Do not copy the outer `PP.DVRISO-FILES` directory onto the HDD. Back up any files before replacing them.
 5. Copy the top-level `V12_NET.CNF` only if there is no existing `PP.DVRISO/V12_NET.CNF`; edit the IP values if necessary.
+<img width="4096" height="3072" alt="IMG_20261118_075319851_HDR" src="https://github.com/user-attachments/assets/4d164d7d-90d3-486a-b20e-0caa3acf356a" />
 6. Optionally test `DVR_ISO_MANAGER_HDD.ELF` from the HDD/PFS file browser first.
 7. For a **new XMB entry**, with `__Headers/PP.DVRISO/` in the USB root, select **HDDManager → PP.DVRISO → R1 → Inject Header → This partition only**. All five XMB files must already be present on PFS.
 8. Restart and launch the Manager from **XMB → Games**.
@@ -202,8 +212,6 @@ Browse up to **128** game ISO entries (source-code limit), displaying **12 games
 
 <img width="4096" height="3072" alt="PDIM application entry in the Sony PSX XMB" src="https://github.com/user-attachments/assets/3ed2f6ea-2c6d-4011-bd5c-3612ea6c18ce" />
 
-<img width="4096" height="2710" alt="PSX DVR ISO Manager game list" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
-
 <!-- TODO: Replace/extend these with your new PDIM 1.2 HDD, HTTPS progress and results photographs. -->
 
 <details>
@@ -225,6 +233,8 @@ The companion **[PSX DVR ART Server v0.8](pc-art-server/README.md)** runs on Win
 
    **IP** is the PSX's unused static address. **SERVER_IP** is the PC's address, **not** the PSX address. Find your network values with `ipconfig /all` on Windows.
 4. In the PDIM game list, press **TRIANGLE** to scan and select **X — PC APP (LAN HTTP)** when download options appear.
+<img width="4096" height="2710" alt="PSX DVR ISO Manager game list" src="https://github.com/user-attachments/assets/4e095df8-3283-43eb-ac6a-e98bd06d5f8f" />
+
 5. Missing covers are retrieved by the Windows server, checked, saved to the application ART directory, and indexed. Previously present artwork is preserved.
 
 Do not forward the local HTTP service's port to the internet. The PC server's cache location is `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`.
@@ -245,9 +255,17 @@ Do not forward the local HTTP service's port to the internet. The PC server's ca
    - **USB:** `mass0:/DESR_DVR/V12_NET.CNF` (create from the included `.example`).
 2. Ensure the certificate bundle `N4E.CA` is present alongside the Manager.
 3. Start PDIM, press **TRIANGLE** to scan ISO games and select **TRIANGLE — SERVER (HTTPS, UP TO 50)**.
+<img width="4096" height="3072" alt="IMG_20261118_075348419_HDR" src="https://github.com/user-attachments/assets/393df748-2ac8-44fb-bcc7-04bb245cd819" />
+
+
 4. The worker obtains **cryptographically signed time** using **[TXRyan Roughtime](https://time.txryan.com/)**, then **[wolfSSL](https://www.wolfssl.com/)** verifies the HTTPS server's certificate, hostname and time validity.
 5. Missing images are downloaded from the pinned OPL Manager source (with CosmicScale/PSBBN fallback), checked and normalized, and written without overwriting existing covers.
+<img width="4096" height="3072" alt="IMG_20261118_075435773_HDR" src="https://github.com/user-attachments/assets/877033ea-138f-4762-b5a9-87b0e8a2878a" />
 6. At completion, read **DOWNLOADED / SKIPPED**, press **X or O**, and continue in the game list. Rescan if your library contains more than 50 missing covers.
+<img width="4096" height="3072" alt="IMG_20261118_075543062_HDR" src="https://github.com/user-attachments/assets/59a2a2f4-17e0-4c61-abf3-caaa4cc0e06f" />
+<img width="4096" height="3072" alt="IMG_20261118_075600051_HDR" src="https://github.com/user-attachments/assets/21a337b4-c230-487b-997a-1bc7a29ec83b" />
+
+
 
 **Why network time?** The PSX DESR's real-time clock may be flat or inaccurate; TXRyan supplies signed time data used for certificate-validity checks. TXRyan is a public **time service**, not a bundled binary.
 
