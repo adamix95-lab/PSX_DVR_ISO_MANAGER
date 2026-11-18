@@ -331,7 +331,11 @@ int main(void) {
             pause_result(rc,&st);
         }else if(pressed&PAD_TRIANGLE){
             if(!confirm_danger())continue;
-            screen();scr_printf("XMB FILES THEN PPAA: PP.DVRISO\n");
+            screen();
+            /* screen() leaves the cursor after the INSTALL TARGET header.
+             * Explicitly move below it before printing the XMB progress. */
+            scr_setXY(2,9);
+            scr_printf("XMB FILES THEN PPAA: PP.DVRISO\n");
             rc=pdim12_install_xmb(&st);
             pause_result(rc,&st);
         }
