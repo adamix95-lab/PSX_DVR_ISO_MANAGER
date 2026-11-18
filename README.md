@@ -115,6 +115,12 @@ The `PP.DVRISO` partition is reserved for the application, its configuration and
 
 Choose **one** method below. The automatic HDD installer and the manual HDD procedure target `PP.DVRISO`; the USB method does not install an HDD application partition.
 
+> **IMPORTANT WARNING:** Any operation that touches the **APA area** may carry a risk of damaging the system structure of the Sony PSX hard drive. Proceed with extreme caution.
+>
+> This installer has been personally tested multiple times, including scenarios where the existing `PP.DVRISO` partition was deliberately removed beforehand — both from the **XMB** side and through **HDD Manager** in **wLaunchELF-R3Z**. In all of those tests, the installer recreated and installed `PP.DVRISO` correctly.
+>
+> Even so, this does **not** guarantee safety in every possible case. **You are strongly advised to have a full, restorable sector-level HDD backup before making changes.**
+
 <details>
 <summary><strong>Install PDIM 1.2 with the HDD/XMB Installer</strong></summary>
 
