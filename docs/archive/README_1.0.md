@@ -3,7 +3,7 @@
 
 # PSX DVR ISO MANAGER
 
-[Polski / Polish](README_PL.md)
+[Polski / Polish](README_PL_1.0.md)
 
 **PSX DVR ISO Manager** lets you browse and launch PlayStation 2 ISO games from the DVR partition of a Sony PSX DESR console.
 
@@ -14,7 +14,7 @@
 | **1.0 HDD** | **PASS:** 44/44 covers downloaded (40 + 4), two games launched including forced English; Manager launches from XMB and displays `1.0 HDD` | Existing APA/PFS partition `hdd0:PP.DVRISO`; `DVR_ISO_MANAGER_HDD.ELF` |
 | **1.0 USB** | **PASS — tested on a Sony PSX DESR-7000 (November 7, 2026):** USB 1.0 runs on hardware. Earlier USB v0.8 tests separately confirmed 40/40 covers and REZ in English | FAT32 USB at `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
-**Documentation:** [English release notes](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Polski](docs/RELEASE_NOTES_v1.0.0_PL.md) · [HDD technical explanation](docs/HDD_1_0_TECHNICAL_EN.md) · [Polski](docs/HDD_1_0_TECHNICAL_PL.md) · [Release checklist](release-tools/v1_0/RELEASE_CHECKLIST.md).
+**Documentation:** [English release notes](../RELEASE_NOTES_v1.0.0_EN.md) · [Polski](../RELEASE_NOTES_v1.0.0_PL.md) · [HDD technical explanation](../HDD_1_0_TECHNICAL_EN.md) · [Polski](../HDD_1_0_TECHNICAL_PL.md) · [Release checklist](../../release-tools/v1_0/RELEASE_CHECKLIST.md).
 
 **Safety:** The Manager never formats the drive or modifies game ISO files. The optional **APA header injection used for XMB integration** changes partition metadata; first make a backup that you can restore.
 
@@ -589,7 +589,7 @@ The Manager will display the ISO game list from the DVR partition.
 
 ## Downloading covers from a Windows PC
 
-The companion **PSX DVR ART Server v0.8** is a Windows `.exe` application (Python sources are also available at [pc-art-server](pc-art-server/README.md)). The PC retrieves cover images using HTTPS, while the PSX communicates with it over local HTTP.
+The companion **PSX DVR ART Server v0.8** is a Windows `.exe` application (Python sources are also available at [pc-art-server](../../pc-art-server/README.md)). The PC retrieves cover images using HTTPS, while the PSX communicates with it over local HTTP.
 
 1. Download **`PSX-DVR-ART-Server-v0.8.exe`** from the [v0.8 release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) and run it on your Windows PC.
 2. Enter **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port**. Select **Start HTTP Server**. The example addresses below are from a tested DESR-7000 network; use your own settings.
@@ -620,7 +620,7 @@ The companion **PSX DVR ART Server v0.8** is a Windows `.exe` application (Pytho
 
 **Artwork sources:** Primary — **OPL Manager Archive (Archive.org)**, generally providing vertical PS2 cover art. Fallback — **CosmicScale PSBBN Art Database (GitHub)**, which may provide square images. The fallback is queried only when the primary returns no valid PNG. Square artwork is fitted into a 140×200 layout with black padding, without distortion. If no valid cover exists, the PC reports it as missing.
 
-PC cache: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. See the [Windows ART Server documentation](pc-art-server/README.md) for further details and tests.
+PC cache: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. See the [Windows ART Server documentation](../../pc-art-server/README.md) for further details and tests.
 
 **Security:** Use the server on a trusted private LAN without forwarding its port. Back up a working Manager ELF, `BOOT.CNF` and `ART/` before updates. New artwork is validated before saving; existing artwork is not overwritten.
 
@@ -635,7 +635,7 @@ The following screenshots show the current v1.0 interface and the XMB entry:
 
 ## Building
 
-This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN and PNG tests, and the PyInstaller configuration for the Windows executable. The former standalone Probe has been retired. See [dvr-iso-manager](dvr-iso-manager/README.md) and [pc-art-server](pc-art-server/README.md) for more information.
+This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN and PNG tests, and the PyInstaller configuration for the Windows executable. The former standalone Probe has been retired. See [dvr-iso-manager](../../dvr-iso-manager/README.md) and [pc-art-server](../../pc-art-server/README.md) for more information.
 
 ## Credits
 

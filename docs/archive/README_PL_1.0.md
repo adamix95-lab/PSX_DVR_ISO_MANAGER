@@ -3,7 +3,7 @@
 
 # PSX DVR ISO MANAGER
 
-[English](README.md)
+[English](README_1.0.md)
 
 **PSX DVR ISO Manager** służy do przeglądania i uruchamiania gier PS2 w formacie ISO z partycji DVR konsoli Sony PSX DESR. 
 
@@ -14,7 +14,7 @@
 | **1.0 HDD** | **PASS:** 44/44 okładki (40 + 4), dwie uruchomione gry, w tym wymuszony angielski; działa start Managera z XMB i nagłówek `1.0 HDD` | Istniejąca partycja APA/PFS `hdd0:PP.DVRISO`, `DVR_ISO_MANAGER_HDD.ELF` |
 | **1.0 USB** | **PASS — przetestowany na Sony PSX DESR-7000 (7.11.2026):** USB 1.0 działa na konsoli. Wcześniejsze testy USB v0.8 oddzielnie potwierdziły 40/40 okładek i REZ po angielsku | Pendrive FAT32 `mass0:/DESR_DVR/DVR_ISO_MANAGER.ELF` |
 
-**Dokumentacja:** [Opis wydania PL](docs/RELEASE_NOTES_v1.0.0_PL.md) · [English](docs/RELEASE_NOTES_v1.0.0_EN.md) · [Techniczny opis HDD PL](docs/HDD_1_0_TECHNICAL_PL.md) · [English](docs/HDD_1_0_TECHNICAL_EN.md) · [Lista czynności do publikacji](release-tools/v1_0/RELEASE_CHECKLIST.md).
+**Dokumentacja:** [Opis wydania PL](../RELEASE_NOTES_v1.0.0_PL.md) · [English](../RELEASE_NOTES_v1.0.0_EN.md) · [Techniczny opis HDD PL](../HDD_1_0_TECHNICAL_PL.md) · [English](../HDD_1_0_TECHNICAL_EN.md) · [Lista czynności do publikacji](../../release-tools/v1_0/RELEASE_CHECKLIST.md).
 
 **Bezpieczeństwo:** Manager nie formatuje dysku ani nie zapisuje obrazów ISO. Opcjonalna iniekcja **nagłówka APA dla XMB** modyfikuje metadane partycji — wcześniej wykonaj kopię zapasową, którą w razie potrzeby można przywrócić.
 
@@ -611,7 +611,7 @@ Po uruchomieniu aplikacja wyświetli listę obrazów ISO zapisanych na partycji 
 
 ## Pobieranie okładek z komputera Windows
 
-Do zestawu dołączono **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](pc-art-server/README.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
+Do zestawu dołączono **PSX DVR ART Server v0.8** — prostą aplikację Windows w formacie `.exe` (dostępny jest też [kod źródłowy Python](../../pc-art-server/README.md)). Komputer pobiera okładki przez internetowy HTTPS, a konsola łączy się tylko z lokalnym HTTP.
 
 1. Pobierz plik **`PSX-DVR-ART-Server-v0.8.exe`** z artefaktu kompilacji Windows w [wydaniu v0.8](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/v0.8) i uruchom na komputerze.
 2. W aplikacji Windows wpisz **PC IPv4 Address** (adres komputera), **Console IPv4 Address** (adres konsoli) oraz **HTTP Port**. Kliknij **Start HTTP Server**. Poniższe wartości pochodzą z przetestowanej sieci DESR-7000; w swojej sieci wpisz własne adresy.
@@ -642,7 +642,7 @@ Do zestawu dołączono **PSX DVR ART Server v0.8** — prostą aplikację Window
 
 **Cover Sources (źródła okładek):** **Primary — OPL Manager Archive (Archive.org)** to główne źródło, zawierające zwykle pionowe okładki pudełkowe PS2. **Fallback — CosmicScale PSBBN Art Database (GitHub)** to oddzielna baza grafik gier, często kwadratowych; aplikacja sięga po nią **dopiero gdy OPL nie zwróci poprawnej okładki PNG**. Kwadratowy obraz dopasowywany jest do 140×200 pikseli z czarnymi marginesami, bez rozciągania. Jeżeli nie ma grafiki w żadnym źródle, serwer zgłasza brak okładki.
 
-Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i testy serwera opisano w [instrukcji aplikacji Windows](pc-art-server/README.md).
+Cache komputera: `%LOCALAPPDATA%\PSX_DVR_ART_SERVER\cache`. Sposób działania i testy serwera opisano w [instrukcji aplikacji Windows](../../pc-art-server/README.md).
 
 **Bezpieczeństwo:** uruchamiaj serwer tylko w zaufanej sieci prywatnej, bez przekierowania portów na routerze. Przed aktualizacją zachowaj kopię działającego ELF, `BOOT.CNF` i folderu `ART`. Nowe okładki są sprawdzane przed zapisem, istniejące PNG/JPG nie są nadpisywane.
 
@@ -657,7 +657,7 @@ Poniżej znajdują się te same zdjęcia i zrzuty ekranu aktualnego interfejsu M
 
 ## Kompilacja
 
-Repozytorium zawiera projekt CMake/PS2SDK, testy skanera, sieci i PNG zintegrowane z Managerem oraz konfigurację tworzenia Windows EXE przez PyInstaller. Dawny samodzielny Probe został wycofany. Szczegóły: [dvr-iso-manager](dvr-iso-manager/README.md) i [pc-art-server](pc-art-server/README.md).
+Repozytorium zawiera projekt CMake/PS2SDK, testy skanera, sieci i PNG zintegrowane z Managerem oraz konfigurację tworzenia Windows EXE przez PyInstaller. Dawny samodzielny Probe został wycofany. Szczegóły: [dvr-iso-manager](../../dvr-iso-manager/README.md) i [pc-art-server](../../pc-art-server/README.md).
 
 ## Podziękowania
 
