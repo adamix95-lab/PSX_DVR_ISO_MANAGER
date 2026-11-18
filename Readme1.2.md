@@ -2,17 +2,23 @@
 
 # PSX DVR ISO MANAGER
 
+[Polski / Polish](ReadmePL.md)
+
 **Version 1.2 — HDD + USB, native HTTPS artwork downloading.**
 
 PSX DVR ISO Manager (PDIM) browses and launches PlayStation 2 ISO games stored on the DVR filesystem of a **Sony PSX DESR** console. HDD is the primary version; USB is also supported. **HDD 1.2 and its XMB installer passed functional tests on a real DESR-7000.** The USB HTTPS branch also passed its cover-download/game tests.
 
-**Version 1.2 packages:** [GitHub Releases](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases) — once the 1.2 release is published, download one of the three packages listed below. This file is a **preview**; the existing `README.md` remains unchanged until approved.
+**Official Release 1.2:** [Download and release notes](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2). Select one of the three packages below.
 
 | Package | Best for | What it contains |
 | --- | --- | --- |
-| `PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip` | Automatic HDD + XMB installation | Installer ELF, runtime, XMB files and network config |
-| `PSX-DVR-ISO-Manager-v1.2.0-HDD-MANUAL-OFFICIAL.zip` | Manual HDD install via wLE-R3Z | Runtime, XMB header assets and manual instructions |
-| `PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip` | USB execution | Complete USB runtime and HTTPS cover support |
+| [HDD AUTO 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip) | Automatic HDD + XMB installation | Installer ELF, runtime, XMB files and network config |
+| [HDD MANUAL 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-MANUAL-OFFICIAL.zip) | Manual HDD install via wLE-R3Z | Runtime, XMB header assets and manual instructions |
+| [USB COMPLETE 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip) | USB execution | Complete USB runtime and HTTPS cover support |
+
+**Previous documentation:** [English README for 1.0](docs/archive/README_1.0.md) · [Polish README for 1.0](docs/archive/README_PL_1.0.md).
+
+**Technical background:** [HTTPS 1.2 — TXRyan, wolfSSL and NULD entropy](docs/HTTPS_1.2_TECHNICAL_EN.md).
 
 **Safety:** Before modifying the HDD, make a **full, verifiably restorable sector-level backup**. Never format an existing Sony system/DVR partition. Game ISOs remain in the Sony DVR area; PDIM does not overwrite them.
 
@@ -217,14 +223,12 @@ Browse up to **128** game ISO entries (source-code limit), displaying **12 games
 <img width="4096" height="3072" alt="IMG_20261118_231052225_HDR" src="https://github.com/user-attachments/assets/6a092292-7000-4da6-9a16-70da55ba7a7f" />
 
 
-<!-- TODO: Replace/extend these with your new PDIM 1.2 HDD, HTTPS progress and results photographs. -->
-
 <details>
 <summary><strong>Download covers using Windows PC ART Server (LAN HTTP)</strong></summary>
 
 The companion **[PSX DVR ART Server v0.8](pc-art-server/README.md)** runs on Windows. It downloads cover images over HTTPS on the PC, then serves them to PDIM over local **HTTP**.
 
-1. Download `PSX-DVR-ART-Server-v0.8.exe` from the [existing release](releases/tag/1.0) and run it on Windows.
+1. Download `PSX-DVR-ART-Server-v0.8.exe` from the [existing release](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2) and run it on Windows.
 2. Enter the **PC IPv4 Address**, **Console IPv4 Address** and **HTTP Port**; choose **Start HTTP Server**.
 3. Configure `NET_PROBE.CNF` on the console's storage (`PP.DVRISO` for HDD, `DESR_DVR/` for USB). Example:
 
@@ -272,11 +276,11 @@ Do not forward the local HTTP service's port to the internet. The PC server's ca
 
 
 
+For the protocol, pinned key, entropy limitations and implementation details, see the [HTTPS 1.2 technical guide](docs/HTTPS_1.2_TECHNICAL_EN.md).
+
 **Why network time?** The PSX DESR's real-time clock may be flat or inaccurate; TXRyan supplies signed time data used for certificate-validity checks. TXRyan is a public **time service**, not a bundled binary.
 
 **Entropy origin:** our experimental method samples the PS2's **COP0 Count** register, following the approach used by **[Daniel's NULD (formerly ORBIT)](https://github.com/danielnuld/nuld)**, then uses Monocypher/BLAKE2b to derive request-specific values. Derivation creates distinct values but does **not prove or increase the original entropy**. It is not a certified secure RNG.
-
-<!-- TODO: Add your native HTTPS download progress, result screen, and new 1.2 HDD gameplay screenshots here. -->
 
 </details>
 
