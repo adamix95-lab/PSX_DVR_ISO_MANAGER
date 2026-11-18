@@ -267,7 +267,7 @@ Do not forward the local HTTP service's port to the internet. The PC server's ca
 <img width="4096" height="3072" alt="IMG_20261118_075348419_HDR" src="https://github.com/user-attachments/assets/393df748-2ac8-44fb-bcc7-04bb245cd819" />
 
 
-4. The worker obtains **cryptographically signed time** using **[TXRyan Roughtime](https://time.txryan.com/)**, then **[wolfSSL](https://www.wolfssl.com/)** verifies the HTTPS server's certificate, hostname and time validity.
+4. The worker obtains **cryptographically signed time** using **[TXRyan Roughtime](https://github.com/tannerryan/roughtime)**, then **[wolfSSL](https://www.wolfssl.com/)** verifies the HTTPS server's certificate, hostname and time validity.
 5. Missing images are downloaded from the pinned OPL Manager source (with CosmicScale/PSBBN fallback), checked and normalized, and written without overwriting existing covers.
 <img width="4096" height="3072" alt="IMG_20261118_075435773_HDR" src="https://github.com/user-attachments/assets/877033ea-138f-4762-b5a9-87b0e8a2878a" />
 6. At completion, read **DOWNLOADED / SKIPPED**, press **X or O**, and continue in the game list. Rescan if your library contains more than 50 missing covers.
@@ -295,7 +295,7 @@ This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN an
 - [OPL Manager art database](https://github.com/Luden02/psx-ps2-opl-art-database) — primary artwork source; [CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database) — fallback source.
 - [Daniel's NULD / ORBIT](https://github.com/danielnuld/nuld) — experimental **COP0 Count CPU timing/entropy technique**, adapted for PDIM 1.2; [NULD's original `net.c`](https://github.com/danielnuld/nuld/blob/2951dc9d22541aa6a2d6c2fcf7705187e97eae92/net.c).
 - [wolfSSL](https://github.com/wolfSSL/wolfssl) — TLS/HTTPS client, pinned CA/hostname/certificate validity checks.
-- [TXRyan / time.txryan.com](https://time.txryan.com/) — public **signed Roughtime** source for HTTPS certificate date verification.
+- [TXRyan / time.txryan.com](https://github.com/tannerryan/roughtime) — public **signed Roughtime** source for HTTPS certificate date verification.
 - [Monocypher](https://monocypher.org/) — cryptographic primitives (Ed25519/BLAKE2b) used in signed-time and entropy derivation.
 - [PS2SDK](https://github.com/ps2dev/ps2sdk), [wLaunchELF-R3Z](https://github.com/NathanNeurotic/wLaunchELF_R3Z) and [RepairBox PSX XMB installer](https://github.com/DanielFergisz/RepairBox-PSX-XMB-Apps-Installer) — development tools, PFS/APA and installation references.
 
