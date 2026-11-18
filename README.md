@@ -2,9 +2,9 @@
 
 [Polski / Polish](README_PL.md)
 
-## Version 1.2 USB — HTTPS cover downloading on Sony PSX (development)
+## Version 1.2 USB — HTTPS cover downloading on Sony PSX (development history)
 
-> **Complete USB package prepared, not yet published as a GitHub Release.** HTTPS and the standalone `DESR_DVR/V12_NET.CNF` plus `DESR_DVR/N4E.CA` layout were confirmed on a real DESR-7000, as was the `ENGLISH` option. The **unsuffixed primary `DVR_ISO_MANAGER.ELF`** is a subsequent packaging change that still requires a final hardware launch/return test. The current work lives on [`pdim_usb_v1.2`](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/pdim_usb_v1.2), not in a public Release. The stable **1.0 HDD/USB** release and XMB installer are unchanged. The released **1.0 HDD/USB** Manager and XMB installer are unchanged. This section records the design, problems, solutions, contributors and remaining limitations so it can serve as the foundation for the eventual 1.2 release.
+> **Version 1.2 is publicly released.** [Official Release 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2) · [Current project README](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/README.md) · [HTTPS 1.2 technical explanation](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/docs/HTTPS_1.2_TECHNICAL_EN.md). This page preserves the original USB development history and experimental test results. Those tests verified native HTTPS, ENGLISH mode and the USB CA/network paths; the exact final unsuffixed `DVR_ISO_MANAGER.ELF` package was not separately confirmed on real hardware during that earlier series.
 
 **Goal:** allow the Sony PSX DESR-7000 to download missing PlayStation 2 game covers **by itself, directly over HTTPS**, without starting the Windows ART Server. The previous PC-based LAN HTTP downloader remains available as an alternative.
 
@@ -48,7 +48,7 @@ For the experimental USB build:
 - Game ISOs are read from Sony's `dvr_pfs0:/ISO` **without modification**.
 - **USB 1.2 is independent of any HDD application partition for network setup:** HTTPS reads `mass0:/DESR_DVR/V12_NET.CNF` and the CA bundle from `mass0:/DESR_DVR/N4E.CA`. The legacy `NET_PROBE.CNF` remains solely for the PC ART Server.
 - Newly verified artwork goes into `mass0:/DESR_DVR/ART/`.
-- **Planned HDD 1.2:** store the same `N4E.CA` inside the existing `hdd0:PP.DVRISO` application partition (accessible as `pfs1:/N4E.CA` once mounted). This is a design target, **not an implemented HDD 1.2 build**.
+- **HDD 1.2 is now available:** the official HDD version uses `hdd0:PP.DVRISO`, including `pfs1:/N4E.CA`, `V12_NET.CNF` and `ART/`. See the [final HDD instructions](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/hdd-v1.2/README.md).
 - Each run processes at most **50** missing covers (`BATCH50`); previously saved artwork is detected and not downloaded again.
 
 ### Obstacles and what we fixed
@@ -98,7 +98,7 @@ See [`n6g_cpu_entropy.c`](dvr-iso-manager/src/net/n6g_cpu_entropy.c) and [`n6g_c
 
 **Important distinction:** this solved the *practical integration issue* of feeding wolfSSL without a PC-generated file. It does **not** establish the quality of the entropy. CPU-counter samples can be predictable, and BLAKE2b cannot create missing randomness. The implementation is **experimental**, appropriate here only for retrieving *public cover images*; it must not be advertised as a certified RNG or reused for passwords, financial information or other sensitive TLS traffic without a trustworthy entropy source.
 
-NULD's repository is [GPL-3.0 licensed](https://github.com/danielnuld/nuld/blob/main/LICENSE). The technical method and its source must be acknowledged. Before a public binary release, we should additionally **review whether any adapted/copied material triggers GPL license obligations**; credit alone is not a license compliance review.
+NULD's repository is [GPL-3.0 licensed](https://github.com/danielnuld/nuld/blob/main/LICENSE). The technical method and its source must be acknowledged. For public redistribution, the GPL terms of any adapted/copied material must be respected; credit alone is not a license compliance review.
 
 ### HTTPS trust, cover integrity and software architecture
 
@@ -125,7 +125,7 @@ Sources and test history: [R4 test details](docs/usb12-cpu-entropy.md), [older t
 
 ### Using the experimental build
 
-Back up your working main ELF, settings and artwork first. In the v1.2 USB complete package the primary executable is `DESR_DVR/DVR_ISO_MANAGER.ELF` without a suffix. For clean installation or careful upgrades use the [complete package instructions](docs/usb12-package.md). Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **new, not-yet-hardware-verified CA layout**. Copy your **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/` into `DESR_DVR/` on USB **once** (or fill in `DESR_DVR/V12_NET.CNF.example`, save it as `V12_NET.CNF`). Keep the originals and ART and the 1.0 HDD/XMB installation unchanged. The downloader will no longer mount PP.DVRISO12 for network configuration. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
+Back up your working main ELF, settings and artwork first. In the v1.2 USB complete package the primary executable is `DESR_DVR/DVR_ISO_MANAGER.ELF` without a suffix. For clean installation or careful upgrades use the [complete package instructions](docs/usb12-package.md). Place the current CA bundle **inside** `DESR_DVR/N4E.CA` (alongside the ELF), not at the USB root; this is a **USB CA layout verified in development**. Copy your **existing working** `V12_NET.CNF` from `hdd0:PP.DVRISO12/` into `DESR_DVR/` on USB **once** (or fill in `DESR_DVR/V12_NET.CNF.example`, save it as `V12_NET.CNF`). Keep the originals and ART and the 1.0 HDD/XMB installation unchanged. The downloader will no longer mount PP.DVRISO12 for network configuration. Launch from **wLaunchELF-R3Z 4.80**. Press **Triangle** to scan missing covers, then **Triangle** to download via HTTPS (or **X** for the existing PC ART Server). The Manager summary stays visible until **X/O** is pressed.
 
 The experimental CPU entropy build does **not** require `N6G50.ENT`. Do not assume that an unfinished or interrupted series has been saved completely: after restarting, rescan and check the remaining missing covers. Never perform live write/partition experiments on the Sony system partitions without a recoverable sector-level HDD backup.
 
@@ -148,7 +148,7 @@ The following projects **made this work possible**. Their contributions are not 
 
 **Additional thanks:** **Berion** for technical assistance; all upstream PS2/PSX developers and contributors; and the hardware testers who reported actual DESR-7000 behavior, including failed stages as well as successful downloads.
 
-**Pre-release licensing checklist:** retain all applicable third-party notices in the release ZIP; review the GPL-3.0 provenance of any NULD-derived source and the GPL/commercial licensing of the linked wolfSSL binary; keep Monocypher, PS2SDK, Neutrino and CA-bundle notices as required; and verify artwork redistribution rights separately from the executable's open-source licenses. **Attribution is necessary, but is not by itself a substitute for license compliance.** Do not declare public 1.2 release-ready until those items and outstanding hardware-return reliability are reviewed.
+**Distribution and license checklist:** retain all applicable third-party notices in the release ZIP; review the GPL-3.0 provenance of any NULD-derived source and the GPL/commercial licensing of the linked wolfSSL binary; keep Monocypher, PS2SDK, Neutrino and CA-bundle notices as required; and verify artwork redistribution rights separately from the executable's open-source licenses. **Attribution is necessary, but is not by itself a substitute for license compliance.** Version 1.2 has been released; outstanding licensing and hardware limitations must still be documented and respected.
 
 ---
 
@@ -779,4 +779,4 @@ This repository includes the CMake/PS2SDK build, integrated ISO scanning, LAN an
 - **[CosmicScale PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database)** — fallback artwork; **[OPL Manager](https://oplmanager.com/) / [Luden02 archive](https://github.com/Luden02/psx-ps2-opl-art-database)** — primary artwork.
 - **[Mozilla/curl CA bundle](https://curl.se/docs/caextract.html)** and the PS2 homebrew/toolchain community.
 
-See the [technical 1.2 credits](#credits-upstream-work-and-licensing-for-12) for precisely what was borrowed, attribution and pre-release license obligations.
+See the [technical 1.2 credits](#credits-upstream-work-and-licensing-for-12) for precisely what was borrowed, attribution and applicable license obligations.

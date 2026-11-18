@@ -1,6 +1,6 @@
 # PSX DVR ISO MANAGER v1.2 USB — kompletna paczka
 
-**Paczka przedpremierowa na gałęzi `pdim_usb_v1.2`. To NIE jest publiczny GitHub Release.**
+**Oficjalne wydanie 1.2:** [Pobierz USB COMPLETE OFFICIAL](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip). Paczka została skompilowana z gałęzi `pdim_usb_v1.2`.
 
 Funkcje HTTPS, pobierania okładek, starej metody LAN oraz uruchamiania
 gier z trybem ENGLISH zostały sprawdzone na fizycznym Sony PSX DESR-7000.
@@ -67,9 +67,10 @@ OSDMenu i Neutrino, jak wcześniej.
 - Metoda entropii z licznika COP0 Count została **bezpośrednio
   zapożyczona z projektu NULD Daniela** i zaadaptowana do DESR.
   Jest eksperymentalna, bez gwarancji kryptograficznej jakości.
-- Przed przyszłym publicznym wydaniem wymagana jest weryfikacja licencji
-  (przede wszystkim NULD/GPL-3.0 i wolfSSL) oraz końcowy test
-  nowej nazwy ELF-a na konsoli.
+- Wydanie 1.2 zostało opublikowane. Obowiązują licencje NULD/GPL-3.0,
+  wolfSSL i pozostałych komponentów; podziękowania nie zastępują ich warunków.
+  Dokładny końcowy ELF o nazwie `DVR_ISO_MANAGER.ELF` nie był osobno
+  potwierdzony podczas wcześniejszych testów wariantu USB.
 - Zachowaj poprzedni, działający ELF jako kopię awaryjną.
 
 W pliku `SHA256SUMS` są sumy kontrolne wszystkich plików;
@@ -78,4 +79,4 @@ W pliku `SHA256SUMS` są sumy kontrolne wszystkich plików;
 **Podziękowania:** Daniel/NULD, Tanner Ryan/TXRyan, wolfSSL,
 Monocypher, PS2SDK, ps2max32/Neutrino, pcm720, OPL Manager/Luden02,
 CosmicScale, Mozilla/curl i Berion. Pełne opisy źródeł oraz
-licencji są w [technicznym README projektu](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/pdim_usb_v1.2/README.md).
+licencji są w [opisie technicznym HTTPS 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/docs/HTTPS_1.2_TECHNICAL_EN.md).

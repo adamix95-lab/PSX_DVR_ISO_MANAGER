@@ -1,6 +1,6 @@
 # PSX DVR ISO MANAGER v1.2 USB — Complete package
 
-**Unreleased package, built on the `pdim_usb_v1.2` branch. This ZIP is NOT a GitHub Release.**
+**Official Release 1.2:** [download USB COMPLETE OFFICIAL](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-USB-COMPLETE-OFFICIAL.zip). This package was built from the `pdim_usb_v1.2` branch.
 
 The Sony PSX DESR-7000 hardware tests confirmed direct HTTPS artwork downloads,
 return to the game list, the English-language Neutrino option (Metal Slug),
@@ -82,9 +82,7 @@ The game-launching function continues to use OSDMenu and Neutrino.
   Hashing or repeated sampling alone cannot create additional entropy.
 - The earlier sporadic green-screen problem at ELF return is not
   definitively root-caused. Keep a backup of a known-good ELF.
-- This is a **prepared complete build**, not a public release.
-  Third-party license compliance (particularly NULD and wolfSSL)
-  needs a final review before publication.
+- This package is **part of official Release 1.2**. The original source notices and licensing obligations for wolfSSL, NULD-derived techniques and other components continue to apply. Attribution does not replace legal compliance.
 
 ## Provenance, credits and verification
 
@@ -98,5 +96,5 @@ server), **wolfSSL**, **Monocypher**, **PS2SDK**, **Neutrino/ps2max32**
 and **pcm720** (DESR support), **OPL Manager/Luden02** and
 **CosmicScale** (cover archives), **Mozilla/curl** (CA bundle), and
 **Berion** (technical assistance).
-See the project's [full technical README](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/pdim_usb_v1.2/README.md)
+See the project's [HTTPS 1.2 technical guide](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/blob/main/docs/HTTPS_1.2_TECHNICAL_EN.md)
 for detailed attribution, security limitations, and license notes.
