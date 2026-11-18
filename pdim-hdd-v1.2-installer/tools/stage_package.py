@@ -8,6 +8,7 @@ HTTPS 1.2. XMB signed KELF is reused unchanged. No HDD writes by this tool.
 from __future__ import annotations
 import argparse
 import hashlib
+import ipaddress
 from pathlib import Path
 import re
 import zipfile
@@ -165,9 +166,39 @@ def write_zip(path: Path, files: dict[str, bytes]) -> None:
             if z.read(name) != data:
                 raise ValueError("Readback mismatch: " + name)
 
+def verified_user_net_config(file: Path) -> bytes:
+    """User-provided, editable LAN values (not the documentation-only .example)."""
+    raw = file.read_bytes()
+    if not 0 < len(raw) <= 512:
+        raise ValueError("V12_NET.CNF is empty or oversized")
+    try:
+        lines = raw.decode("ascii").splitlines()
+    except UnicodeDecodeError as exc:
+        raise ValueError("V12_NET.CNF must be ASCII") from exc
+    parsed = {}
+    for line in lines:
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ValueError("Bad V12_NET.CNF line: " + repr(line))
+        key, value = line.split("=", 1)
+        if key not in ("IP", "NETMASK", "GATEWAY", "DNS") or key in parsed:
+            raise ValueError("Unknown or duplicate V12_NET.CNF key: " + key)
+        parsed[key] = str(ipaddress.IPv4Address(value))
+    if set(parsed) != {"IP", "NETMASK", "GATEWAY", "DNS"}:
+        raise ValueError("Expected IP, NETMASK, GATEWAY and DNS")
+    ipaddress.IPv4Network("0.0.0.0/" + parsed["NETMASK"])
+    network = ipaddress.IPv4Network(
+        parsed["IP"] + "/" + parsed["NETMASK"], strict=False)
+    if ipaddress.IPv4Address(parsed["GATEWAY"]) not in network:
+        raise ValueError("Configured gateway is outside the specified subnet")
+    return raw
+
 def build(args: argparse.Namespace) -> None:
     out, header = payload(args.hdd, args.xmb, args.manager, args.ca)
+    net_cnf = verified_user_net_config(args.net_config)
     manifest = create_manifest(out)
+    assert b'V12_NET.CNF|' not in manifest  # config is mutable, not part of 79 Core
     installer = args.installer.read_bytes()
     check_elf(installer, "PDIM 1.2 HDD installer", True)
     if b"PDIM_HDD_V12_INSTALLER" not in installer:
@@ -176,6 +207,7 @@ def build(args: argparse.Namespace) -> None:
         SOURCE + "/PDIM_HDD_V12_INSTALLER.ELF": installer,
         SOURCE + "/MANIFEST.TXT": manifest,
         SOURCE + "/V12_NET.CNF.example": args.config.read_bytes(),
+        SOURCE + "/V12_NET.CNF": net_cnf,
         SOURCE + "/README_PL.txt": args.readme_pl.read_bytes(),
         SOURCE + "/README.txt": args.readme.read_bytes(),
         SOURCE + "/SOURCE_COMMIT": (args.commit + "\n").encode()
@@ -206,12 +238,14 @@ def build(args: argparse.Namespace) -> None:
         "INSTALL_MANUAL.md": args.manual_readme.read_bytes(),
         "INSTALL_MANUAL_PL.md": args.manual_readme_pl.read_bytes(),
         "V12_NET.CNF.example": args.config.read_bytes(),
+        "V12_NET.CNF": net_cnf,
         "MANIFEST.TXT": manifest,
         "SOURCE_COMMIT": (args.commit + "\n").encode()
     })
     write_zip(args.auto_output, automatic)
     write_zip(args.manual_output, manual)
     print("PASS: production PP.DVRISO, 79 core + 5 XMB, 84 CRC32 manifest entries")
+    print("PASS: optional user V12_NET.CNF bundled separately; existing HDD config preserved")
     print("Automatic (TEST ONLY):", args.auto_output, sha(args.auto_output.read_bytes()))
     print("Manual (TEST ONLY):", args.manual_output, sha(args.manual_output.read_bytes()))
 
@@ -219,7 +253,8 @@ def main() -> None:
     p = argparse.ArgumentParser()
     for name in ("hdd", "xmb", "manager", "installer", "ca",
                  "config", "readme", "readme_pl", "auto_output",
-                 "manual_output", "manual_readme", "manual_readme_pl"):
+                 "manual_output", "manual_readme", "manual_readme_pl",
+                 "net_config"):
         p.add_argument("--" + name.replace("_", "-"), type=Path, required=True)
     p.add_argument("--commit", required=True)
     build(p.parse_args())
