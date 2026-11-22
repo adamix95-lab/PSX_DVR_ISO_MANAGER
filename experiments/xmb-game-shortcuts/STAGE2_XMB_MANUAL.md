@@ -4,7 +4,7 @@
 
 ## Critical APA warning
 
-**wLaunchELF-R3Z Inject Header WRITES RAW APA ATTRIBUTE SECTORS** and can damage the console HDD. Only proceed after a full, verified, restorable sector-level backup. Never change Sony system/DVR partitions or PP.DVRISO. Never select Inject All. The test ZIP contains NO automatic APA writer.
+**wLaunchELF-R3Z Inject Header WRITES RAW APA ATTRIBUTE SECTORS** and can damage the console HDD. Only proceed after a full, verified, restorable sector-level backup. Never change Sony system/DVR partitions or PP.DVRISO. Do not use XMB uninstall/delete on this experimental shortcut. Never select Inject All. The test ZIP contains NO automatic APA writer.
 
 ## Stage 2 steps
 

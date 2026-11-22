@@ -4,7 +4,7 @@
 
 ## BARDZO WAŻNE: ZAPIS APA MOŻE USZKODZIĆ SYSTEM DVR
 
-**Opcja Inject Header w wLE-R3Z zapisuje surowe sektory nagłówka APA!** Wymagana jest pełna, zweryfikowana i odtwarzalna kopia sektorowa całego HDD. Nie zmieniaj partycji Sony ani PP.DVRISO. Nie wybieraj Inject All. Paczka nie ma automatycznego zapisu APA.
+**Opcja Inject Header w wLE-R3Z zapisuje surowe sektory nagłówka APA!** Wymagana jest pełna, zweryfikowana i odtwarzalna kopia sektorowa całego HDD. Nie zmieniaj partycji Sony ani PP.DVRISO. Nie używaj opcji usuwania tej testowej gry z XMB. Nie wybieraj Inject All. Paczka nie ma automatycznego zapisu APA.
 
 ## Test STAGE 2
 
