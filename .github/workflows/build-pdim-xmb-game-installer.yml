@@ -2,7 +2,7 @@ name: PDIM Standalone XMB Game Installer (development)
 on:
   workflow_dispatch:
   push:
-    branches: [feature/xmb-game-shortcuts]
+    branches: [feature/xmb-game-installer-v0.2]
     paths:
       - 'pdim-xmb-game-installer/**'
       - '.github/workflows/build-pdim-xmb-game-installer.yml'
@@ -62,6 +62,29 @@ jobs:
           assert 'PNG_COLOR_TYPE_PALETTE' in p
           print("PASS: standalone installer isolates PP.DVRISO (RO), validates per-game marker, PPAA last")
           PY
+      - name: Host-test game shortcut names, FIX95 limits, and live ISO guard
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c11 -O2 -Wall -Wextra -Werror \
+            -Ipdim-xmb-game-installer/include -Idvr-iso-manager/include \
+            pdim-xmb-game-installer/src/sg_policy.c \
+            dvr-iso-manager/src/cover_index.c dvr-iso-manager/src/iso_utils.c \
+            pdim-xmb-game-installer/tests/test_sg_policy.c \
+            -o /tmp/sg-policy-test
+          /tmp/sg-policy-test
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('pdim-xmb-game-installer/src/engine.c').read_text()
+          xmb = Path('pdim-xmb-game-installer/src/xmb.c').read_text()
+          iso = Path('pdim-xmb-game-installer/src/iso_id.c').read_text()
+          assert 'sg_check_iso_id(g)' in src
+          assert 'sg_check_iso_id(g)' in xmb
+          assert 'desr_iso_root(' in iso and 'desr_cnf_game_id(' in iso
+          assert 'conflict[i]=conflict[j]=1' in src
+          assert 'sg_iso_filename_allowed(g->filename)' in src
+          print('PASS: live ISO Game ID recheck before APA writes, duplicate-name protection')
+          PY
       - name: Compile PS2 EE/IOP static installer
         shell: sh
         run: |
@@ -82,7 +105,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PDIM-XMB-GAME-INSTALLER-ELF-DEV-UNTETSTED
+          name: PDIM-XMB-GAME-INSTALLER-v0.2-READONLY-FIRST
           path: out/PDIM_XMB_GAME_INSTALLER.ELF
           if-no-files-found: error
           retention-days: 21
