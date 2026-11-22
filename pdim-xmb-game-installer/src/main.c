@@ -45,7 +45,6 @@ static volatile int pad_init_done;
 static volatile int pad_init_stage;
 static volatile int pad_init_rc;
 extern void *_gp;
-static uint32_t buttons_prev;
 static const char hdd_args[]="-o\0" "4\0" "-n\0" "20";
 static const char pfs_args[]="-m\0" "4\0" "-o\0" "10\0" "-n\0" "40";
 typedef char hdd_args_size[(sizeof(hdd_args)==11)?1:-1];
@@ -234,7 +233,7 @@ static void clear_keys(void) {
   }
 }
 static void pause_result(int rc) {
-  scr_printf("\nSTATUS: %s (%d)\n",rc==0?"PASS":"FAIL",rc);
+  scr_printf("\nSTATUS: %s (%d)\n",rc>=0?"PASS":"FAIL",rc);
   if(rc<0) scr_printf("REASON: %s\n",sg_error(rc));
   scr_printf("X / O: RETURN TO GAME LIST\n");
   clear_keys();
