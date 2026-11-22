@@ -75,14 +75,17 @@ int sg_check_iso_id(const sg_game *g) {
     }
   }
   char actual[DESR_COVER_ID_CAP]={0};
-  if(found_cnf&&cnf_bytes>0&&cnf_bytes<=sizeof(system_cnf) &&
-     cnf_lba<=INT_MAX/(int)S &&
-     read_bytes(fd,cnf_lba*S,system_cnf,(int)cnf_bytes)==0 &&
-     desr_cnf_game_id(system_cnf,cnf_bytes,actual)){
-       result=strcmp(actual,g->game_id)?-2:1;
-  }else if(!ambiguous && found_fallback) {
-    result=strcmp(fallback,g->game_id)?-2:1;
+  if(found_cnf && cnf_bytes>0 && cnf_bytes<=sizeof(system_cnf)) {
+    if(cnf_lba>INT_MAX/(int)S ||
+       read_bytes(fd,cnf_lba*S,system_cnf,(int)cnf_bytes)<0)
+      goto done; /* An I/O failure is not permission to guess. */
+    if(desr_cnf_game_id(system_cnf,cnf_bytes,actual)) {
+      result=strcmp(actual,g->game_id)?-2:1;
+      goto done;
+    }
   }
+  if(!ambiguous && found_fallback)
+    result=strcmp(fallback,g->game_id)?-2:1;
 done:
   fileXioClose(fd);
   return result;

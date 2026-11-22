@@ -118,6 +118,10 @@ static int encode_png8(const char *path,int width,int height,
   if(sg_crc_file(path,result_size,result_crc)<0||*result_size<100)return -1;
   return 0;
 }
+/* Decode and check all source rows before an APA partition is created. */
+int sg_png_validate_source(const char *source) {
+  return source ? decode_art(source) : -1;
+}
 int sg_png_make_pair(const char *source,uint32_t *crc1,uint32_t *len1,uint32_t *crc2,uint32_t *len2) {
   if(!source||!crc1||!len1||!crc2||!len2)return -1;
   if(decode_art(source)<0)return -1;

@@ -303,7 +303,16 @@ int sg_preflight(const sg_game *g,int lang) {
   if(iso!=1)return iso==-2?-63:-62;
   int rc=sg_probe(g,NULL,NULL);
   if(rc<0)return -50;
-  if(rc==0)return 0; /* untouched new name, ready for a guarded create */
+  if(rc==0) {
+    /* Preflight must reject a damaged/unexpected source cover BEFORE APA
+     * creation. The normalized PDIM HTTPS output is exactly 140x200. */
+    if(mount_source()<0)return -11;
+    char art[96];
+    snprintf(art,sizeof(art),"pfs1:/ART/%s_COV.png",g->game_id);
+    int png=sg_png_validate_source(art);
+    unmount_source();
+    return png<0?-64:0;
+  }
   uint32_t start=0,sectors=0;
   rc=sg_validate_payload(g,lang,&start,&sectors);
   return rc==0?1:rc;
@@ -322,6 +331,11 @@ int sg_install_core(const sg_game *g,int lang) {
   uint32_t source_size=0,source_crc=0;
   if(sg_crc_file(src,&source_size,&source_crc)<0||source_size<64||source_size>2000000u) {
     unmount_source();return -30;
+  }
+  /* Only create the new APA partition if the image fully decodes.
+   * Otherwise damaged artwork would leave an unnecessary partial PFS. */
+  if(sg_png_validate_source(src)<0) {
+    unmount_source();return -64;
   }
   int fd=fileXioOpen("pfs1:/neutrino_hdd.elf",FIO_O_RDONLY,0);
   if(fd<0){unmount_source();return -30;}fileXioClose(fd);
@@ -395,6 +409,7 @@ const char *sg_error(int rc) {
     case -61:return "SHORTCUT.ID OR PAYLOAD CRC MISMATCH";
     case -62:return "ISO GAME ID UNREADABLE - NO DISK WRITE";
     case -63:return "ISO ID DIFFERS FROM COVERS.IDX - ABORT";
+    case -64:return "ART PNG INVALID - NO PARTITION CREATED";
     case -70:return "XMB HEADER IS FOREIGN / INVALID";
     case -71:return "XMB RAW SECTOR WRITE/VERIFY ERROR";
     case -72:return "XMB TARGET IDENTITY CHANGED";
