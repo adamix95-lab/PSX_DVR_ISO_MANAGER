@@ -7,7 +7,7 @@ OBJECTS := $(patsubst %.c,$(BUILD)/%.o,$(SOURCES))
 COMMON_IRX := iomanX fileXio ps2atad ps2fs bdm bdmfs_fatfs usbd usbmass_bd sio2man padman dvrdrv dvrfile
 IRX_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix _irx.o,$(COMMON_IRX))) $(BUILD)/dev9_ns_irx.o $(BUILD)/ps2hdd_psx1_irx.o
 EE_OBJS := $(OBJECTS) $(BUILD)/ppaa_plan.o $(BUILD)/iso_utils.o $(BUILD)/cover_index.o $(BUILD)/execute_kelf.o $(BUILD)/osd_launcher.o $(IRX_OBJECTS)
-EE_LIBS := -lfileXio -lpad -lcdvd -ldebug -lpatches -lpng -lz -lm
+EE_LIBS := -lfileXio -lpad -lcdvd -ldebug -lpatches $(PS2SDK)/ports/lib/libpng.a $(PS2SDK)/ports/lib/libz.a -lm
 EE_INCS := -Iinclude -I../pdim-hdd-v1.2-installer/include -I../dvr-iso-manager/include -I$(PS2SDK)/ports/include
 EE_CFLAGS := -std=gnu11 -Os -Wall -Wextra -fdata-sections -ffunction-sections
 EE_LDFLAGS := -Wl,--gc-sections
