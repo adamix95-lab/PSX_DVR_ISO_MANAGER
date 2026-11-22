@@ -1,6 +1,8 @@
-/* Read the live DVR ISO boot ID without trusting COVERS.IDX.
- * Algorithm derived from PDIM 1.2 cover_runtime's proven ISO9660 scanner.
- * No file writes or mount changes; reused exactly in SQUARE, X and TRIANGLE.
+/* Best-effort live DVR ISO Game ID probe. Actual Game ID detection can be
+ * inconclusive for legitimate images: fall back to the already validated
+ * COVERS.IDX mapping when the ISO is readable but its ID is not recognized.
+ * A real I/O failure or a proven ID mismatch still blocks APA writes.
+ * No file writes or mount changes; used by SQUARE, X and TRIANGLE.
  */
 #include "sg_installer.h"
 #include "sg_policy.h"
@@ -40,13 +42,16 @@ int sg_check_iso_id(const sg_game *g) {
   if(desr_make_iso_path(g->filename,path,sizeof(path))<0)return -1;
   int fd=fileXioOpen(path,FIO_O_RDONLY,0);
   if(fd<0)return -1;
-  int result=-1;
+  int result=SG_ISO_ID_INDEX_ONLY;
   uint32_t root_lba=0,root_bytes=0,cnf_lba=0,cnf_bytes=0;
   char fallback[DESR_COVER_ID_CAP]={0};
   int found_pvd=0,found_cnf=0,found_fallback=0,ambiguous=0;
 
   for(uint32_t i=16;i<=31;i++){
-    if(sector_read(fd,i)<0)goto done;
+    if(sector_read(fd,i)<0) {
+      result=SG_ISO_ID_IO_ERROR;
+      goto done;
+    }
     if(memcmp(block+1,"CD001",5))continue;
     if(block[0]==255)break;
     if(block[0]==1){
@@ -58,7 +63,10 @@ int sg_check_iso_id(const sg_game *g) {
   int sectors=(int)((root_bytes+S-1u)/S);
   for(int i=0;i<sectors;i++){
     uint32_t got_lba=root_lba+(uint32_t)i;
-    if(got_lba<root_lba||sector_read(fd,got_lba)<0)goto done;
+    if(got_lba<root_lba || sector_read(fd,got_lba)<0) {
+      result=SG_ISO_ID_IO_ERROR;
+      goto done;
+    }
     uint32_t cur_lba=0,cur_size=0;
     char name[DESR_COVER_ID_CAP]={0};
     int sy=desr_iso_system_record(block,S,&cur_lba,&cur_size);
@@ -77,8 +85,10 @@ int sg_check_iso_id(const sg_game *g) {
   char actual[DESR_COVER_ID_CAP]={0};
   if(found_cnf && cnf_bytes>0 && cnf_bytes<=sizeof(system_cnf)) {
     if(cnf_lba>INT_MAX/(int)S ||
-       read_bytes(fd,cnf_lba*S,system_cnf,(int)cnf_bytes)<0)
-      goto done; /* An I/O failure is not permission to guess. */
+       read_bytes(fd,cnf_lba*S,system_cnf,(int)cnf_bytes)<0) {
+      result=SG_ISO_ID_IO_ERROR;
+      goto done; /* A real I/O failure is not permission to guess. */
+    }
     if(desr_cnf_game_id(system_cnf,cnf_bytes,actual)) {
       result=strcmp(actual,g->game_id)?-2:1;
       goto done;
@@ -87,6 +97,6 @@ int sg_check_iso_id(const sg_game *g) {
   if(!ambiguous && found_fallback)
     result=strcmp(fallback,g->game_id)?-2:1;
 done:
-  fileXioClose(fd);
+  if(fileXioClose(fd)<0)return SG_ISO_ID_IO_ERROR;
   return result;
 }

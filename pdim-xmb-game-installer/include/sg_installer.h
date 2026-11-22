@@ -20,7 +20,17 @@ typedef struct {
 extern sg_game sg_games[SG_COUNT];
 extern int sg_count;
 int sg_scan(void);
-/* 1: live ISO matches COVERS.IDX, -1 unreadable, -2 different */
+/* Best-effort live ISO Game ID probe.
+   1: verified against COVERS.IDX
+   0: ISO accessible but Game ID not detectable (trusted-index fallback)
+  -1: I/O failure / unreadable image (block writes)
+  -2: detected DIFFERENT Game ID (block writes) */
+enum {
+  SG_ISO_ID_MISMATCH = -2,
+  SG_ISO_ID_IO_ERROR = -1,
+  SG_ISO_ID_INDEX_ONLY = 0,
+  SG_ISO_ID_MATCH = 1
+};
 int sg_check_iso_id(const sg_game *g);
 int sg_png_validate_source(const char *source);
 int sg_preflight(const sg_game *g,int lang);

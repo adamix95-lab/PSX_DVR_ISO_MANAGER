@@ -300,7 +300,9 @@ int sg_preflight(const sg_game *g,int lang) {
   /* COVERS.IDX may be stale after someone replaces an ISO with a file
    * of the same name. Compare the LIVE ISO boot ID read-only. */
   int iso=sg_check_iso_id(g);
-  if(iso!=1)return iso==-2?-63:-62;
+  if(iso<0)return iso==SG_ISO_ID_MISMATCH?-63:-62;
+  /* 0 is not a mismatched ID. Some known working games like Killzone have
+   * no recognizable Game ID in ISO9660. Use the exact COVERS.IDX mapping. */
   int rc=sg_probe(g,NULL,NULL);
   if(rc<0)return -50;
   if(rc==0) {
@@ -311,11 +313,12 @@ int sg_preflight(const sg_game *g,int lang) {
     snprintf(art,sizeof(art),"pfs1:/ART/%s_COV.png",g->game_id);
     int png=sg_png_validate_source(art);
     unmount_source();
-    return png<0?-64:0;
+    return png<0?-64:(iso==SG_ISO_ID_INDEX_ONLY?3:0);
   }
   uint32_t start=0,sectors=0;
   rc=sg_validate_payload(g,lang,&start,&sectors);
-  return rc==0?1:rc;
+  if(rc<0)return rc;
+  return iso==SG_ISO_ID_INDEX_ONLY?2:1;
 }
 int sg_png_make_pair(const char *src,uint32_t *crc1,uint32_t *len1,uint32_t *crc2,uint32_t *len2);
 int sg_install_core(const sg_game *g,int lang) {
@@ -323,7 +326,7 @@ int sg_install_core(const sg_game *g,int lang) {
      !sg_iso_filename_allowed(g->filename))return -30;
   /* Both checks happen before the first APA write. */
   int iso=sg_check_iso_id(g);
-  if(iso!=1)return iso==-2?-63:-62;
+  if(iso<0)return iso==SG_ISO_ID_MISMATCH?-63:-62;
   if(sg_probe(g,NULL,NULL)!=0)return -50; /* existing partition never modified by CORE */
   /* Require an intact source ART PNG and Neutrino before any APA change. */
   if(mount_source()<0)return -11;
@@ -407,7 +410,7 @@ const char *sg_error(int rc) {
     case -55:return "COPY/VERIFY FAILED - LEAVE PARTITION FOR INSPECTION";
     case -56:return "PNG8 CONVERSION FAILED - PARTIAL PARTITION";
     case -61:return "SHORTCUT.ID OR PAYLOAD CRC MISMATCH";
-    case -62:return "ISO GAME ID UNREADABLE - NO DISK WRITE";
+    case -62:return "ISO READ ERROR - CANNOT VERIFY LIVE GAME";
     case -63:return "ISO ID DIFFERS FROM COVERS.IDX - ABORT";
     case -64:return "ART PNG INVALID - NO PARTITION CREATED";
     case -70:return "XMB HEADER IS FOREIGN / INVALID";

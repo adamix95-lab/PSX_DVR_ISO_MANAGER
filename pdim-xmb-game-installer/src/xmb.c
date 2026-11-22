@@ -34,9 +34,10 @@ static int write_sector(uint32_t lba,const unsigned char data[B]) {
 int sg_register_xmb(const sg_game *g,int lang) {
   if(!g || !g->partition[0] || !g->game_id[0] || !g->cover_available)return -30;
   /* The original artwork index might refer to an ISO which has changed.
-   * Never register the XMB entry unless the live DVR ISO Game ID matches. */
+   * A detected *different* ID fails closed. An unidentifiable but readable
+   * ISO falls back to the validated index and exact per-partition marker. */
   int live_iso=sg_check_iso_id(g);
-  if(live_iso!=1)return live_iso==-2?-63:-62;
+  if(live_iso<0)return live_iso==SG_ISO_ID_MISMATCH?-63:-62;
   if(fileXioDevctl("hdd0:",HDIOC_STATUS,NULL,0,NULL,0)!=0)return -72;
   uint32_t start=0,sectors=0;
   int rc=sg_validate_payload(g,lang,&start,&sectors);

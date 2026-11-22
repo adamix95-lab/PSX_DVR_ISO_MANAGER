@@ -174,7 +174,7 @@ static void display(void) {
   scr_setfontcolor(0xffffff);
   scr_clear();
   scr_setXY(2,2);
-  scr_printf("PDIM XMB GAME INSTALLER 0.2 - HDD DVR\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.2.1 - HDD DVR\n");
   scr_setXY(2,4);
   scr_printf("Games: %d   Page %d/%d  Lang: %s\n",
     sg_count,sg_count?selected/12+1:0,sg_count?(sg_count+11)/12:0,
@@ -236,6 +236,8 @@ static void clear_keys(void) {
 static void pause_result(int rc) {
   scr_printf("\nSTATUS: %s (%d)\n",rc>=0?"PASS":"FAIL",rc);
   if(rc<0) scr_printf("REASON: %s\n",sg_error(rc));
+  if(rc==2) scr_printf("ID: COVERS.IDX FALLBACK; INSTALLED FILES VERIFIED\n");
+  if(rc==3) scr_printf("ID: COVERS.IDX FALLBACK; TARGET UNUSED\n");
   scr_printf("X / O: RETURN TO GAME LIST\n");
   clear_keys();
   for(;;) if(poll_keys()&(PAD_CROSS|PAD_CIRCLE)) break;
@@ -253,6 +255,16 @@ static int confirm_apa(const sg_game *g,int is_xmb) {
   scr_setXY(2,10);
   scr_printf(is_xmb?"ACTION: WRITE XMB HEADER (TARGET ONLY)\n":
                      "ACTION: CREATE NEW 128 MiB PARTITION + PFS FILES\n");
+  int id_check=sg_check_iso_id(g);
+  scr_setXY(2,12);
+  if(id_check==SG_ISO_ID_MATCH)
+    scr_printf("GAME ID: ISO / COVERS.IDX MATCH\n");
+  else if(id_check==SG_ISO_ID_INDEX_ONLY)
+    scr_printf("GAME ID: COVERS.IDX ONLY (ISO ID UNKNOWN)\n");
+  else {
+    scr_printf("GAME ID ERROR (%d). WRITE CANCELLED.\n",id_check);
+    return 0;
+  }
   scr_setXY(2,13);
   scr_printf("MODIFYING APA MAY DAMAGE SONY DVR HDD STRUCTURE.\n");
   scr_setXY(2,15);
@@ -278,7 +290,7 @@ static int confirm_apa(const sg_game *g,int is_xmb) {
 int main(void) {
   init_scr();
   scr_setCursor(0);
-  scr_printf("PDIM XMB GAME INSTALLER 0.2\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.2.1\n");
   scr_printf("Initializing PSX HDD, USB, DVR modules (NO WRITES)...\n");
   int rc=setup_modules();
   if(rc<0) {
