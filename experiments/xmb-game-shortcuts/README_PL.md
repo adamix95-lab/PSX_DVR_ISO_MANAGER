@@ -1,9 +1,9 @@
 # Skróty gier w Sony PSX XMB — STAGE 1 i STAGE 2
 
-**STATUS SPRZĘTOWY:** STAGE 1 PASS (ICO uruchomione z PP.ICO przez wspólne Neutrino na PP.DVRISO). STAGE 2 z okładką ICO i nagłówkiem XMB jest gotowy do testu; start z XMB NIE ZOSTAŁ JESZCZE SPRAWDZONY. [Instrukcja STAGE 2](STAGE2_XMB_MANUAL_PL.md).
+**STATUS SPRZĘTOWY:** STAGE 1 PASS (ICO uruchomione z PP.ICO przez wspólne Neutrino na PP.DVRISO). STAGE 2 HARDWARE PASS: ikona ICO w XMB wyświetla się poprawnie, a wpis uruchamia ICO.iso bez PDIM. [Instrukcja STAGE 2](STAGE2_XMB_MANUAL_PL.md).
 
 
-**STAGE 0 PASS:** oba launchery SYSTEM i ENGLISH uruchomiły `ICO.iso` na prawdziwym DESR-7000, bez otwierania PDIM. **STAGE 1 czeka na test z partycji PP.ICO.**
+**STAGE 0 PASS:** oba launchery SYSTEM i ENGLISH uruchomiły `ICO.iso` na prawdziwym DESR-7000, bez otwierania PDIM. **STAGE 1 HARDWARE PASS:** ICO uruchomiło się z osobnej partycji PP.ICO.
 
 Cel: każdy skrót XMB ma swoją partycję, `BOOT.CNF` i grafikę. Neutrino FIX95, `config/` oraz `modules/` nadal pozostają WYŁĄCZNIE na działającej partycji `hdd0:PP.DVRISO`; obrazy gier nie są kopiowane.
 
@@ -16,14 +16,14 @@ mass0:/.../ICOPFS.ELF + ICOPFS.CNF
  -> dvr_pfs0:/ISO/ICO.iso
 ```
 
-`BOOT_SYSTEM.CNF` i `BOOT_ENGLISH.CNF` wybierają język gry. Plik `EXECUTE.CNF` przeznaczony jest na przyszły test XMB (KELF do PP.ICO/BOOT.ELF).
+`BOOT_SYSTEM.CNF` i `BOOT_ENGLISH.CNF` wybierają język gry. Plik `EXECUTE.CNF` obsługuje potwierdzony sprzętowo start KELF z XMB do PP.ICO/BOOT.ELF.
 
 ## Ważne: ryzyko APA
 
 **Utworzenie nowej partycji może uszkodzić układ APA i dane systemowe Sony PSX.** Przed testem wykonaj i zweryfikuj **pełną, odtwarzalną kopię sektorową całego HDD**. Jeśli nie masz kopii, nie twórz partycji. Nie formatuj, nie kasuj i nie zmieniaj rozmiaru istniejących partycji. Jeśli `PP.ICO` już istnieje, przerwij.
 
-Po kopii sektorowej można ręcznie utworzyć **nową** `PP.ICO` w wolnym miejscu (np. 128 MiB, jeśli wLE-R3Z obsługuje taką wielkość), skopiować zawartość katalogu `PP.ICO-FILES/` z osobnej paczki Stage 1 do głównego katalogu `PP.ICO`, a następnie uruchomić w wLE-R3Z `USB_TEST/ICOPFS.ELF` z pendrive'a. **Nie używaj Inject Header**. To NIE jest instalator do XMB.
+Po kopii sektorowej można ręcznie utworzyć **nową** `PP.ICO` w wolnym miejscu (np. 128 MiB, jeśli wLE-R3Z obsługuje taką wielkość), skopiować zawartość katalogu `PP.ICO-FILES/` z osobnej paczki Stage 1 do głównego katalogu `PP.ICO`, a następnie uruchomić w wLE-R3Z `USB_TEST/ICOPFS.ELF` z pendrive'a. **Sam STAGE 1 nie wymaga Inject Header**. W STAGE 2 rejestracja XMB została przetestowana pomyślnie; nadal należy uwzględniać ryzyko APA.
 
 Okładka i screenshoty w paczce testowej są grafikami demonstracyjnymi, a metadane `SCES-50760` dotyczą przykładowego wydania PAL ICO (Twoje ISO może być innego regionu).
 
-Po PASS z `PP.ICO` przejdziemy do kolejnego etapu: pojedynczy wpis w XMB, dopiero po oddzielnej weryfikacji bezpieczeństwa.
+**STAGE 2 HARDWARE PASS:** ICO wystartowało bezpośrednio z XMB, ikona jest prawidłowa. Dodatkowo poprawiono błędny komunikat zabraniający usuwania wpisu przez XMB; użytkownik korzysta z usuwania przez XMB. Kolejny etap: uniwersalny instalator tworzący wpisy dla dowolnych gier bez naruszania PDIM 1.2.
