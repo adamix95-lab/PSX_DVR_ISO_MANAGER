@@ -1,8 +1,12 @@
-# PDIM XMB GAME INSTALLER 0.1 (standalone ELF)
+# PDIM XMB GAME INSTALLER 0.2 — standalone ELF
 
-**Development / hardware UNTESTED — DO NOT USE ON AN UNBACKED-UP HDD.**
+**Hardware baseline:** installer **0.1 HARDWARE PASS** on Sony PSX DESR-7000. The user successfully installed and launched **Killzone** from XMB. The earlier manual ICO XMB shortcut also worked.
 
-Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the already tested DESR drivers, reads game IDs and downloaded PNG covers from the existing `PP.DVRISO/COVERS.IDX` and `PP.DVRISO/ART/`, and proposes a **new** `PP.<TITLE>_<GAMEID>` partition for each recognized title.
+**Version 0.2 is a separate untested security-hardening build.** Test its read-only menu/SQUARE preflight before using its X or TRIANGLE write actions. Never use either write action without a full, verified, recoverable sector-level HDD backup.
+
+**Baseline kept intact:** [v0.1 code](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/xmb-game-shortcuts/pdim-xmb-game-installer). [Official PDIM 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2) is unchanged.
+
+Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the already tested DESR drivers, reads game IDs and downloaded PNG covers from the existing `PP.DVRISO/COVERS.IDX` and `PP.DVRISO/ART/`, and proposes a **new** `PP.<TITLE>-<GAMEID>` partition for each recognized title.
 
 ### What is reused
 
@@ -12,9 +16,17 @@ Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the alre
 - `PSXCOV1` cover index and PNG images already downloaded by PDIM 1.2 HTTPS, converted on-console to PNG8 XMB jackets in 140x200 and 74x108 sizes.
 - `pdim12_ppaa_plan` for the three 512-byte PPAA attribute sectors. Each selected game's partition must be new and matched by immutable identity before PPAA writes.
 
+### New checks in version 0.2
+
+- Enforce Neutrino FIX95-compatible ISO filenames: maximum 95 ASCII bytes, no traversal (`..`), control characters or `=` which would corrupt the boot argument.
+- **Re-read the actual Game ID from the ISO**, preferring its `SYSTEM.CNF/BOOT2` (with the same unique-executable fallback as the 1.2 Manager). Reject if `COVERS.IDX` is stale or mismatched.
+- Refuse **ambiguous duplicate partition names** when two different ISO names normalize to the same ten-character stem and Game ID.
+- Decode and validate the entire source PNG (140 × 200) **before creating a partition**. Bad artwork never triggers a new APA allocation.
+- The exact 1.2 `PP.DVRISO` is mounted **read-only**; existing target partitions are never formatted or overwritten. PPAA writes are checked against the selected target, the original 3 sectors and the immutable per-game marker.
+
 ### Stage 0.1 hardware validation
 
-On the physical Sony PSX DESR-7000 **test READ-ONLY scan / SQUARE first** and report the exact displayed game ID and suggested target. The full creation and APA write paths are experimental until hardware acceptance. They require a complete, verified, restorable sector-level HDD backup. XMB Stage 2 on `PP.ICO` was already proven with manual wLE injection; it does NOT guarantee this generic installer.
+On the physical Sony PSX DESR-7000 **test READ-ONLY scan / SQUARE first** and report the exact displayed game ID and suggested target. The v0.1 create/XMB path was confirmed by the Killzone hardware test; the stricter v0.2 path still needs its own hardware regression test. They require a complete, verified, restorable sector-level HDD backup. XMB Stage 2 on `PP.ICO` was already proven with manual wLE injection; it does NOT guarantee this generic installer.
 
 ### Controls
 
