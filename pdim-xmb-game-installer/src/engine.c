@@ -269,10 +269,10 @@ int sg_verify_mounted(const sg_game *g,int lang) {
   mark[n]=0;
   char part[SG_PART],iso[SG_NAME],id[SG_ID];
   unsigned lang_found=3,crc1=0,crc2=0,bytes1=0,bytes2=0;
-  if(sscanf(mark,"PDIMXMB1\nPART=%31[^\n]\nISO=%127[^\n]\nID=%11[^\n]\nLANG=%u\nPNG1=%lx,%lu\nPNG2=%lx,%lu\nEND\n",
+  if(sscanf(mark,"PDIMXMB1\nPART=%31[^\n]\nISO=%127[^\n]\nID=%11[^\n]\nLANG=%u\nPNG1=%x,%u\nPNG2=%x,%u\nEND\n",
      part,iso,id,&lang_found,&crc1,&bytes1,&crc2,&bytes2)!=8)return -61;
   if(strcmp(part,g->partition)||strcmp(iso,g->filename)||strcmp(id,g->game_id)||lang_found!=(unsigned)lang)return -61;
-  snprintf(parsed,sizeof(parsed),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%u\nPNG1=%08lX,%lu\nPNG2=%08lX,%lu\nEND\n",
+  snprintf(parsed,sizeof(parsed),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%u\nPNG1=%08X,%u\nPNG2=%08X,%u\nEND\n",
        part,iso,id,lang_found,crc1,bytes1,crc2,bytes2);
   if(strcmp(mark,parsed))return -61;
   uint32_t bytes=0,crc=0;
@@ -355,8 +355,8 @@ int sg_install_core(const sg_game *g,int lang) {
   if(!rc&&sg_png_make_pair(src,&a,&b,&c,&d)<0)rc=-56;
   if(!rc) {
     char marker[512];
-    snprintf(marker,sizeof(marker),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%d\nPNG1=%08lX,%lu\nPNG2=%08lX,%lu\nEND\n",
-         g->partition,g->filename,g->game_id,lang,a,b,c,d);
+    snprintf(marker,sizeof(marker),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%d\nPNG1=%08X,%u\nPNG2=%08X,%u\nEND\n",
+         g->partition,g->filename,g->game_id,lang,(unsigned)a,(unsigned)b,(unsigned)c,(unsigned)d);
     if(copy_new("SHORTCUT.ID",(const unsigned char*)marker,strlen(marker))<0)rc=-55;
   }
   if(!rc)rc=sg_verify_mounted(g,lang);
