@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MANUAL version="1.0">
+  <IMG id="bg" src="./image/0.png" />
+  <MENUGROUP id="TOP">
+    <TITLE id="TOP-TITLE" label="ICO" />
+    <ITEM id="M00" label="Gameplay" page="PIC0000" />
+    <ITEM id="M01" label="Title Screen" page="PIC0001" />
+  </MENUGROUP>
+  <PAGEGROUP>
+    <PAGE id="PIC0000" src="./image/1.png" retitem="M00" retgroup="TOP" />
+    <PAGE id="PIC0001" src="./image/2.png" retitem="M01" retgroup="TOP" />
+  </PAGEGROUP>
+</MANUAL>

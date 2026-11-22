@@ -1,4 +1,7 @@
-# Skróty gier w Sony PSX XMB — STAGE 1: test PP.ICO
+# Skróty gier w Sony PSX XMB — STAGE 1 i STAGE 2
+
+**STATUS SPRZĘTOWY:** STAGE 1 PASS (ICO uruchomione z PP.ICO przez wspólne Neutrino na PP.DVRISO). STAGE 2 z okładką ICO i nagłówkiem XMB jest gotowy do testu; start z XMB NIE ZOSTAŁ JESZCZE SPRAWDZONY. [Instrukcja STAGE 2](STAGE2_XMB_MANUAL_PL.md).
+
 
 **STAGE 0 PASS:** oba launchery SYSTEM i ENGLISH uruchomiły `ICO.iso` na prawdziwym DESR-7000, bez otwierania PDIM. **STAGE 1 czeka na test z partycji PP.ICO.**
 

@@ -1,4 +1,7 @@
-# PDIM XMB Game Shortcuts — Stage 1: isolated PP.ICO PFS experiment
+# PDIM XMB Game Shortcuts — Stage 1 and Stage 2
+
+**HARDWARE STATUS:** Stage 1 PASS on Sony PSX DESR-7000 (ICO successfully started from the PP.ICO BOOT.ELF through shared PP.DVRISO Neutrino). Stage 2 test ZIP with real PAL ICO artwork and XMB header files is ready, but XMB boot is NOT YET TESTED. [Stage 2 guide](STAGE2_XMB_MANUAL.md).
+
 
 **Status (2026-11-22):** Stage 0 on a real Sony PSX DESR-7000 **PASS**: both `ICOSYS.ELF` and `ICOEN.ELF` started `dvr_pfs0:/ISO/ICO.iso`, without executing the PDIM manager. The new **Stage 1 remains a proposed console test**, not a hardware PASS.
 
