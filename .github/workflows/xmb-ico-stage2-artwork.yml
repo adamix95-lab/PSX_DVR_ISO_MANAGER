@@ -1,0 +1,56 @@
+name: ICO XMB Stage2 sample-art retrieval (no repo assets)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/xmb-game-shortcuts
+    paths:
+      - .github/workflows/xmb-ico-stage2-artwork.yml
+jobs:
+  sample-art:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Retrieve preview artwork from external references
+        shell: bash
+        run: |
+          mkdir -p ico-samples
+          python3 - <<'PY'
+          from urllib.request import Request, urlopen
+          from pathlib import Path
+          import json
+          sources = {
+              "cover_pal.jpg": ["https://images.launchbox-app.com/f2907d4d-6ca8-42a7-b4e4-c7d6b63c9147.jpg",
+                                "https://raw.githubusercontent.com/SvenGDK/PSMT-Covers/main/PS2/SCES-50760.jpg"],
+              "gameplay.jpg":  ["https://images.launchbox-app.com/d888a8f4-84d9-4747-8b0a-e1582ddf1a5f.jpg"],
+              "title_screen.jpg":["https://images.launchbox-app.com/415d18e7-7371-4d87-a7cd-a3798cf6e92a.jpg"],
+              "background.jpg":["https://images.launchbox-app.com/c29bb5d1-a854-49cf-b9ff-96a1b3757d0b.jpg"]
+          }
+          outcome={}
+          for name, urls in sources.items():
+              for url in urls:
+                  try:
+                      req=Request(url, headers={"User-Agent":"Mozilla/5.0 (compatible; PDIM Stage2 Research/1.0)"})
+                      with urlopen(req, timeout=24) as r: data=r.read(6_000_000)
+                      if len(data)<4096 or not data[:3]==b"\xff\xd8\xff":
+                          raise ValueError("Not JPEG or too small")
+                      Path("ico-samples",name).write_bytes(data)
+                      outcome[name]={"url":url,"bytes":len(data)}
+                      print("OK:",name,len(data))
+                      break
+                  except Exception as e:
+                      print("Unavailable:",name,url,repr(e))
+              else:
+                  outcome[name]={"error":"All artwork sources unavailable"}
+          Path("ico-samples/sources.json").write_text(json.dumps(outcome,indent=2)+"\n",encoding="utf-8")
+          PY
+      - name: Create single ZIP from image candidates
+        run: |
+          cd ico-samples
+          zip -9 -q ../ico-stage2-sample-art.zip ./*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ico-stage2-sample-art
+          path: ico-stage2-sample-art.zip
+          retention-days: 7
