@@ -23,5 +23,14 @@ int sg_scan(void);
 int sg_preflight(const sg_game *g,int lang);
 int sg_install_core(const sg_game *g,int lang);
 int sg_register_xmb(const sg_game *g,int lang);
+int sg_probe(const sg_game *g,uint32_t *start,uint32_t *sectors);
+int sg_validate_payload(const sg_game *g,int lang,uint32_t *start,uint32_t *sectors);
+void sg_build_boot(const sg_game *g,int lang,char *out,size_t cap);
+void sg_build_execute(const sg_game *g,char *out,size_t cap);
+void sg_build_info(const sg_game *g,char *out,size_t cap);
+void sg_build_sys(char *out,size_t cap);
+void sg_build_icon(const sg_game *g,char *out,size_t cap);
+uint32_t sg_crc_bytes(const void *src,int n);
+int sg_crc_file(const char *p,uint32_t *sz,uint32_t *hash);
 const char *sg_error(int code);
 #endif
