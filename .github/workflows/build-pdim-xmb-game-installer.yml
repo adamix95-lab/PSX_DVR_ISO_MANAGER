@@ -1,0 +1,88 @@
+name: PDIM Standalone XMB Game Installer (development)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/xmb-game-shortcuts]
+    paths:
+      - 'pdim-xmb-game-installer/**'
+      - '.github/workflows/build-pdim-xmb-game-installer.yml'
+jobs:
+  build:
+    name: Cross-compile standalone Sony PSX installer ELF
+    runs-on: ubuntu-latest
+    container: ghcr.io/ps2homebrew/ps2homebrew@sha256:673077792ed3824c9eba0854392b198d4c371f8bb689367aa0d05dfc5eccc598
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache make build-base python3 curl unzip file coreutils
+      - uses: actions/checkout@v4
+        with:
+          repository: DanielFergisz/RepairBox-PSX-XMB-Apps-Installer
+          ref: df426622e29ed14445e5732ba0ef137c4f2c38ba
+          path: repairbox
+      - name: Pin known functioning DESR IOP/driver assets and original XMB KELF
+        shell: sh
+        run: |
+          set -eu
+          mkdir -p pdim-xmb-game-installer/assets
+          echo '5cdd4539464a2fe92d95d93692239c2bc80b9a99f0d7644d18ae66b756c68201  dvr-iso-manager/modules/dev9_ns.irx' | sha256sum -c -
+          curl -fL --retry 3 "https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/download/1.2/PSX-DVR-ISO-Manager-v1.2.0-HDD-AUTO-OFFICIAL.zip" -o /tmp/pdim-v12-hdd-official.zip
+          unzip -p /tmp/pdim-v12-hdd-official.zip PDIM_HDD_V12_INSTALLER/FILES/BOOT.ELF > pdim-xmb-game-installer/assets/BOOT.ELF
+          unzip -p /tmp/pdim-v12-hdd-official.zip PDIM_HDD_V12_INSTALLER/FILES/EXECUTE.ELF > pdim-xmb-game-installer/assets/EXECUTE.ELF
+          echo '64e45abcd92b1096dc490d38fc0a20ac9959004a4286c4cb661f00019423b3ae  pdim-xmb-game-installer/assets/BOOT.ELF' | sha256sum -c -
+          echo 'b335a5010adc94635caf735b33229ce377f146f9c256974cc7fd2ebf38684b49  pdim-xmb-game-installer/assets/EXECUTE.ELF' | sha256sum -c -
+      - name: Run host PPAA policy regression suite before cross-build
+        shell: sh
+        run: |
+          set -eu
+          cc -std=c11 -O2 -Wall -Wextra -Werror \
+            -Ipdim-hdd-v1.2-installer/include \
+            pdim-hdd-v1.2-installer/src/ppaa_plan.c \
+            pdim-hdd-v1.2-installer/tests/test_ppaa_plan.c \
+            -o /tmp/xmb-ppaa-host-test
+          /tmp/xmb-ppaa-host-test
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("pdim-xmb-game-installer/src/engine.c").read_text()
+          x=Path("pdim-xmb-game-installer/src/xmb.c").read_text()
+          m=Path("pdim-xmb-game-installer/src/main.c").read_text()
+          p=Path("pdim-xmb-game-installer/src/art_png.c").read_text()
+          assert 'SG_SOURCE_PART "hdd0:PP.DVRISO"' in Path("pdim-xmb-game-installer/include/sg_installer.h").read_text()
+          assert 'sg_probe(g,NULL,NULL)!=0' in s
+          assert 'fileXioFormat("pfs:",dev,' in s
+          assert 'FIO_MT_RDONLY' in s
+          assert 'PDIMXMB1' in s
+          assert 'path=hdd0:PP.DVRISO:pfs:/%s' in s
+          assert 'sg_validate_payload(g,lang,' in x
+          assert 'write_sector(sector+i,after[i])' in x
+          assert 'write_sector(sector,after[0])' in x
+          assert 'pdim12_ppaa_plan' in x
+          assert 'PAD_L1|PAD_R1' in m
+          assert 'PNG_COLOR_TYPE_PALETTE' in p
+          print("PASS: standalone installer isolates PP.DVRISO (RO), validates per-game marker, PPAA last")
+          PY
+      - name: Compile PS2 EE/IOP static installer
+        shell: sh
+        run: |
+          set -eu
+          make -C pdim-xmb-game-installer VENDOR_IRX="$GITHUB_WORKSPACE/repairbox/irx" -j2 all
+          mkdir -p out
+          cp pdim-xmb-game-installer/build/PDIM_XMB_GAME_INSTALLER.ELF out/
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("out/PDIM_XMB_GAME_INSTALLER.ELF")
+          b=p.read_bytes()
+          assert b[:4]==b'\x7fELF'
+          assert int.from_bytes(b[18:20],'little')==8
+          assert b'PDIM XMB GAME INSTALLER' in b
+          assert b'PP.DVRISO12' not in b
+          assert len(b)>1000000
+          print("PASS: MIPS ELF / standalone XMB Game Installer /",len(b),"bytes")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDIM-XMB-GAME-INSTALLER-ELF-DEV-UNTETSTED
+          path: out/PDIM_XMB_GAME_INSTALLER.ELF
+          if-no-files-found: error
+          retention-days: 21
