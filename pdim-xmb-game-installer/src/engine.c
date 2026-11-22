@@ -222,7 +222,7 @@ void sg_build_execute(const sg_game *g,char *out,size_t cap) {
   snprintf(out,cap,"path=hdd0:%s:pfs:/BOOT.ELF\narg=hdd0:%s/BOOT.CNF\narg=-dev9=NICHDD\n#PAD\n",g->partition,g->partition);
 }
 void sg_build_info(const sg_game *g,char *out,size_t cap) {
-  char title[112]={0};snprintf(title,sizeof(title),"%s",g->filename);
+  char title[112]={0};strncpy(title,g->filename,sizeof(title)-1);
   size_t l=strlen(title);
   if(l>=4 && !strcasecmp(title+l-4,".iso"))title[l-4]=0;
   snprintf(out,cap,"title = %s\ntitle_id = %s\ntitle_sub_id = 0\nrelease_date = 0\n"
@@ -269,10 +269,10 @@ int sg_verify_mounted(const sg_game *g,int lang) {
   mark[n]=0;
   char part[SG_PART],iso[SG_NAME],id[SG_ID];
   unsigned lang_found=3,crc1=0,crc2=0,bytes1=0,bytes2=0;
-  if(sscanf(mark,"PDIMXMB1\nPART=%31[^\n]\nISO=%127[^\n]\nID=%11[^\n]\nLANG=%u\nPNG1=%x,%u\nPNG2=%x,%u\nEND\n",
+  if(sscanf(mark,"PDIMXMB1\nPART=%31[^\n]\nISO=%127[^\n]\nID=%11[^\n]\nLANG=%u\nPNG1=%lx,%lu\nPNG2=%lx,%lu\nEND\n",
      part,iso,id,&lang_found,&crc1,&bytes1,&crc2,&bytes2)!=8)return -61;
   if(strcmp(part,g->partition)||strcmp(iso,g->filename)||strcmp(id,g->game_id)||lang_found!=(unsigned)lang)return -61;
-  snprintf(parsed,sizeof(parsed),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%u\nPNG1=%08X,%u\nPNG2=%08X,%u\nEND\n",
+  snprintf(parsed,sizeof(parsed),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%u\nPNG1=%08lX,%lu\nPNG2=%08lX,%lu\nEND\n",
        part,iso,id,lang_found,crc1,bytes1,crc2,bytes2);
   if(strcmp(mark,parsed))return -61;
   uint32_t bytes=0,crc=0;
@@ -355,7 +355,7 @@ int sg_install_core(const sg_game *g,int lang) {
   if(!rc&&sg_png_make_pair(src,&a,&b,&c,&d)<0)rc=-56;
   if(!rc) {
     char marker[512];
-    snprintf(marker,sizeof(marker),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%d\nPNG1=%08X,%u\nPNG2=%08X,%u\nEND\n",
+    snprintf(marker,sizeof(marker),"PDIMXMB1\nPART=%s\nISO=%s\nID=%s\nLANG=%d\nPNG1=%08lX,%lu\nPNG2=%08lX,%lu\nEND\n",
          g->partition,g->filename,g->game_id,lang,a,b,c,d);
     if(copy_new("SHORTCUT.ID",(const unsigned char*)marker,strlen(marker))<0)rc=-55;
   }

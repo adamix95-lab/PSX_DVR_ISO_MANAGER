@@ -111,19 +111,20 @@ static int setup_modules(void) {
     rc=fileXioInit();
     scr_printf("fileXioInit=%d\n",rc);
     if(rc<0)return rc;
+    /* Mirror proven HDD Manager: CD/DVD notice BEFORE DVR modules,
+       and before loading the USB and PAD drivers. */
+    if(sceCdInit(SCECdINoD)<=0)return -201;
+    u32 notice=0;
+    if(sceCdNoticeGameStart(0,&notice)<0)return -202;
+    DelayThread(500000);
+    LOAD(dvrdrv);
+    LOAD(dvrfile);
     LOAD(bdm);
     LOAD(bdmfs_fatfs);
     LOAD(usbd);
     LOAD(usbmass_bd);
     LOAD(sio2man);
     LOAD(padman);
-    /* The same CD/DVD and DVR initialization as the tested HDD Manager. */
-    if(sceCdInit(SCECdINoD)<=0) return -201;
-    u32 notice=0;
-    if(sceCdNoticeGameStart(0,&notice)<0) return -202;
-    DelayThread(500000);
-    LOAD(dvrdrv);
-    LOAD(dvrfile);
     return 0;
 }
 #undef LOAD
