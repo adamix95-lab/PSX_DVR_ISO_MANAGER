@@ -1,4 +1,4 @@
-# PDIM XMB GAME INSTALLER 0.2 — standalone ELF
+# PDIM XMB GAME INSTALLER 0.2.1 — standalone ELF
 
 **Hardware baseline:** installer **0.1 HARDWARE PASS** on Sony PSX DESR-7000. The user successfully installed and launched **Killzone** from XMB. The earlier manual ICO XMB shortcut also worked.
 
@@ -15,6 +15,14 @@ Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the alre
 - Shared `PP.DVRISO` Neutrino FIX95 and `config/modules` **read-only**.
 - `PSXCOV1` cover index and PNG images already downloaded by PDIM 1.2 HTTPS, converted on-console to PNG8 XMB jackets in 140x200 and 74x108 sizes.
 - `pdim12_ppaa_plan` for the three 512-byte PPAA attribute sectors. Each selected game's partition must be new and matched by immutable identity before PPAA writes.
+
+### Fix 0.2.1: PDIM COVERS.IDX fallback (Killzone regression)
+
+- Source of each Game ID remains the hardware-proven **`PP.DVRISO/COVERS.IDX`** record matched to the **exact ISO filename**. Cover files are located at `PP.DVRISO/ART/<Game_ID>_COV.png`.
+- The additional live ISO scan uses the same `cover_index.c` validators as PDIM: parse `SYSTEM.CNF/BOOT2` when available, otherwise accept a unique root executable ID. It is a **best-effort cross-check**, not a compulsory source of IDs.
+- **SQUARE preflight returns PASS (2)** for an existing verified shortcut if the ISO is readable but its boot ID is not detectable. **PASS (3)** for a new, free target with a fully validated source PNG. Both explicitly show `COVERS.IDX FALLBACK`.
+- **A positively detected different Game ID remains FAIL (-63)**, and physical I/O failures remain FAIL (-62). No APA write occurs on either failure.
+- The previous 0.2 error `-62` for unidentifiable but otherwise readable games such as Killzone was an unintended regression; original 0.1 is untouched and was tested on physical hardware. Version 0.2.1 still requires physical verification before any writes.
 
 ### New checks in version 0.2
 
