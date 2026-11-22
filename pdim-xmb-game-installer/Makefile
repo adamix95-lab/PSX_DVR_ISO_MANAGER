@@ -2,7 +2,7 @@
 VENDOR_IRX ?= ../repairbox/irx
 BUILD := build
 EE_BIN := $(BUILD)/PDIM_XMB_GAME_INSTALLER.ELF
-SOURCES := src/main.c src/engine.c src/art_png.c src/xmb.c
+SOURCES := src/main.c src/engine.c src/sg_policy.c src/iso_id.c src/art_png.c src/xmb.c
 OBJECTS := $(patsubst %.c,$(BUILD)/%.o,$(SOURCES))
 COMMON_IRX := iomanX fileXio ps2atad ps2fs bdm bdmfs_fatfs usbd usbmass_bd sio2man padman dvrdrv dvrfile
 IRX_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix _irx.o,$(COMMON_IRX))) $(BUILD)/dev9_ns_irx.o $(BUILD)/ps2hdd_psx1_irx.o

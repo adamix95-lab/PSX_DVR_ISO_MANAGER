@@ -5,6 +5,7 @@
 #include "sg_installer.h"
 #include "iso_utils.h"
 #include "cover_index.h"
+#include "sg_policy.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -135,15 +136,9 @@ static int compare_name(const void *pa,const void *pb) {
   return (int)*s-(int)*t;
 }
 static void make_partition(sg_game *g) {
-  char stem[11]={0},id[10]={0};
-  int n=0,k=0;
-  for(const unsigned char *p=(const unsigned char*)g->filename;*p && n<10;p++){
-    if(*p=='.' && !strcasecmp((const char*)p,".iso"))break;
-    if(isalnum(*p))stem[n++]=(char)toupper(*p);
-  }
-  for(const char *p=g->game_id;*p && k<9;p++)if(isalnum((unsigned char)*p))id[k++]=*p;
-  if(n==0||k!=9){g->partition[0]=0;return;}
-  snprintf(g->partition,sizeof(g->partition),"PP.%s-%s",stem,id);
+  if(!g || !sg_target_partition(g->filename,g->game_id,
+                                g->partition,sizeof(g->partition)))
+    if(g)g->partition[0]=0;
 }
 static int is_png(const char *id) {
   char p[96];
@@ -208,6 +203,16 @@ int sg_scan(void) {
   if(mount_source()<0)return -11;
   parse_index();
   unmount_source();
+  /* The normalized name uses only 10 title letters and a Game ID.
+   * Two ISO filenames can still collide. Reject ALL involved entries:
+   * no ambiguous game may be installed to a shared partition name. */
+  unsigned char conflict[SG_COUNT]={0};
+  for(int i=0;i<sg_count;i++)if(sg_games[i].partition[0]) {
+    for(int j=i+1;j<sg_count;j++)if(sg_games[j].partition[0] &&
+         !strcmp(sg_games[i].partition,sg_games[j].partition))
+      conflict[i]=conflict[j]=1;
+  }
+  for(int i=0;i<sg_count;i++)if(conflict[i])sg_games[i].partition[0]=0;
   return sg_count;
 }
 static int match_embedded(const char *name,const unsigned char *buf,uint32_t sz) {
@@ -290,7 +295,12 @@ int sg_validate_payload(const sg_game *g,int lang,uint32_t *start,uint32_t *sect
   return rc;
 }
 int sg_preflight(const sg_game *g,int lang) {
-  if(!g||!g->partition[0]||!g->cover_available||!g->game_id[0])return -30;
+  if(!g||!g->partition[0]||!g->cover_available||!g->game_id[0] ||
+     !sg_iso_filename_allowed(g->filename))return -30;
+  /* COVERS.IDX may be stale after someone replaces an ISO with a file
+   * of the same name. Compare the LIVE ISO boot ID read-only. */
+  int iso=sg_check_iso_id(g);
+  if(iso!=1)return iso==-2?-63:-62;
   int rc=sg_probe(g,NULL,NULL);
   if(rc<0)return -50;
   if(rc==0)return 0; /* untouched new name, ready for a guarded create */
@@ -300,7 +310,11 @@ int sg_preflight(const sg_game *g,int lang) {
 }
 int sg_png_make_pair(const char *src,uint32_t *crc1,uint32_t *len1,uint32_t *crc2,uint32_t *len2);
 int sg_install_core(const sg_game *g,int lang) {
-  if(!g||!g->cover_available||!desr_valid_game_id(g->game_id)||!g->partition[0])return -30;
+  if(!g||!g->cover_available||!desr_valid_game_id(g->game_id)||!g->partition[0] ||
+     !sg_iso_filename_allowed(g->filename))return -30;
+  /* Both checks happen before the first APA write. */
+  int iso=sg_check_iso_id(g);
+  if(iso!=1)return iso==-2?-63:-62;
   if(sg_probe(g,NULL,NULL)!=0)return -50; /* existing partition never modified by CORE */
   /* Require an intact source ART PNG and Neutrino before any APA change. */
   if(mount_source()<0)return -11;
@@ -379,6 +393,8 @@ const char *sg_error(int rc) {
     case -55:return "COPY/VERIFY FAILED - LEAVE PARTITION FOR INSPECTION";
     case -56:return "PNG8 CONVERSION FAILED - PARTIAL PARTITION";
     case -61:return "SHORTCUT.ID OR PAYLOAD CRC MISMATCH";
+    case -62:return "ISO GAME ID UNREADABLE - NO DISK WRITE";
+    case -63:return "ISO ID DIFFERS FROM COVERS.IDX - ABORT";
     case -70:return "XMB HEADER IS FOREIGN / INVALID";
     case -71:return "XMB RAW SECTOR WRITE/VERIFY ERROR";
     case -72:return "XMB TARGET IDENTITY CHANGED";
