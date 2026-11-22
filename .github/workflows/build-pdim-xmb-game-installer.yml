@@ -2,7 +2,7 @@ name: PDIM Standalone XMB Game Installer (development)
 on:
   workflow_dispatch:
   push:
-    branches: [feature/xmb-game-installer-v0.2]
+    branches: [fix/xmb-v02-index-fallback]
     paths:
       - 'pdim-xmb-game-installer/**'
       - '.github/workflows/build-pdim-xmb-game-installer.yml'
@@ -73,6 +73,15 @@ jobs:
             pdim-xmb-game-installer/tests/test_sg_policy.c \
             -o /tmp/sg-policy-test
           /tmp/sg-policy-test
+          cc -std=c11 -O2 -Wall -Wextra -Werror \
+            -Ipdim-xmb-game-installer/include -Idvr-iso-manager/include \
+            -Idvr-iso-manager/tests/net/usb-art-mock \
+            pdim-xmb-game-installer/src/sg_policy.c \
+            pdim-xmb-game-installer/src/iso_id.c \
+            dvr-iso-manager/src/cover_index.c dvr-iso-manager/src/iso_utils.c \
+            pdim-xmb-game-installer/tests/test_iso_id.c \
+            -o /tmp/sg-iso-id-fallback-test
+          /tmp/sg-iso-id-fallback-test
           python3 - <<'PY'
           from pathlib import Path
           src = Path('pdim-xmb-game-installer/src/engine.c').read_text()
@@ -105,7 +114,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PDIM-XMB-GAME-INSTALLER-v0.2-READONLY-FIRST
+          name: PDIM-XMB-GAME-INSTALLER-v0.2.1-KILLZONE-INDEX-FALLBACK
           path: out/PDIM_XMB_GAME_INSTALLER.ELF
           if-no-files-found: error
           retention-days: 21
