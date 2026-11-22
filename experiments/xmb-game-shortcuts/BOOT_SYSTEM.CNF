@@ -1,0 +1,5 @@
+path=hdd0:PP.DVRISO:pfs:/neutrino_hdd.elf
+arg=-bsd=dvr
+arg=-dvd=dvr_pfs0:/ISO/ICO.iso
+arg=-dev9=NICHDD
+#PAD

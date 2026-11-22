@@ -1,0 +1,4 @@
+path=hdd0:PP.ICO:pfs:/BOOT.ELF
+arg=hdd0:PP.ICO/BOOT.CNF
+arg=-dev9=NICHDD
+#PAD
