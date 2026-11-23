@@ -1,4 +1,4 @@
-# PDIM XMB GAME INSTALLER 0.3.2 — szczegółowa diagnostyka EXECUTE.ELF
+# PDIM XMB GAME INSTALLER 0.3.3 — powtarzalność odczytu KELF
 
 **Punkt odniesienia: v0.1 HARDWARE PASS.** Na Sony PSX DESR-7000 użytkownik utworzył skrót Killzone, a gra uruchomiła się z XMB. Wcześniej ręczny skrót ICO też działał.
 
@@ -20,6 +20,27 @@ Po wybraniu gry przygotowuje nową partycję APA/PFS `PP.<TYTUŁ>-<GAMEID>` (128
 - **O**: wyjście
 
 X i TRIANGLE mają dwa etapy potwierdzania. Ostatecznie wymagają **przytrzymania L1+R1 i naciśnięcia X**.
+
+## Poprawka 0.3.3 — ustalenie źródła różnicy KELF
+
+**Wynik sprzętowy Killzone (0.3.2):**
+
+```text
+DIAG: EXECUTE.ELF CRC MISMATCH
+KELF EXPECT: SIZE=2026464 CRC=CE2A17DF
+KELF ACTUAL: SIZE=2026464 CRC=0E05ED0B
+```
+
+Killzone **uruchamia się prawidłowo z XMB**, co potwierdza działanie łańcucha XMB → OSDMenu → Neutrino → ISO, ale nie jest kryptograficznym dowodem prawidłowości KELF. Jednakowe rozmiary i różne CRC oznaczają różną odczytaną zawartość, niekoniecznie uszkodzenie.
+
+Nowe SQUARE wykonuje **dwa niezależne odczyty tylko do odczytu**, ponownie otwierając `pfs0:/EXECUTE.ELF` za każdym razem. Raportuje `KELF READ2: SIZE=... CRC=...` oraz `KELF REPEAT: STABLE` lub `UNSTABLE`. Dodatkowo `KELF DIFF: OFFSET=... BYTES=...` pokazuje pierwszy różniący się bajt i łączną liczbę różniących się bajtów. Limit skanowania pliku to 16 MiB; brak swobodnego zapisu, usuwania czy zamiany KELF.
+
+**Interpretacja:**
+- Te same CRC w obu odczytach: stabilna różnica względem wzorca. Możliwy inny podpisany KELF lub jego modyfikacja, ale nie można tego ustalić wyłącznie z CRC.
+- Dwa różne CRC: możliwy problem ze sterownikiem lub stabilnością odczytu. Nie wolno uznać zgodności pliku.
+- Błąd drugiego odczytu: osobny komunikat `KELF REPEAT: READ ERROR`.
+
+Nie zmieniono `sg_verify_mounted()` ani mechanizmu rejestracji nagłówków APA. Rygorystyczny warunek identyczności KELF pozostaje. **To eksperymentalny ELF: na konsoli testujemy tylko SQUARE, bez X i TRIANGLE.**
 
 ## Poprawka 0.3.2 — dokładna diagnostyka podpisanego KELF
 

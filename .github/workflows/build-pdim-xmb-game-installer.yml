@@ -2,7 +2,7 @@ name: PDIM Standalone XMB Game Installer (development)
 on:
   workflow_dispatch:
   push:
-    branches: [fix/xmb-v03-execute-integrity]
+    branches: [fix/xmb-v03-kelf-stability]
     paths:
       - 'pdim-xmb-game-installer/**'
       - '.github/workflows/build-pdim-xmb-game-installer.yml'
@@ -114,6 +114,13 @@ jobs:
           assert 'sg_probe_execute(' in detail
           assert 'SG_EXEC_CRC_DIFF' in detail and 'SG_EXEC_SIZE_DIFF' in detail
           assert 'SG_EXEC_MISSING' in detail and 'SG_EXEC_READ_ERROR' in detail
+          assert 'KELF READ2:' in detail
+          assert 'KELF REPEAT:' in detail
+          assert 'KELF DIFF: OFFSET=' in detail
+          assert 'out->repeat_stable=' in diag
+          assert 'out->first_difference_valid' in diag
+          assert 'SG_EXEC_MAX_BYTES' in diag
+          assert 'read_once(expected,size,&second,0)' in diag
           assert 'SG_EXEC_DIR_ERROR' in diag and 'SG_EXEC_OPEN_ERROR' in diag
           assert 'FIO_O_RDONLY' in diag
           assert 'fileXioWrite(' not in diag and 'fileXioFormat(' not in diag
@@ -149,7 +156,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PDIM-XMB-GAME-INSTALLER-v0.3.2-EXECUTE-CRC-DIAG
+          name: PDIM-XMB-GAME-INSTALLER-v0.3.3-KELF-STABILITY-RO
           path: out/PDIM_XMB_GAME_INSTALLER.ELF
           if-no-files-found: error
           retention-days: 21
