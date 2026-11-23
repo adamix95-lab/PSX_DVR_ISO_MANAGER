@@ -383,6 +383,18 @@ int sg_preflight(const sg_game *g,int lang) {
   }
   uint32_t start=0,sectors=0;
   rc=sg_validate_payload(g,lang,&start,&sectors);
+  if(rc==-61) {
+    /* v0.1 stored a per-game fixed language in BOOT.CNF/SHORTCUT.ID.
+     * v0.3 always defaults menu to SYSTEM, so a working ENGLISH shortcut
+     * must not be reported as corrupt just because SELECT differs.
+     * Read-only verification against the alternative language only. */
+    uint32_t alternate_start=0,alternate_sectors=0;
+    int alternate=sg_validate_payload(g,1-lang,
+                                     &alternate_start,&alternate_sectors);
+    if(alternate==0 && alternate_start==start &&
+       alternate_sectors==sectors)
+      return lang?6:7; /* 6=installed SYSTEM, 7=installed ENGLISH */
+  }
   if(rc<0)return rc;
   return iso==SG_ISO_ID_MATCH?1:
          iso==SG_ISO_ID_INDEX_READER?4:2;
@@ -490,4 +502,95 @@ const char *sg_error(int rc) {
     case -72:return "XMB TARGET IDENTITY CHANGED";
     default:return "UNKNOWN ERROR; NEVER FORMAT SONY SYSTEM HDD";
   }
+}
+
+/* Extra SQUARE diagnostics. Deliberately independent of the strict
+ * sg_verify_mounted() contract used by XMB registration. No writes.
+ * A partially installed partition or a changed info.sys can still boot,
+ * but strict integrity must report precisely which file differs.
+ */
+void sg_diagnose_shortcut(const sg_game *g,int lang) {
+  if(!g||!g->partition[0])return;
+  uint32_t start=0,sectors=0;
+  if(sg_probe(g,&start,&sectors)!=1||sectors!=SG_SECTORS) {
+    scr_printf("DIAG: TARGET PARTITION NOT VERIFIED\n");
+    return;
+  }
+  if(mount_target(g->partition,0)<0) {
+    scr_printf("DIAG: CANNOT READ-ONLY MOUNT TARGET\n");
+    return;
+  }
+  int errors=0;
+  char boot[512],other[512],exe[256],info[1024];
+  sg_build_boot(g,lang,boot,sizeof(boot));
+  sg_build_boot(g,!lang,other,sizeof(other));
+  sg_build_execute(g,exe,sizeof(exe));
+  sg_build_info(g,info,sizeof(info));
+  if(match_embedded("BOOT.ELF",osd_launcher,size_osd_launcher)<0) {
+    scr_printf("DIAG: BOOT.ELF MISSING/DIFFERENT\n");errors++;
+  }
+  if(match_embedded("EXECUTE.ELF",execute_kelf,size_execute_kelf)<0) {
+    scr_printf("DIAG: EXECUTE.ELF MISSING/DIFFERENT\n");errors++;
+  }
+  if(file_matches("BOOT.CNF",boot)<0) {
+    scr_printf(file_matches("BOOT.CNF",other)==0?
+       "DIAG: BOOT.CNF MATCHES OTHER LANGUAGE\n":
+       "DIAG: BOOT.CNF MISSING/DIFFERENT\n");
+    errors++;
+  }
+  if(file_matches("EXECUTE.CNF",exe)<0) {
+    scr_printf("DIAG: EXECUTE.CNF MISSING/DIFFERENT\n");errors++;
+  }
+  if(file_matches("res/info.sys",info)<0) {
+    scr_printf("DIAG: res/info.sys MISSING/DIFFERENT\n");errors++;
+  }
+  char mark[512];
+  int fd=fileXioOpen("pfs0:/SHORTCUT.ID",FIO_O_RDONLY,0);
+  if(fd<0) {
+    scr_printf("DIAG: SHORTCUT.ID MISSING\n");errors++;
+  } else {
+    int used=0,n;
+    while(used<(int)sizeof(mark)-1 &&
+          (n=fileXioRead(fd,mark+used,(int)sizeof(mark)-1-used))>0)
+      used+=n;
+    int closed=fileXioClose(fd);
+    if(used<=0||used>=(int)sizeof(mark)-1||n<0||closed<0) {
+      scr_printf("DIAG: SHORTCUT.ID READ ERROR\n");errors++;
+    } else {
+      mark[used]=0;
+      char part[SG_PART]={0},iso[SG_NAME]={0},id[SG_ID]={0};
+      unsigned language=99,hash1=0,bytes1=0,hash2=0,bytes2=0;
+      int num=sscanf(mark,
+         "PDIMXMB1\nPART=%31[^\n]\nISO=%127[^\n]\nID=%11[^\n]\n"
+         "LANG=%u\nPNG1=%x,%u\nPNG2=%x,%u\nEND\n",
+         part,iso,id,&language,&hash1,&bytes1,&hash2,&bytes2);
+      if(num!=8) {
+        scr_printf("DIAG: SHORTCUT.ID FORMAT INVALID\n");errors++;
+      } else {
+        if(strcmp(part,g->partition)||strcmp(iso,g->filename)||
+           strcmp(id,g->game_id)){
+          scr_printf("DIAG: SHORTCUT.ID PART/ISO/GAME ID DIFFER\n");
+          errors++;
+        }
+        if(language!=(unsigned)lang) {
+          scr_printf("DIAG: INSTALLED LANG %s; MENU %s\n",
+             language==0?"SYSTEM":language==1?"ENGLISH":"INVALID",
+             lang?"ENGLISH":"SYSTEM");
+          errors++;
+        }
+        uint32_t got=0,crc=0;
+        if(sg_crc_file("pfs0:/res/jkt_001.png",&got,&crc)<0||
+           got!=(uint32_t)bytes1||crc!=(uint32_t)hash1) {
+          scr_printf("DIAG: jkt_001.png SIZE/CRC DIFFER\n");errors++;
+        }
+        if(sg_crc_file("pfs0:/res/jkt_002.png",&got,&crc)<0||
+           got!=(uint32_t)bytes2||crc!=(uint32_t)hash2) {
+          scr_printf("DIAG: jkt_002.png SIZE/CRC DIFFER\n");errors++;
+        }
+      }
+    }
+  }
+  if(errors==0)
+    scr_printf("DIAG: ALL COMPONENT CHECKS PASS; VERIFY MARKER\n");
+  unmount_target(); /* read-only target; no fileXioWrite */
 }

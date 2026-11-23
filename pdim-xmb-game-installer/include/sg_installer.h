@@ -52,6 +52,8 @@ int sg_install_core(const sg_game *g,int lang);
 int sg_register_xmb(const sg_game *g,int lang);
 int sg_probe(const sg_game *g,uint32_t *start,uint32_t *sectors);
 int sg_validate_payload(const sg_game *g,int lang,uint32_t *start,uint32_t *sectors);
+/* Print first failing read-only integrity checks after -61, never writes. */
+void sg_diagnose_shortcut(const sg_game *g,int lang);
 void sg_build_boot(const sg_game *g,int lang,char *out,size_t cap);
 void sg_build_execute(const sg_game *g,char *out,size_t cap);
 void sg_build_info(const sg_game *g,char *out,size_t cap);

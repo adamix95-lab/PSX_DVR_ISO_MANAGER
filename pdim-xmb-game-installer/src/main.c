@@ -174,7 +174,7 @@ static void display(void) {
   scr_setfontcolor(0xffffff);
   scr_clear();
   scr_setXY(2,2);
-  scr_printf("PDIM XMB GAME INSTALLER 0.3 - HDD DVR\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.3.1 - HDD DVR\n");
   scr_setXY(2,4);
   scr_printf("Games: %d   Page %d/%d  Lang: %s\n",
     sg_count,sg_count?selected/12+1:0,sg_count?(sg_count+11)/12:0,
@@ -246,6 +246,8 @@ static void pause_result(int rc) {
   if(rc==3) scr_printf("ID: PDIM INDEX / SCAN LOG; TARGET UNUSED\n");
   if(rc==4) scr_printf("ID: PDIM INDEX; DVR RANDOM-READ UNSUPPORTED\n");
   if(rc==5) scr_printf("ID: PDIM INDEX; NEW TARGET; READ UNSUPPORTED\n");
+  if(rc==6) scr_printf("INSTALLED MODE: SYSTEM. SELECT SYSTEM.\n");
+  if(rc==7) scr_printf("INSTALLED MODE: ENGLISH. SELECT ENGLISH.\n");
   scr_printf("X / O: RETURN TO GAME LIST\n");
   clear_keys();
   for(;;) if(poll_keys()&(PAD_CROSS|PAD_CIRCLE)) break;
@@ -300,7 +302,7 @@ static int confirm_apa(const sg_game *g,int is_xmb) {
 int main(void) {
   init_scr();
   scr_setCursor(0);
-  scr_printf("PDIM XMB GAME INSTALLER 0.3\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.3.1\n");
   scr_printf("Initializing PSX HDD, USB, DVR modules (NO WRITES)...\n");
   int rc=setup_modules();
   if(rc<0) {
@@ -340,7 +342,9 @@ int main(void) {
       scr_clear();
       scr_printf("READ-ONLY PREFLIGHT: %s\n",g->partition);
       int id_rc=sg_resolve_selected((sg_game *)g);
-      pause_result(id_rc<0?id_rc:sg_preflight(g,lang_en));
+      int check=id_rc<0?id_rc:sg_preflight(g,lang_en);
+      if(check==-61)sg_diagnose_shortcut(g,lang_en);
+      pause_result(check);
     } else if(keys&PAD_CROSS){
       if(!g->cover_available||!g->game_id[0]) {pause_result(-30);continue;}
       if(!confirm_apa(g,0))continue;
