@@ -533,8 +533,11 @@ void sg_diagnose_shortcut(const sg_game *g,int lang) {
   sg_exec_probe kelf={0};
   if(sg_probe_execute(execute_kelf,size_execute_kelf,&kelf)<0){
     scr_printf("DIAG: EXECUTE.ELF PROBE INTERNAL ERROR\n");errors++;
-  } else if(kelf.status!=SG_EXEC_IDENTICAL) {
+  } else if(kelf.status!=SG_EXEC_IDENTICAL || kelf.repeat_error ||
+             (kelf.repeat_complete && !kelf.repeat_stable)) {
     errors++;
+    if(kelf.status==SG_EXEC_IDENTICAL)
+      scr_printf("DIAG: KELF FIRST READ OK, REPEAT UNSTABLE\n");
     if(kelf.status==SG_EXEC_MISSING)
       scr_printf("DIAG: EXECUTE.ELF MISSING (DIR VERIFIED)\n");
     else if(kelf.status==SG_EXEC_DIR_ERROR)
@@ -555,8 +558,19 @@ void sg_diagnose_shortcut(const sg_game *g,int lang) {
     else if(kelf.status==SG_EXEC_READ_ERROR)
       scr_printf("KELF READ: %lu bytes before failure\n",
          (unsigned long)kelf.actual_size);
+    if(kelf.first_difference_valid && kelf.actual_complete)
+      scr_printf("KELF DIFF: OFFSET=%08lX BYTES=%lu\n",
+        (unsigned long)kelf.first_difference,
+        (unsigned long)kelf.different_bytes);
+    if(kelf.repeat_complete) {
+      scr_printf("KELF READ2: SIZE=%lu CRC=%08lX\n",
+        (unsigned long)kelf.repeat_size,(unsigned long)kelf.repeat_crc);
+      scr_printf("KELF REPEAT: %s\n",
+         kelf.repeat_stable?"STABLE":"UNSTABLE");
+    }else if(kelf.repeat_error)
+      scr_printf("KELF REPEAT: READ ERROR\n");
     if(kelf.status==SG_EXEC_SIZE_DIFF||kelf.status==SG_EXEC_CRC_DIFF)
-      scr_printf("DIAG: OTHER KELF VERSION POSSIBLE; NOT PROOF OF DAMAGE\n");
+      scr_printf("DIAG: KELF BYTES DIFFER; VALIDITY NOT PROVEN\n");
   }
   if(file_matches("BOOT.CNF",boot)<0) {
     scr_printf(file_matches("BOOT.CNF",other)==0?
