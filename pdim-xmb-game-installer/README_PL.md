@@ -1,4 +1,4 @@
-# PDIM XMB GAME INSTALLER 0.3 — wielometodowy skaner ISO
+# PDIM XMB GAME INSTALLER 0.3.1 — diagnostyka skrótów
 
 **Punkt odniesienia: v0.1 HARDWARE PASS.** Na Sony PSX DESR-7000 użytkownik utworzył skrót Killzone, a gra uruchomiła się z XMB. Wcześniej ręczny skrót ICO też działał.
 
@@ -20,6 +20,18 @@ Po wybraniu gry przygotowuje nową partycję APA/PFS `PP.<TYTUŁ>-<GAMEID>` (128
 - **O**: wyjście
 
 X i TRIANGLE mają dwa etapy potwierdzania. Ostatecznie wymagają **przytrzymania L1+R1 i naciśnięcia X**.
+
+## Poprawka 0.3.1 — diagnostyka istniejących skrótów (Killzone -61)
+
+Wersja 0.1 i wersja 0.3 mają identyczny generator BOOT.CNF oraz identyczny rygorystyczny mechanizm sprawdzania SHORTCUT.ID/CRC. W związku z tym wynik FAIL -61 po prawidłowym uruchomieniu Killzone z XMB nie dowodzi uszkodzenia gry.
+
+1. **SQUARE** sprawdza partycję tylko do odczytu, najpierw z aktualnie wybranym językiem.
+2. Gdy kontrola daje -61, próbuje również **drugiego języka** bez zmieniania plików. **PASS (6)** = skrót zainstalowany SYSTEM, **PASS (7)** = skrót zainstalowany ENGLISH. Przy potrzebie dostosowania ustawień należy użyć SELECT, nie reinstalować gry.
+3. Jeżeli oba języki nie przechodzą, ekran SQUARE wyświetla osobne komunikaty DIAG dla BOOT.ELF, EXECUTE.ELF, BOOT.CNF, EXECUTE.CNF, res/info.sys, SHORTCUT.ID i okładek PNG8.
+4. Kontrola uwzględnia sumy CRC i rozmiary z SHORTCUT.ID, zapisany Game ID/nazwę ISO oraz tryb języka.
+5. Wykorzystuje **wyłącznie montowanie PFS READ ONLY**. Działający Killzone i wydanie PDIM HDD 1.2 pozostają nietknięte.
+
+Ta wersja ma jeszcze status **TEST BUILD**: pierwszą próbę wykonaj wyłącznie przyciskiem SQUARE. Nie używaj X ani TRIANGLE na konsoli przed analizą wyniku diagnostyki i zabezpieczeniem kopii sektorowej HDD.
 
 ## NOWOŚĆ 0.3: ID gier rozpoznawane kilkoma sposobami
 

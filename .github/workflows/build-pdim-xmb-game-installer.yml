@@ -2,7 +2,7 @@ name: PDIM Standalone XMB Game Installer (development)
 on:
   workflow_dispatch:
   push:
-    branches: [feature/xmb-installer-v0.3-multiscan]
+    branches: [fix/xmb-v03-shortcut-diagnostics]
     paths:
       - 'pdim-xmb-game-installer/**'
       - '.github/workflows/build-pdim-xmb-game-installer.yml'
@@ -94,6 +94,16 @@ jobs:
           assert 'sequential_read_at' in iso
           assert 'COVERS.BAK' in src and 'COVER_SCAN.LOG' in src
           assert 'sg_resolve_selected' in src
+          m=Path('pdim-xmb-game-installer/src/main.c').read_text()
+          assert 'sg_diagnose_shortcut(g,lang_en)' in m
+          assert 'if(rc==6)' in m and 'if(rc==7)' in m
+          assert 'sg_validate_payload(g,1-lang' in src
+          assert 'void sg_diagnose_shortcut(const sg_game *g,int lang)' in src
+          detail=src.split('void sg_diagnose_shortcut(const sg_game *g,int lang)',1)[1]
+          assert 'mount_target(g->partition,0)' in detail
+          assert 'fileXioWrite(' not in detail and 'fileXioFormat(' not in detail
+          assert 'DIAG: SHORTCUT.ID' in detail and 'DIAG: BOOT.CNF' in detail
+          print('PASS: SQUARE read-only shortcut diagnostics; selected language never modified')
           assert 'desr_iso_root(' in iso and 'desr_cnf_game_id(' in iso
           assert 'conflict[i]=conflict[j]=1' in src
           assert 'sg_iso_filename_allowed(g->filename)' in src
@@ -119,7 +129,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PDIM-XMB-GAME-INSTALLER-v0.3-MULTISCAN-TEST
+          name: PDIM-XMB-GAME-INSTALLER-v0.3.1-READONLY-DIAG
           path: out/PDIM_XMB_GAME_INSTALLER.ELF
           if-no-files-found: error
           retention-days: 21
