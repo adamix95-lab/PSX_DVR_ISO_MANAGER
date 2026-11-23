@@ -152,38 +152,101 @@ static int is_png(const char *id) {
   static const unsigned char magic[8]={137,80,78,71,13,10,26,10};
   return n==8 && !memcmp(sig,magic,8);
 }
-static void parse_index(void) {
-  int fd=fileXioOpen("pfs1:/COVERS.IDX",FIO_O_RDONLY,0);
-  if(fd<0)return;
-  int total=0,n=0;
-  while(total<(int)sizeof(idx)-1 && (n=fileXioRead(fd,idx+total,sizeof(idx)-1-total))>0)
-    total+=n;
-  fileXioClose(fd);
-  if(n<0||total<9||memcmp(idx,"PSXCOV1\n",8))return;
-  idx[total]=0;
-  char *line=idx+8;
-  while(line<idx+total) {
-    char *end=strchr(line,'\n');
-    if(!end)break;
-    *end=0;
-    char *id=strchr(line,'\t');
-    if(id) {
-      *id++=0;
-      char *ext=strchr(id,'\t');
-      if(ext) {
-        *ext++=0;
-        if(!strcmp(ext,"png")&&desr_valid_game_id(id)) {
-          for(int i=0;i<sg_count;i++)if(!strcmp(line,sg_games[i].filename)) {
-            memcpy(sg_games[i].game_id,id,12);
-            sg_games[i].cover_available=is_png(id);
-            if(sg_games[i].cover_available)make_partition(&sg_games[i]);
-            break;
-          }
-        }
-      }
-    }
-    line=end+1;
+/* Only trust exact ISO-filename matches; never infer IDs from names.
+ * Same PSXCOV1 and PSXCOVSCAN1 formats used by the hardware-tested PDIM.
+ * A cover may exist even if the last scan report said NO_ART. */
+static int read_metadata_file(const char *path, char *out,size_t cap) {
+  int fd=fileXioOpen(path,FIO_O_RDONLY,0);
+  if(fd<0)return -1;
+  size_t used=0;
+  while(used<cap-1) {
+    int n=fileXioRead(fd,out+used,(int)(cap-1-used));
+    if(n<0){fileXioClose(fd);return -1;}
+    if(n==0)break;
+    used+=(size_t)n;
   }
+  unsigned char extra;
+  int overflow=(used==cap-1)?fileXioRead(fd,&extra,1):0;
+  int closed=fileXioClose(fd);
+  if(closed<0 || overflow!=0 || used>=cap-1)return -1;
+  out[used]=0;
+  return (int)used;
+}
+static void set_game_id(const char *filename,const char *id,int source) {
+  if(!desr_valid_game_id(id))return;
+  for(int i=0;i<sg_count;i++) {
+    sg_game *g=&sg_games[i];
+    if(g->game_id[0]||strcmp(g->filename,filename))continue;
+    memcpy(g->game_id,id,SG_ID);
+    g->id_source=source;
+    g->cover_available=is_png(id);
+    if(g->cover_available)make_partition(g);
+    break;
+  }
+}
+static void parse_cover_index(const char *name,int source) {
+  int size=read_metadata_file(name,idx,sizeof(idx));
+  if(size<8 || memcmp(idx,"PSXCOV1\n",8))return;
+  char *p=idx+8,*end=idx+size;
+  while(p<end) {
+    char *nl=memchr(p,'\n',(size_t)(end-p));
+    if(!nl)break;
+    *nl=0;
+    char filename[DESR_FILENAME_CAP];
+    desr_cover_entry entry;
+    if(desr_cover_parse(p,filename,&entry) && !strcmp(entry.ext,"png"))
+      set_game_id(filename,entry.game_id,source);
+    p=nl+1;
+  }
+}
+static void parse_scan_report(void) {
+  int size=read_metadata_file("pfs1:/COVER_SCAN.LOG",idx,sizeof(idx));
+  static const char header[]="PSXCOVSCAN1\n";
+  if(size<(int)sizeof(header)-1 ||
+     memcmp(idx,header,sizeof(header)-1))return;
+  char *p=idx+sizeof(header)-1,*end=idx+size;
+  while(p<end) {
+    char *nl=memchr(p,'\n',(size_t)(end-p));
+    if(!nl)break;
+    *nl=0;
+    char *status=strchr(p,'\t');
+    if(!status){p=nl+1;continue;}
+    *status++=0;
+    char *id=strchr(status,'\t');
+    if(!id){p=nl+1;continue;}
+    *id++=0;
+    if(!strcmp(status,"NO_ART") || !strcmp(status,"NO_ART_EXE") ||
+       !strcmp(status,"FOUND_PNG") || !strcmp(status,"FOUND_PNG_EXE") ||
+       !strcmp(status,"FOUND_JPG") || !strcmp(status,"FOUND_JPG_EXE"))
+      set_game_id(p,id,SG_ID_SOURCE_SCAN_LOG);
+    p=nl+1;
+  }
+}
+int sg_resolve_selected(sg_game *g) {
+  if(!g)return -30;
+  if(g->game_id[0])return 0;
+  char id[SG_ID]={0};
+  int rc=sg_probe_iso_id(g->filename,id);
+  if(rc<0)return -62;
+  if(rc==2)return -66;
+  if(rc!=1||!desr_valid_game_id(id))return -67;
+  if(mount_source()<0)return -11;
+  int cover=is_png(id);
+  unmount_source();
+  if(!cover)return -30; /* ART may be fetched using PDIM HTTPS first. */
+  memcpy(g->game_id,id,SG_ID);
+  g->id_source=SG_ID_SOURCE_ISO;
+  g->cover_available=1;
+  make_partition(g);
+  if(!g->partition[0])return -65;
+  for(int i=0;i<sg_count;i++) {
+    if(&sg_games[i]!=g && sg_games[i].partition[0] &&
+       !strcmp(g->partition,sg_games[i].partition)) {
+      g->partition[0]=0;
+      return -65;
+    }
+  }
+  return 0;
 }
 int sg_scan(void) {
   iox_dirent_t ent __attribute__((aligned(64)));
@@ -201,7 +264,9 @@ int sg_scan(void) {
   if(n<0||closed<0)return -10;
   qsort(sg_games,sg_count,sizeof(sg_games[0]),compare_name);
   if(mount_source()<0)return -11;
-  parse_index();
+  parse_cover_index("pfs1:/COVERS.IDX",SG_ID_SOURCE_INDEX);
+  parse_cover_index("pfs1:/COVERS.BAK",SG_ID_SOURCE_BACKUP);
+  parse_scan_report();
   unmount_source();
   /* The normalized name uses only 10 title letters and a Game ID.
    * Two ISO filenames can still collide. Reject ALL involved entries:
@@ -301,8 +366,8 @@ int sg_preflight(const sg_game *g,int lang) {
    * of the same name. Compare the LIVE ISO boot ID read-only. */
   int iso=sg_check_iso_id(g);
   if(iso<0)return iso==SG_ISO_ID_MISMATCH?-63:-62;
-  /* 0 is not a mismatched ID. Some known working games like Killzone have
-   * no recognizable Game ID in ISO9660. Use the exact COVERS.IDX mapping. */
+  if(iso!=SG_ISO_ID_MATCH && g->id_source==SG_ID_SOURCE_ISO)
+    return -62; /* a newly discovered ID requires a repeatable ISO probe */
   int rc=sg_probe(g,NULL,NULL);
   if(rc<0)return -50;
   if(rc==0) {
@@ -313,12 +378,14 @@ int sg_preflight(const sg_game *g,int lang) {
     snprintf(art,sizeof(art),"pfs1:/ART/%s_COV.png",g->game_id);
     int png=sg_png_validate_source(art);
     unmount_source();
-    return png<0?-64:(iso==SG_ISO_ID_INDEX_ONLY?3:0);
+    return png<0?-64:(iso==SG_ISO_ID_MATCH?0:
+                        iso==SG_ISO_ID_INDEX_READER?5:3);
   }
   uint32_t start=0,sectors=0;
   rc=sg_validate_payload(g,lang,&start,&sectors);
   if(rc<0)return rc;
-  return iso==SG_ISO_ID_INDEX_ONLY?2:1;
+  return iso==SG_ISO_ID_MATCH?1:
+         iso==SG_ISO_ID_INDEX_READER?4:2;
 }
 int sg_png_make_pair(const char *src,uint32_t *crc1,uint32_t *len1,uint32_t *crc2,uint32_t *len2);
 int sg_install_core(const sg_game *g,int lang) {
@@ -327,6 +394,8 @@ int sg_install_core(const sg_game *g,int lang) {
   /* Both checks happen before the first APA write. */
   int iso=sg_check_iso_id(g);
   if(iso<0)return iso==SG_ISO_ID_MISMATCH?-63:-62;
+  if(iso!=SG_ISO_ID_MATCH && g->id_source==SG_ID_SOURCE_ISO)
+    return -62;
   if(sg_probe(g,NULL,NULL)!=0)return -50; /* existing partition never modified by CORE */
   /* Require an intact source ART PNG and Neutrino before any APA change. */
   if(mount_source()<0)return -11;
@@ -413,6 +482,9 @@ const char *sg_error(int rc) {
     case -62:return "ISO READ ERROR - CANNOT VERIFY LIVE GAME";
     case -63:return "ISO ID DIFFERS FROM COVERS.IDX - ABORT";
     case -64:return "ART PNG INVALID - NO PARTITION CREATED";
+    case -65:return "DUPLICATE OR UNSAFE XMB PARTITION NAME";
+    case -66:return "ISO ID SCAN UNSUPPORTED; NEED COVERS.IDX";
+    case -67:return "ISO GAME ID NOT FOUND; NEED PDIM ART INDEX";
     case -70:return "XMB HEADER IS FOREIGN / INVALID";
     case -71:return "XMB RAW SECTOR WRITE/VERIFY ERROR";
     case -72:return "XMB TARGET IDENTITY CHANGED";

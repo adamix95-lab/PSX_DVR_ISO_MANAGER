@@ -16,7 +16,15 @@ typedef struct {
   char game_id[SG_ID];
   char partition[SG_PART];
   int cover_available;
+  int id_source; /* index, backup, scan log or live ISO; displayed in UI */
 } sg_game;
+enum {
+  SG_ID_SOURCE_NONE=0,
+  SG_ID_SOURCE_INDEX=1,
+  SG_ID_SOURCE_BACKUP=2,
+  SG_ID_SOURCE_SCAN_LOG=3,
+  SG_ID_SOURCE_ISO=4
+};
 extern sg_game sg_games[SG_COUNT];
 extern int sg_count;
 int sg_scan(void);
@@ -29,9 +37,15 @@ enum {
   SG_ISO_ID_MISMATCH = -2,
   SG_ISO_ID_IO_ERROR = -1,
   SG_ISO_ID_INDEX_ONLY = 0,
-  SG_ISO_ID_MATCH = 1
+  SG_ISO_ID_MATCH = 1,
+  SG_ISO_ID_INDEX_READER = 2
 };
 int sg_check_iso_id(const sg_game *g);
+/* 1: ISO ID found, 0: no ID, 2: DVR sector read unsupported,
+  -1: image open failed. Never writes. */
+int sg_probe_iso_id(const char *filename,char out[SG_ID]);
+/* Resolve missing Game ID on demand, not on every file during scan. */
+int sg_resolve_selected(sg_game *game);
 int sg_png_validate_source(const char *source);
 int sg_preflight(const sg_game *g,int lang);
 int sg_install_core(const sg_game *g,int lang);
