@@ -174,7 +174,7 @@ static void display(void) {
   scr_setfontcolor(0xffffff);
   scr_clear();
   scr_setXY(2,2);
-  scr_printf("PDIM XMB GAME INSTALLER 0.3.1 - HDD DVR\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.3.2 - HDD DVR\n");
   scr_setXY(2,4);
   scr_printf("Games: %d   Page %d/%d  Lang: %s\n",
     sg_count,sg_count?selected/12+1:0,sg_count?(sg_count+11)/12:0,
@@ -242,6 +242,7 @@ static void clear_keys(void) {
 static void pause_result(int rc) {
   scr_printf("\nSTATUS: %s (%d)\n",rc>=0?"PASS":"FAIL",rc);
   if(rc<0) scr_printf("REASON: %s\n",sg_error(rc));
+  if(rc==-61) scr_printf("STRICT FILE CHECK, NOT XMB BOOT STATUS\n");
   if(rc==2) scr_printf("ID: COVERS.IDX FALLBACK; INSTALLED FILES VERIFIED\n");
   if(rc==3) scr_printf("ID: PDIM INDEX / SCAN LOG; TARGET UNUSED\n");
   if(rc==4) scr_printf("ID: PDIM INDEX; DVR RANDOM-READ UNSUPPORTED\n");
@@ -302,7 +303,7 @@ static int confirm_apa(const sg_game *g,int is_xmb) {
 int main(void) {
   init_scr();
   scr_setCursor(0);
-  scr_printf("PDIM XMB GAME INSTALLER 0.3.1\n");
+  scr_printf("PDIM XMB GAME INSTALLER 0.3.2\n");
   scr_printf("Initializing PSX HDD, USB, DVR modules (NO WRITES)...\n");
   int rc=setup_modules();
   if(rc<0) {

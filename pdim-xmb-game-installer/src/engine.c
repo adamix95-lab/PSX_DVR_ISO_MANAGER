@@ -3,6 +3,7 @@
  * The existing PP.DVRISO and DVR ISO filesystem are ALWAYS read-only.
  */
 #include "sg_installer.h"
+#include "sg_exec_probe.h"
 #include "iso_utils.h"
 #include "cover_index.h"
 #include "sg_policy.h"
@@ -529,8 +530,33 @@ void sg_diagnose_shortcut(const sg_game *g,int lang) {
   if(match_embedded("BOOT.ELF",osd_launcher,size_osd_launcher)<0) {
     scr_printf("DIAG: BOOT.ELF MISSING/DIFFERENT\n");errors++;
   }
-  if(match_embedded("EXECUTE.ELF",execute_kelf,size_execute_kelf)<0) {
-    scr_printf("DIAG: EXECUTE.ELF MISSING/DIFFERENT\n");errors++;
+  sg_exec_probe kelf={0};
+  if(sg_probe_execute(execute_kelf,size_execute_kelf,&kelf)<0){
+    scr_printf("DIAG: EXECUTE.ELF PROBE INTERNAL ERROR\n");errors++;
+  } else if(kelf.status!=SG_EXEC_IDENTICAL) {
+    errors++;
+    if(kelf.status==SG_EXEC_MISSING)
+      scr_printf("DIAG: EXECUTE.ELF MISSING (DIR VERIFIED)\n");
+    else if(kelf.status==SG_EXEC_DIR_ERROR)
+      scr_printf("DIAG: EXECUTE.ELF DIRECTORY READ ERROR\n");
+    else if(kelf.status==SG_EXEC_OPEN_ERROR)
+      scr_printf("DIAG: EXECUTE.ELF FILE OPEN ERROR\n");
+    else if(kelf.status==SG_EXEC_READ_ERROR)
+      scr_printf("DIAG: EXECUTE.ELF FILE READ ERROR\n");
+    else if(kelf.status==SG_EXEC_SIZE_DIFF)
+      scr_printf("DIAG: EXECUTE.ELF SIZE MISMATCH\n");
+    else if(kelf.status==SG_EXEC_CRC_DIFF)
+      scr_printf("DIAG: EXECUTE.ELF CRC MISMATCH\n");
+    scr_printf("KELF EXPECT: SIZE=%lu CRC=%08lX\n",
+       (unsigned long)kelf.expected_size,(unsigned long)kelf.expected_crc);
+    if(kelf.actual_complete)
+      scr_printf("KELF ACTUAL: SIZE=%lu CRC=%08lX\n",
+         (unsigned long)kelf.actual_size,(unsigned long)kelf.actual_crc);
+    else if(kelf.status==SG_EXEC_READ_ERROR)
+      scr_printf("KELF READ: %lu bytes before failure\n",
+         (unsigned long)kelf.actual_size);
+    if(kelf.status==SG_EXEC_SIZE_DIFF||kelf.status==SG_EXEC_CRC_DIFF)
+      scr_printf("DIAG: OTHER KELF VERSION POSSIBLE; NOT PROOF OF DAMAGE\n");
   }
   if(file_matches("BOOT.CNF",boot)<0) {
     scr_printf(file_matches("BOOT.CNF",other)==0?
