@@ -2,7 +2,7 @@ name: PDIM Standalone XMB Game Installer (development)
 on:
   workflow_dispatch:
   push:
-    branches: [fix/xmb-v02-index-fallback]
+    branches: [feature/xmb-installer-v0.3-multiscan]
     paths:
       - 'pdim-xmb-game-installer/**'
       - '.github/workflows/build-pdim-xmb-game-installer.yml'
@@ -89,6 +89,11 @@ jobs:
           iso = Path('pdim-xmb-game-installer/src/iso_id.c').read_text()
           assert 'sg_check_iso_id(g)' in src
           assert 'sg_check_iso_id(g)' in xmb
+          assert 'sg_probe_iso_id' in iso and 'ISO_STREAM_LIMIT' in iso
+          assert '2352u,16u' in iso and '2352u,24u' in iso
+          assert 'sequential_read_at' in iso
+          assert 'COVERS.BAK' in src and 'COVER_SCAN.LOG' in src
+          assert 'sg_resolve_selected' in src
           assert 'desr_iso_root(' in iso and 'desr_cnf_game_id(' in iso
           assert 'conflict[i]=conflict[j]=1' in src
           assert 'sg_iso_filename_allowed(g->filename)' in src
@@ -114,7 +119,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: PDIM-XMB-GAME-INSTALLER-v0.2.1-KILLZONE-INDEX-FALLBACK
+          name: PDIM-XMB-GAME-INSTALLER-v0.3-MULTISCAN-TEST
           path: out/PDIM_XMB_GAME_INSTALLER.ELF
           if-no-files-found: error
           retention-days: 21

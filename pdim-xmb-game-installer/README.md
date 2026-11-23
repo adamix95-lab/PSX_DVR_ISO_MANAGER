@@ -1,8 +1,8 @@
-# PDIM XMB GAME INSTALLER 0.2.1 — standalone ELF
+# PDIM XMB GAME INSTALLER 0.3 — multi-method DVR ISO scan
 
 **Hardware baseline:** installer **0.1 HARDWARE PASS** on Sony PSX DESR-7000. The user successfully installed and launched **Killzone** from XMB. The earlier manual ICO XMB shortcut also worked.
 
-**Version 0.2 is a separate untested security-hardening build.** Test its read-only menu/SQUARE preflight before using its X or TRIANGLE write actions. Never use either write action without a full, verified, recoverable sector-level HDD backup.
+**Version 0.3 is a separate untested multi-method scanner build.** Test its read-only menu/SQUARE preflight before using its X or TRIANGLE write actions. Never use either write action without a full, verified, recoverable sector-level HDD backup.
 
 **Baseline kept intact:** [v0.1 code](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/xmb-game-shortcuts/pdim-xmb-game-installer). [Official PDIM 1.2](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/releases/tag/1.2) is unchanged.
 
@@ -15,6 +15,29 @@ Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the alre
 - Shared `PP.DVRISO` Neutrino FIX95 and `config/modules` **read-only**.
 - `PSXCOV1` cover index and PNG images already downloaded by PDIM 1.2 HTTPS, converted on-console to PNG8 XMB jackets in 140x200 and 74x108 sizes.
 - `pdim12_ppaa_plan` for the three 512-byte PPAA attribute sectors. Each selected game's partition must be new and matched by immutable identity before PPAA writes.
+
+### Stage 0.3: Sony DVR ISO multi-method scanner
+
+The game library directory is unchanged: `dvr_pfs0:/ISO/` is the Sony DVR `xcontent/ISO` view. The `pfs1:/` mount is **only** the existing `PP.DVRISO` application partition, never the ISO storage.
+
+**Exact Game ID lookup precedence:**
+1. `PP.DVRISO/COVERS.IDX`: verified exact ISO filename to Game ID mapping; then confirm local PNG cover exists.
+2. If absent, `COVERS.BAK` using the same PSXCOV1 parser.
+3. If still absent, `COVER_SCAN.LOG` using the PDIM PSXCOVSCAN1 parser, only for recognized status labels and valid Game IDs.
+4. Only when a selected game lacks all cached IDs, **SQUARE** attempts a live ISO scan to recover the ID. This avoids reading hundreds of large ISOs at menu startup.
+
+**Live ISO methods:** standard ISO9660 (2048-byte sectors), raw 2352-byte sectors with +16 Mode1 or +24 Mode2 user-data offsets; parse `SYSTEM.CNF` and its `BOOT2` field, otherwise accept only one unambiguous root executable ID. All validation uses the existing PDIM `cover_index.c` helpers. A failing `fileXioLseek` triggers a fresh open and bounded sequential reads (maximum 8 MiB), including the case where seek *appears* to succeed but data reads fail.
+
+**Read-only SQUARE diagnostics:**
+- `PASS (1)`: existing matching shortcut and an ISO Game ID match;
+- `PASS (2)`: existing shortcut verified, ISO ID not detectable, uses PDIM index;
+- `PASS (3)`: new target, ISO ID not detectable, PNG validated, uses PDIM index;
+- `PASS (4)`: existing shortcut verified, DVR random read unsupported, uses PDIM index;
+- `PASS (5)`: new target, DVR random read unsupported, uses PDIM index.
+- `FAIL -62`: selected ISO **cannot be opened** or an ISO-only Game ID cannot be rechecked.
+- `FAIL -63`: a *positively detected different* ISO ID than the saved mapping.
+
+Never invent a Game ID from a human ISO filename or a random PNG filename. An unsupported DVR seek or sector read is **not equivalent to a missing game file**; original v0.1 launched Killzone and many other games with the cached mapping. A game whose ID is recovered only from a live ISO must remain repeatably identifiable before write operations.
 
 ### Fix 0.2.1: PDIM COVERS.IDX fallback (Killzone regression)
 

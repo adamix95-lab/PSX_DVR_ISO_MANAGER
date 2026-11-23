@@ -1,8 +1,8 @@
-# PDIM XMB GAME INSTALLER 0.2.1 — samodzielny instalator ELF
+# PDIM XMB GAME INSTALLER 0.3 — wielometodowy skaner ISO
 
 **Punkt odniesienia: v0.1 HARDWARE PASS.** Na Sony PSX DESR-7000 użytkownik utworzył skrót Killzone, a gra uruchomiła się z XMB. Wcześniej ręczny skrót ICO też działał.
 
-**Wersja 0.2 nie była jeszcze testowana na konsoli.** Bazuje na sprawdzonym v0.1, ale ma dodatkowe kontrole bezpieczeństwa. [Kod wersji v0.1](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/xmb-game-shortcuts/pdim-xmb-game-installer).
+**Wersja 0.3 nie była jeszcze testowana na konsoli.** Bazuje na sprawdzonym v0.1, ale ma dodatkowe kontrole bezpieczeństwa. [Kod wersji v0.1](https://github.com/adamix95-lab/PSX_DVR_ISO_MANAGER/tree/feature/xmb-game-shortcuts/pdim-xmb-game-installer).
 
 ## Jak działa?
 
@@ -20,6 +20,33 @@ Po wybraniu gry przygotowuje nową partycję APA/PFS `PP.<TYTUŁ>-<GAMEID>` (128
 - **O**: wyjście
 
 X i TRIANGLE mają dwa etapy potwierdzania. Ostatecznie wymagają **przytrzymania L1+R1 i naciśnięcia X**.
+
+## NOWOŚĆ 0.3: ID gier rozpoznawane kilkoma sposobami
+
+**Katalog gier jest ten sam:** `xcontent/ISO` na Sony DVR odpowiada naszemu `dvr_pfs0:/ISO/`. `pfs1:/` wskazuje na **PP.DVRISO**, gdzie są PDIM, ART i Neutrino. Nie tworzymy dodatkowego katalogu ISO i nie przenosimy obrazów.
+
+**Kolejność rozpoznawania Game ID:**
+
+1. Dokładna nazwa ISO w `PP.DVRISO/COVERS.IDX` (sprawdzone na konsoli).
+2. `PP.DVRISO/COVERS.BAK`, jeżeli główny indeks nie zawiera gry.
+3. `PP.DVRISO/COVER_SCAN.LOG`, jeżeli nie ma jej w obu indeksach.
+4. Jeżeli nie mamy ID, **SQUARE** próbuje odczytać je z aktualnego ISO.
+
+Skaner ISO obsługuje **2048-bajtowe ISO9660**, **2352-bajtowe sektory Mode1/Mode2**, szuka `SYSTEM.CNF` i `BOOT2` albo jednoznacznego identyfikatora w nazwie pliku wykonywalnego. Wszystko wykorzystuje sprawdzone funkcje rozpoznawania ID z PDIM. Jeśli odczyt losowego sektora nie działa, próbuje ograniczonego **odczytu sekwencyjnego** bez `fileXioLseek`.
+
+**Wyniki SQUARE:**
+
+- `PASS (1)` — istniejący skrót i ID potwierdzone w ISO.
+- `PASS (2)` — istniejący skrót, ID z indeksu, brak ID wewnątrz ISO.
+- `PASS (3)` — nowa partycja może być przygotowana, ID z indeksu.
+- `PASS (4)` — istniejący skrót, odczyt sektorów DVR niedostępny, zaufano indeksowi.
+- `PASS (5)` — nowy skrót, odczyt sektorów DVR niedostępny, zaufano indeksowi.
+- `FAIL -62` — obraz ISO nie daje się nawet otworzyć albo ID znalezione tylko w ISO nie może być ponownie potwierdzone.
+- `FAIL -63` — wykryto inne Game ID niż w indeksie.
+
+To **naprawa ogólna, nie wyjątek dla Killzone lub BLACK**. Istniejące gry, okładki i skróty pozostają nietknięte. W przypadku braku ID nadal nie zgadujemy go z nazwy pliku.
+
+**Wersja 0.3 ma na razie tylko testy komputerowe. Przetestuj SQUARE na Killzone, BLACK i kilku innych grach przed korzystaniem z zapisu X lub TRIANGLE.**
 
 ## Poprawka 0.2.1 — Killzone i zapasowe rozpoznawanie ID
 
