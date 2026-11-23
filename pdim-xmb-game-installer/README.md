@@ -1,4 +1,4 @@
-# PDIM XMB GAME INSTALLER 0.3 — multi-method DVR ISO scan
+# PDIM XMB GAME INSTALLER 0.3.2 — detailed XMB KELF diagnostics
 
 **Hardware baseline:** installer **0.1 HARDWARE PASS** on Sony PSX DESR-7000. The user successfully installed and launched **Killzone** from XMB. The earlier manual ICO XMB shortcut also worked.
 
@@ -15,6 +15,12 @@ Builds a **separate PlayStation 2 ELF**. It scans `dvr_pfs0:/ISO/` with the alre
 - Shared `PP.DVRISO` Neutrino FIX95 and `config/modules` **read-only**.
 - `PSXCOV1` cover index and PNG images already downloaded by PDIM 1.2 HTTPS, converted on-console to PNG8 XMB jackets in 140x200 and 74x108 sizes.
 - `pdim12_ppaa_plan` for the three 512-byte PPAA attribute sectors. Each selected game's partition must be new and matched by immutable identity before PPAA writes.
+
+### Stage 0.3.2: detailed, read-only EXECUTE.ELF integrity
+
+Physical Killzone observation: launching from Sony XMB works, but v0.3.1 SQUARE reports `DIAG: EXECUTE.ELF MISSING/DIFFERENT`. This proves an exact-byte fingerprint mismatch or unreadability, **not** that the installed KELF is broken.
+
+The updated SQUARE-only diagnostic differentiates directory enumeration errors, a genuinely missing file, file open/read errors, size mismatches, and CRC-32 mismatches. It prints both reference and actual size/CRC, using a bounded 16 MiB read-only scan. A different KELF revision may still be functional. **XMB registration continues to require strict byte-for-byte matching**, and this tool does not validate a KELF cryptographic signature. No automatic replacement, repair, or partition writes are performed by SQUARE.
 
 ### Stage 0.3: Sony DVR ISO multi-method scanner
 

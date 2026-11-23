@@ -1,4 +1,4 @@
-# PDIM XMB GAME INSTALLER 0.3.1 — diagnostyka skrótów
+# PDIM XMB GAME INSTALLER 0.3.2 — szczegółowa diagnostyka EXECUTE.ELF
 
 **Punkt odniesienia: v0.1 HARDWARE PASS.** Na Sony PSX DESR-7000 użytkownik utworzył skrót Killzone, a gra uruchomiła się z XMB. Wcześniej ręczny skrót ICO też działał.
 
@@ -20,6 +20,23 @@ Po wybraniu gry przygotowuje nową partycję APA/PFS `PP.<TYTUŁ>-<GAMEID>` (128
 - **O**: wyjście
 
 X i TRIANGLE mają dwa etapy potwierdzania. Ostatecznie wymagają **przytrzymania L1+R1 i naciśnięcia X**.
+
+## Poprawka 0.3.2 — dokładna diagnostyka podpisanego KELF
+
+**Wynik na sprzęcie:** Skrót Killzone otwiera grę z XMB, a SQUARE w 0.3.1 raportuje `DIAG: EXECUTE.ELF MISSING/DIFFERENT` i `FAIL -61`. Sam wynik porównania bajtów nie oznacza jeszcze, że instalowany wcześniej, podpisany KELF jest niesprawny.
+
+Nowa diagnostyka uruchamiana **wyłącznie przez SQUARE** rozróżnia:
+
+- `EXECUTE.ELF MISSING (DIR VERIFIED)` — katalog odczytano do końca, a pliku nie znaleziono;
+- `DIRECTORY READ ERROR`, `FILE OPEN ERROR`, `FILE READ ERROR` — problemy z odczytem, nie udajemy że plik nie istnieje;
+- `SIZE MISMATCH` — rozmiar pliku jest inny niż wzorca z oficjalnego wydania 1.2;
+- `CRC MISMATCH` — rozmiar jest taki sam, ale zawartość jest inna.
+
+Ekran drukuje `KELF EXPECT: SIZE=... CRC=...` i przy udanym odczycie `KELF ACTUAL: SIZE=... CRC=...`. To pozwoli porównać wersje bez kopiowania pliku na USB, bez formatu i bez modyfikacji APA/PFS.
+
+**Celowo pozostawiono surową kontrolę identyczności `EXECUTE.ELF` w funkcji instalacyjnej `sg_verify_mounted()`.** Inny, potencjalnie działający KELF nadal powoduje `FAIL -61` przy rygorystycznym porównaniu, ale SQUARE jasno opisze go jako możliwy inny wariant KELF, a nie dowiedzione uszkodzenie. Nie oznacza to automatycznego potwierdzenia jego podpisu ani zgodności na innych konsolach.
+
+Testy komputerowe weryfikują wszystkie przypadki, także częściowe odczyty. **0.3.2 nie została jeszcze przetestowana na konsoli. Testuj na Killzone tylko SQUARE.**
 
 ## Poprawka 0.3.1 — diagnostyka istniejących skrótów (Killzone -61)
 
