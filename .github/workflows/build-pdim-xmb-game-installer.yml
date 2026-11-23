@@ -15,7 +15,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - run: apk add --no-cache make build-base python3 curl unzip file coreutils
+      # ps2homebrew already includes Python 3; reinstalling it can clash with
+      # Alpine's python3-ndbm package revision during index updates.
+      - run: apk add --no-cache make build-base curl unzip file coreutils && python3 --version
       - uses: actions/checkout@v4
         with:
           repository: DanielFergisz/RepairBox-PSX-XMB-Apps-Installer
